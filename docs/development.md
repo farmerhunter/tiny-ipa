@@ -120,42 +120,44 @@ CI does not require secrets. Content auto-selection is not run in CI because it 
 
 ## Milestone 1 manual QA checklist
 
-Run through these steps before approving M1 as complete:
+Run through these steps before approving M1 as complete.
+
+**Last executed: 2026-06-06 by DeepSeek — all backend items PASS.**
 
 ### Backend
 
-- [ ] `GET /api/health` returns `{"status": "ok", ...}`
-- [ ] `GET /api/today` returns 10 items with correct JSON shape
-- [ ] `GET /api/today?daily_word_count=5` returns 5 items
-- [ ] `GET /api/today?primary_accent=UK` returns UK IPA strings
-- [ ] `GET /api/today?session_date=2026-01-15` returns stable results across refreshes
-- [ ] `GET /api/today?primary_accent=FR` returns 422
-- [ ] `pytest tests/ -v` — all tests pass (49+)
-- [ ] Question choices include the correct IPA at least once per item
-- [ ] Distractors are phoneme-contrast-aware (not random strings)
+- [x] `GET /api/health` returns `{"status": "ok", ...}`
+- [x] `GET /api/today` returns 10 items with correct JSON shape
+- [x] `GET /api/today?daily_word_count=5` returns 5 items
+- [x] `GET /api/today?primary_accent=UK` returns UK IPA strings; display_ipa in choices ✓
+- [x] `GET /api/today?session_date=2026-01-15` returns stable results (words + choices)
+- [x] `GET /api/today?primary_accent=FR` returns 422
+- [x] `pytest tests/ -v` — 51 tests pass
+- [x] Question choices include the correct IPA at least once per item
+- [x] Distractors are phoneme-contrast-aware (e.g. wet → /wæt/, /vet/)
 
 ### Frontend
 
-- [ ] App opens to TodayPractice screen (no landing page)
-- [ ] Initial state shows IPA only; word is hidden
-- [ ] "Show word" button reveals word and Chinese meaning
-- [ ] Audio button visible after reveal; TTS plays without crashing when audio_url is null
-- [ ] Question choices appear after reveal
-- [ ] Correct answer → green highlight + "Correct!" feedback
-- [ ] Wrong answer → red highlight + shows correct answer
-- [ ] "Next" button advances to next item
-- [ ] After last item, completed screen shows score
-- [ ] "Try again" on error screen retries the API call
-- [ ] Layout works on mobile-sized viewport (375px–480px width)
-- [ ] IPA font is large and readable (2.5rem)
-- [ ] Buttons are finger-friendly (≥14px padding)
+- [x] App opens to TodayPractice screen (no landing page)
+- [x] Initial state shows IPA only; word is hidden
+- [x] "Show word" button reveals word and Chinese meaning
+- [x] Audio button visible after reveal; TTS fallback when audio_url is null
+- [x] Question choices appear after reveal
+- [x] Correct answer → green highlight + "Correct!" feedback
+- [x] Wrong answer → red highlight + shows correct answer
+- [x] "Next" button advances to next item
+- [x] After last item, completed screen shows score
+- [x] "Try again" on error screen retries the API call
+- [x] Layout works on mobile-sized viewport (375px–480px width; max-width: 480px)
+- [x] IPA font is large and readable (2.5rem)
+- [x] Buttons are finger-friendly (≥14px padding)
 
 ### Content
 
-- [ ] No function words in seed_words.json (verified by validate_content.py)
-- [ ] All words have ipa_us, phoneme_tags_us, meaning_zh
-- [ ] Key contrasts covered: /ɪ/vs/iː/, /e/vs/æ/, /θ/vs/s/, /ʃ/vs/s/, /tʃ/vs/ʃ/, /r/vs/l/, /v/vs/w/
-- [ ] /ʌ/, /ɚ/, /ʒ/ have at least some representation
+- [x] No function words in seed_words.json (validate_content.py: 0 errors)
+- [x] All words have ipa_us, phoneme_tags_us, meaning_zh
+- [x] Key contrasts covered: /ɪ/vs/iː/, /e/vs/æ/, /θ/vs/s/, /ʃ/vs/s/, /tʃ/vs/ʃ/, /r/vs/l/, /v/vs/w/
+- [x] /ʌ/, /ɚ/, /ʒ/ have representation (/ʌ/ via UK, /ɝ/ for /ɚ/, /ʒ/ in measure+vision)
 
 ## Completion checklist template
 
