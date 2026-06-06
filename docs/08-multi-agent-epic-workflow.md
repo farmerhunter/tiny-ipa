@@ -102,6 +102,71 @@ Architect:   In Review -> Done after merge and issue closure
 
 Do not start work from `Backlog` unless the user explicitly overrides the workflow.
 
+## Handoff Labels
+
+Project status is optimized for human planning. Handoff labels are the machine-readable signal that tells an agent what to pick up next.
+
+Use exactly one primary next-action label on an active issue or PR unless the work is genuinely blocked:
+
+```text
+needs:architect   Architect should plan, review, merge, or make a readiness decision
+needs:implementer Implementer should code, fix, verify, or update a PR
+needs:user        User decision or clarification is required
+needs:ci          Waiting for CI or automated checks
+needs:merge       Reviewed and ready to merge
+blocked           Blocked; latest comment must explain why
+```
+
+Recommended transitions:
+
+```text
+Backlog task selected by Architect:
+  add needs:implementer
+  move Project status to Ready
+
+Implementer starts task:
+  remove needs:implementer
+  move Project status to In progress
+
+Implementer opens PR:
+  add needs:architect
+  move issue/PR to In Review
+
+Architect requests changes:
+  remove needs:architect
+  add needs:implementer
+
+Architect approves and CI is green:
+  remove needs:architect
+  add needs:merge
+
+Merged and closed:
+  remove needs:* labels
+  move Project status to Done
+
+Blocked:
+  add blocked plus needs:user or needs:architect
+  post a comment with the blocker and the exact next decision needed
+```
+
+Agent pickup commands:
+
+```bash
+# Architect inbox
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:architect
+
+# Implementer inbox
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:implementer
+
+# User-decision queue
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:user
+
+# Merge queue
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:merge
+```
+
+When changing handoff ownership, always add a short comment that states what changed and what the next agent should do. The label is the routing signal; the comment is the context.
+
 ## Comment Routing
 
 Route durable coordination through GitHub:
@@ -169,3 +234,17 @@ An Epic can close only when:
 - the Architect posts a final readiness comment
 
 The readiness comment should state whether downstream Epics may move from `Backlog` to `Ready`.
+
+## GitHub CLI Notes
+
+Prefer labels for agent pickup because they are fast, portable, and supported by `gh issue list`. GitHub Project v2 fields are still useful as the visual board, but Project item updates require Project item IDs, field IDs, and option IDs, which makes automation slower and more brittle.
+
+Observed limitations and mitigations:
+
+- Project status and issue state are separate. Moving a card to `Done` does not close the issue, and closing an issue does not always update every Project field as expected. Agents should update both when finishing work.
+- Parent/child issue relationships are not fully covered by simple `gh issue edit` commands. Use GitHub's sub-issues REST API or the web UI when creating Epic child links.
+- Project v2 status cannot be queried as simply as issue labels through `gh issue list`. Use `needs:*` labels as the reliable automation entry point.
+- Network operations can intermittently fail on HTTP/2 or TLS framing. Retry `gh` commands, and use `GIT_HTTP_VERSION=HTTP/1.1 git fetch` or `git push` if Git transport flakes.
+- Issue deletion is available through `gh issue delete --yes`, but deletion should remain rare; prefer closing obsolete planning issues unless a workflow migration creates clearly invalid duplicates.
+
+The current GitHub auth scopes are sufficient for repo, issue, PR, workflow, and Project operations. More auth is not needed unless a future automation needs organization-level administration, secrets management, or cross-repository bulk changes.

@@ -17,6 +17,26 @@ type:task
 
 Read `docs/08-multi-agent-epic-workflow.md` before coordinating multi-agent work.
 
+## Finding agent work
+
+Use `needs:*` labels as the cross-agent handoff inbox. Project status remains the visual board, but labels are the reliable CLI lookup mechanism.
+
+```bash
+# Architect: planning, review, merge, readiness
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:architect
+
+# Implementer: coding, fixes, verification
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:implementer
+
+# User decision needed
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:user
+
+# Ready to merge
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:merge
+```
+
+When handing work to another role, update the label and add a short issue or PR comment explaining the next action.
+
 ## Issue-driven execution
 
 Each meaningful code change links to a child issue. Child issues are the source of truth for local scope, constraints, and acceptance criteria. Epic issues are the source of truth for cross-issue QA, readiness, and workflow closure.
@@ -80,6 +100,17 @@ Backlog -> Ready -> In progress -> In Review -> Done
 ```
 
 Architect moves work from `Backlog` to `Ready`. Implementer moves claimed work to `In progress` and then `In Review` once the PR is open. Architect moves it to `Done` only after merge, issue closure, and required verification.
+
+Handoff labels must match the current owner of the next action:
+
+```text
+needs:implementer -> implementer should pick up or fix
+needs:architect   -> architect should review, merge, or decide readiness
+needs:user        -> user decision is needed
+needs:ci          -> checks are still running
+needs:merge       -> reviewed and ready to merge
+blocked           -> latest comment explains the blocker
+```
 
 ## Local development
 
