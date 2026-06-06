@@ -5,6 +5,7 @@ Distractors are built by substituting phonemes that Chinese learners
 commonly confuse, rather than random IPA strings.
 """
 
+import hashlib
 import re
 from typing import List
 
@@ -69,33 +70,47 @@ def _apply_confusion(raw_ipa: str, phoneme_tags: List[str]) -> List[str]:
     return list(distractors)
 
 
-def generate_choose_ipa_question(word: dict) -> dict:
+def generate_choose_ipa_question(word: dict, primary_accent: str = "US") -> dict:
     """
     Generate a choose-IPA question for a given word.
+
+    Args:
+        word: word entry dict.
+        primary_accent: "US" or "UK" — determines which IPA and phoneme tags
+            are used for distractor generation.
 
     Returns a question dict with:
     - type: "choose_ipa"
     - prompt: question text
     - choices: list of 3 IPA strings (correct + 2 distractors)
-    - correct: the correct IPA for server-side grading
+      in deterministic order based on word_id.
     """
-    ipa_us = word.get("ipa_us", "")
-    phoneme_tags = word.get("phoneme_tags_us", [])
+    accent_key = primary_accent.lower()
+    ipa_field = f"ipa_{accent_key}"
+    tags_field = f"phoneme_tags_{accent_key}"
 
-    raw_ipa = _strip_slashes_and_stress(ipa_us)
+    ipa = word.get(ipa_field, "")
+    # Fall back to US if the accent-specific IPA is missing
+    if not ipa:
+        ipa = word.get("ipa_us", "")
+    phoneme_tags = word.get(tags_field, [])
+    if not phoneme_tags:
+        phoneme_tags = word.get("phoneme_tags_us", [])
+
+    raw_ipa = _strip_slashes_and_stress(ipa)
     correct_ipa = f"/{raw_ipa}/"
 
     distractors = _apply_confusion(raw_ipa, phoneme_tags)
 
-    # If we don't have enough distractors, generate fallbacks by
-    # using UK IPA if it differs, or vowel length swapping
+    # If we don't have enough distractors, use the other accent's IPA
     if len(distractors) < 2:
-        ipa_uk = word.get("ipa_uk", "")
-        if ipa_uk:
-            uk_raw = _strip_slashes_and_stress(ipa_uk)
-            uk_ipa = f"/{uk_raw}/"
-            if uk_ipa != correct_ipa:
-                distractors.append(uk_ipa)
+        other_accent = "uk" if accent_key == "us" else "us"
+        other_ipa = word.get(f"ipa_{other_accent}", "")
+        if other_ipa:
+            other_raw = _strip_slashes_and_stress(other_ipa)
+            other_ipa_str = f"/{other_raw}/"
+            if other_ipa_str != correct_ipa and other_ipa_str not in distractors:
+                distractors.append(other_ipa_str)
 
     # Fallback: common vowel length alternations
     if len(distractors) < 2:
@@ -113,24 +128,28 @@ def generate_choose_ipa_question(word: dict) -> dict:
                 if fb != correct_ipa and fb not in distractors:
                     distractors.append(fb)
 
-    # Take up to 2 distractors
-    chosen = list(distractors)[:2]
+    # Take up to 2 distractors, sorted deterministically for stability
+    chosen = sorted(list(distractors))[:2]
 
     # Pad with a same-length fallback if still short
     while len(chosen) < 2:
-        # Generate a simple substitution
         fallback = raw_ipa.replace("ɪ", "i").replace("æ", "e").replace("ʊ", "u")
         fb_ipa = f"/{fallback}/"
         if fb_ipa != correct_ipa and fb_ipa not in chosen:
             chosen.append(fb_ipa)
         else:
             chosen.append(f"/{raw_ipa}x/")
-        break  # only one fallback needed
+        break
 
-    # Build choices: correct answer at random position
-    import random
+    # Build choices in deterministic order based on word_id hash
+    word_id = word.get("word_id", "")
+    seed = int(hashlib.sha256(word_id.encode()).hexdigest()[:8], 16)
     choices = [correct_ipa] + chosen[:2]
-    random.shuffle(choices)
+    # Stable sort: use the seed to determine position
+    # Sort choices lexicographically, then rotate based on seed
+    choices.sort()
+    rotate = seed % len(choices)
+    choices = choices[rotate:] + choices[:rotate]
 
     return {
         "type": "choose_ipa",

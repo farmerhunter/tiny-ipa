@@ -33,7 +33,7 @@ def get_today(
 
     items = []
     for i, word in enumerate(daily):
-        question = generate_choose_ipa_question(word)
+        question = generate_choose_ipa_question(word, primary_accent)
 
         # Strip stress marks from display IPA for beginner readability
         raw_ipa = word[f"ipa_{primary_accent.lower()}"]

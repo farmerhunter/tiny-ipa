@@ -99,6 +99,27 @@ class TestTodayEndpoint:
             # All seed words are core_selected, none are disabled
             assert item["word_id"] is not None
 
+    def test_uk_choices_include_display_ipa(self):
+        """When primary_accent=UK, question choices must include the UK display_ipa."""
+        r = client.get("/api/today?primary_accent=UK&daily_word_count=5")
+        for item in r.json()["items"]:
+            display = item["display_ipa"]
+            choices = item["question"]["choices"]
+            assert display in choices, (
+                f"UK display_ipa '{display}' not in choices {choices} "
+                f"for word '{item['word']}'"
+            )
+
+    def test_choices_deterministic(self):
+        """Choices must be in the same order on repeated requests for the same date."""
+        r1 = client.get("/api/today?session_date=2026-03-15&daily_word_count=5")
+        r2 = client.get("/api/today?session_date=2026-03-15&daily_word_count=5")
+        for i1, i2 in zip(r1.json()["items"], r2.json()["items"]):
+            assert i1["question"]["choices"] == i2["question"]["choices"], (
+                f"Choices differ for word '{i1['word']}': "
+                f"{i1['question']['choices']} vs {i2['question']['choices']}"
+            )
+
     def test_invalid_accent_rejected(self):
         r = client.get("/api/today?primary_accent=FR")
         assert r.status_code == 422
