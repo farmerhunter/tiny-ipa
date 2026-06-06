@@ -15,10 +15,200 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
   color: #1a1a1a;
-  background: #fff;
+  background: #fafafa;
 }
 
-button {
+/* ---- App shell ---- */
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+.app-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 24px;
+  color: #333;
+}
+
+/* ---- IPA Card ---- */
+
+.ipa-card {
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.ipa-display {
+  font-size: 2.5rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: #1a1a1a;
+  min-height: 3.5rem;
+  line-height: 1.3;
+  word-break: break-all;
+}
+
+.ipa-revealed {
+  margin-top: 12px;
+}
+
+.ipa-word {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.ipa-meaning {
+  font-size: 1.1rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* ---- Buttons ---- */
+
+.btn {
+  display: inline-block;
   font: inherit;
+  font-size: 1rem;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-reveal {
+  margin-top: 20px;
+  width: 100%;
+  max-width: 280px;
+  font-size: 1.1rem;
+  padding: 14px 20px;
+}
+
+.btn-audio {
+  display: block;
+  margin: 8px auto 20px;
+  background: #f0f0f0;
+  color: #333;
+  font-weight: 500;
+}
+
+.btn-next {
+  display: block;
+  margin: 20px auto 0;
+  width: 100%;
+  max-width: 280px;
+}
+
+/* ---- Choice question ---- */
+
+.choice-question {
+  margin-top: 16px;
+}
+
+.question-prompt {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.choice-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.btn-choice {
+  background: #fff;
+  border: 2px solid #ddd;
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.btn-correct {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.btn-wrong {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.btn-dimmed {
+  opacity: 0.45;
+}
+
+/* ---- Feedback ---- */
+
+.feedback {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.feedback-correct {
+  color: #16a34a;
+}
+
+.feedback-wrong {
+  color: #dc2626;
+}
+
+/* ---- Progress bar ---- */
+
+.progress-bar {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+/* ---- State messages ---- */
+
+.state-message {
+  text-align: center;
+  padding: 40px 16px;
+  font-size: 1.05rem;
+  color: #555;
+}
+
+.state-error {
+  color: #dc2626;
+}
+
+.state-completed h2 {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+  color: #16a34a;
+}
+
+/* ---- Today practice container ---- */
+
+.today-practice {
+  /* mobile-first: no extra wrapper styling needed */
 }
