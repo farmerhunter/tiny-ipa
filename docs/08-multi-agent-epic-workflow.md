@@ -95,6 +95,15 @@ Base:   main
 
 Milestone-sized PRs are not the default. They are allowed only when the child issues are tightly coupled, the PR body maps every child issue to completed scope, and review remains tractable.
 
+Stacked PRs are allowed when dependencies are real, but merging a stacked PR merges it into its base branch, not necessarily into `main`. Before closing issues or an Epic, verify that every required commit is reachable from `origin/main`. If stacked PRs were reviewed against non-main bases, use one of these release paths:
+
+```text
+Option A: retarget each PR to main after its lower dependency lands, then merge in order
+Option B: open a final integration PR from the top stack branch to main
+```
+
+Do not treat a stacked PR as complete merely because GitHub shows it as merged; check the merge destination.
+
 ## Project Status Flow
 
 Use the Kanban status as shared state:
@@ -199,6 +208,50 @@ gh issue list -R farmerhunter/tiny-ipa --state open --label needs:merge
 When changing handoff ownership, always add a short comment that states what changed and what the next agent should do. The label is the routing signal; the comment is the context.
 
 When marking an Epic's child issues ready, leave a comment on the Epic that points Implementers to the child issues, but do not label the Epic `needs:implementer`.
+
+### Review Handoff Contract
+
+When the Architect sends a task back from review, the handoff must be visible from both the child issue and the linked PR. Agents may scan either surface first, so single-channel feedback is not reliable.
+
+Required actions:
+
+```text
+1. Post detailed code/API feedback on the PR.
+2. Post a short handoff comment on the linked child issue.
+3. If the reason for the handoff is not already the latest PR comment, post a short PR follow-up comment too.
+4. Replace needs:architect with needs:implementer on the child issue.
+5. Leave the Project status as In Review unless the task is explicitly reopened.
+```
+
+The issue comment must include:
+
+```markdown
+## Implementer handoff: changes requested
+
+This issue was moved back to `needs:implementer` after Architect review.
+
+Fix branch: `agent/<issue-number>-...`
+PR: #...
+Detailed review: <PR comment URL>
+
+Next action:
+- Checkout the fix branch.
+- Apply the requested fix from the PR review comment.
+- Add or adjust regression tests for the blocker.
+- Push the same branch and move this issue back to `needs:architect` when ready for re-review.
+```
+
+Do not rely on PR comments alone for a role handoff. Implementers discover work from issue labels first, so the issue must contain a durable pointer to the PR feedback.
+
+Do not rely on issue comments alone for a PR-specific or stacked-branch handoff. Implementers often inspect PR conversations when fixing an open PR, so the PR must also contain a short pointer to the latest action.
+
+Implementer re-review pickup command:
+
+```bash
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:implementer
+gh issue view <issue-number> -R farmerhunter/tiny-ipa --comments
+gh pr view <pr-number> -R farmerhunter/tiny-ipa --comments
+```
 
 ## Comment Routing
 
