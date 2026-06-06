@@ -138,9 +138,15 @@ def import_words(
         known_phonemes = load_phoneme_set(phonemes_path)
         words = load_words(source_path)
         val_report = validate_words(words, known_phonemes)
-        report["validation_errors"] = len(val_report["errors"])
+        # Unknown US phoneme tags are hard errors — reject the import.
+        if val_report["unknown_phoneme_tags_us"]:
+            for tag_entry in val_report["unknown_phoneme_tags_us"]:
+                report["errors"].append(tag_entry)
+        # Append other validation errors.
         if val_report["errors"]:
             report["errors"].extend(val_report["errors"])
+        report["validation_errors"] = len(report["errors"])
+        if report["errors"]:
             return report
         report["validation_passed"] = True
     else:
