@@ -18,6 +18,7 @@ dist/
 *.sqlite3
 audio/
 content/generated/
+content/sources/
 
 # Local env
 .env
