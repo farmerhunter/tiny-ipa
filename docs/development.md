@@ -46,7 +46,7 @@ gh issue view <issue-number> -R farmerhunter/tiny-ipa --comments
 gh pr view <pr-number> -R farmerhunter/tiny-ipa --comments
 ```
 
-Architect must not rely on PR comments alone when moving an issue back to `needs:implementer`. The issue comment should point to the PR review, name the fix branch, and summarize the blocker.
+Architect must not rely on only one comment surface when moving an issue back to `needs:implementer`. The issue comment should point to the PR review, name the fix branch, and summarize the blocker. The PR conversation should also include the latest handoff or a pointer to it, especially for stacked-branch refresh requests.
 
 ## Issue-driven execution
 
@@ -133,6 +133,7 @@ If Architect requests changes on a PR, the handoff is complete only after:
 
 - the PR has detailed review feedback
 - the child issue has a short `Implementer handoff` comment linking to that PR feedback
+- the PR also has the latest handoff or a short pointer to the issue handoff
 - the child issue is labeled `needs:implementer`
 
 Implementer fixes should be pushed to the existing issue branch, not a new branch, unless the Architect explicitly asks for a replacement branch.

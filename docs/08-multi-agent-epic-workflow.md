@@ -202,15 +202,16 @@ When marking an Epic's child issues ready, leave a comment on the Epic that poin
 
 ### Review Handoff Contract
 
-When the Architect sends a task back from review, the handoff must be visible from the child issue itself.
+When the Architect sends a task back from review, the handoff must be visible from both the child issue and the linked PR. Agents may scan either surface first, so single-channel feedback is not reliable.
 
 Required actions:
 
 ```text
 1. Post detailed code/API feedback on the PR.
 2. Post a short handoff comment on the linked child issue.
-3. Replace needs:architect with needs:implementer on the child issue.
-4. Leave the Project status as In Review unless the task is explicitly reopened.
+3. If the reason for the handoff is not already the latest PR comment, post a short PR follow-up comment too.
+4. Replace needs:architect with needs:implementer on the child issue.
+5. Leave the Project status as In Review unless the task is explicitly reopened.
 ```
 
 The issue comment must include:
@@ -232,6 +233,8 @@ Next action:
 ```
 
 Do not rely on PR comments alone for a role handoff. Implementers discover work from issue labels first, so the issue must contain a durable pointer to the PR feedback.
+
+Do not rely on issue comments alone for a PR-specific or stacked-branch handoff. Implementers often inspect PR conversations when fixing an open PR, so the PR must also contain a short pointer to the latest action.
 
 Implementer re-review pickup command:
 
