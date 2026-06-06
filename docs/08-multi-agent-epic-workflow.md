@@ -200,6 +200,47 @@ When changing handoff ownership, always add a short comment that states what cha
 
 When marking an Epic's child issues ready, leave a comment on the Epic that points Implementers to the child issues, but do not label the Epic `needs:implementer`.
 
+### Review Handoff Contract
+
+When the Architect sends a task back from review, the handoff must be visible from the child issue itself.
+
+Required actions:
+
+```text
+1. Post detailed code/API feedback on the PR.
+2. Post a short handoff comment on the linked child issue.
+3. Replace needs:architect with needs:implementer on the child issue.
+4. Leave the Project status as In Review unless the task is explicitly reopened.
+```
+
+The issue comment must include:
+
+```markdown
+## Implementer handoff: changes requested
+
+This issue was moved back to `needs:implementer` after Architect review.
+
+Fix branch: `agent/<issue-number>-...`
+PR: #...
+Detailed review: <PR comment URL>
+
+Next action:
+- Checkout the fix branch.
+- Apply the requested fix from the PR review comment.
+- Add or adjust regression tests for the blocker.
+- Push the same branch and move this issue back to `needs:architect` when ready for re-review.
+```
+
+Do not rely on PR comments alone for a role handoff. Implementers discover work from issue labels first, so the issue must contain a durable pointer to the PR feedback.
+
+Implementer re-review pickup command:
+
+```bash
+gh issue list -R farmerhunter/tiny-ipa --state open --label needs:implementer
+gh issue view <issue-number> -R farmerhunter/tiny-ipa --comments
+gh pr view <pr-number> -R farmerhunter/tiny-ipa --comments
+```
+
 ## Comment Routing
 
 Route durable coordination through GitHub:

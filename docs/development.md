@@ -39,6 +39,15 @@ When handing work to another role, update the label and add a short issue or PR 
 
 Do not put `needs:implementer` on an Epic. Implementers pick up child issues, not Epic containers. If an Epic-level concern requires execution, create a child task such as integration QA, cross-issue gap fixing, or final manual QA evidence.
 
+When an issue returns from Architect review, read both the issue handoff comment and the linked PR comment:
+
+```bash
+gh issue view <issue-number> -R farmerhunter/tiny-ipa --comments
+gh pr view <pr-number> -R farmerhunter/tiny-ipa --comments
+```
+
+Architect must not rely on PR comments alone when moving an issue back to `needs:implementer`. The issue comment should point to the PR review, name the fix branch, and summarize the blocker.
+
 ## Issue-driven execution
 
 Each meaningful code change links to a child issue. Child issues are the source of truth for local scope, constraints, and acceptance criteria. Epic issues are the source of truth for cross-issue QA, readiness, and workflow closure.
@@ -117,6 +126,16 @@ blocked           -> latest comment explains the blocker
 ```
 
 Allowed Epic handoff labels are `needs:architect`, `needs:user`, and `blocked`. `needs:implementer`, `needs:ci`, and `needs:merge` belong on child issues or PRs.
+
+### Review handoff
+
+If Architect requests changes on a PR, the handoff is complete only after:
+
+- the PR has detailed review feedback
+- the child issue has a short `Implementer handoff` comment linking to that PR feedback
+- the child issue is labeled `needs:implementer`
+
+Implementer fixes should be pushed to the existing issue branch, not a new branch, unless the Architect explicitly asks for a replacement branch.
 
 ## Local development
 
