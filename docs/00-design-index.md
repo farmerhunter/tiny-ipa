@@ -38,6 +38,11 @@
 8. [Multi-Agent Epic Workflow](08-multi-agent-epic-workflow.md)
    定义 Architect / Implementer 双 agent 协作、Epic/issue/branch/PR 粒度、评论路由和 merge 规则。
 
+## 工程随笔
+
+1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)
+   记录 Tiny IPA 开发中从双 agent 传话协作、GitHub Project Kanban、Milestone 到 Epic 的流程演化，以及它如何自然长成一个小型 agent 调度系统。
+
 ## 当前建议路线
 
 Tiny IPA 的推荐主线是：
