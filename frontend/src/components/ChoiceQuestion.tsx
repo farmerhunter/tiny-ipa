@@ -50,10 +50,9 @@ export function ChoiceQuestion({ item, onResult }: Props) {
         correctAnswer: result.correct_answer,
       });
     } catch (err: any) {
-      const detail = typeof err === "object" && err !== null
-        ? err.detail || err.error || "Unknown error"
-        : String(err);
-      setError(detail);
+      // submitAttempt normalises errors into Error with .message
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
     } finally {
       setSubmitting(false);
     }

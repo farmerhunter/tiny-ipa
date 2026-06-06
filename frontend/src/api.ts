@@ -79,11 +79,6 @@ export interface AttemptResponse {
   next_action: string;
 }
 
-export interface AttemptError {
-  error: string;
-  detail: string;
-}
-
 export async function submitAttempt(
   sessionItemId: string,
   selectedAnswer: string,
@@ -97,11 +92,24 @@ export async function submitAttempt(
     }),
   });
   if (!res.ok) {
-    const body: AttemptError = await res.json().catch(() => ({
-      error: "NETWORK_ERROR",
-      detail: `HTTP ${res.status}`,
-    }));
-    throw body;
+    // Normalise FastAPI structured errors into a user-friendly string.
+    let message = `Request failed (HTTP ${res.status})`;
+    try {
+      const body = await res.json();
+      // FastAPI wraps HTTPException detail at top-level "detail"
+      const inner = body.detail ?? body;
+      if (typeof inner === "object" && inner !== null) {
+        // Prefer {error, detail} shape → "ERROR_CODE: detail"
+        const code = inner.error ?? "";
+        const text = inner.detail ?? JSON.stringify(inner);
+        message = code ? `${code}: ${text}` : String(text);
+      } else if (typeof inner === "string") {
+        message = inner;
+      }
+    } catch {
+      // Fall through with the default message.
+    }
+    throw new Error(message);
   }
   return res.json();
 }
