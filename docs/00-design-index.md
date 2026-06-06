@@ -29,11 +29,14 @@
 5. [数据模型与 API 合同](05-data-api-contracts.md)
    定义 SQLite 表、源内容字段、API 返回摘要和服务端判题边界。
 
-6. [阶段计划与验收标准](06-milestones.md)
-   定义从可行性调研到 Core 300 的实施顺序，每阶段验收边界。
+6. [Epic Roadmap](06-epic-roadmap.md)
+   定义从可行性调研到 Core 300 及后续部署/UK 对照的 Epic 路线图和验收边界。
 
 7. [风险、反思与待验证问题](07-risks-reflection.md)
    记录容易遗漏、容易范围缩小或过度工程化的地方。
+
+8. [Multi-Agent Epic Workflow](08-multi-agent-epic-workflow.md)
+   定义 Architect / Implementer 双 agent 协作、Epic/issue/branch/PR 粒度、评论路由和 merge 规则。
 
 ## 当前建议路线
 

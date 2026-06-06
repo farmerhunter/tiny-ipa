@@ -1,0 +1,230 @@
+# Epic Roadmap
+
+Tiny IPA uses Epic issues as the primary planning and multi-agent coordination unit. The old milestone names are preserved below as roadmap labels, but GitHub Epic issues now carry cross-issue review, manual QA, and readiness decisions.
+
+## Current Epic Issues
+
+| Epic | GitHub Issue | Status |
+| --- | --- | --- |
+| M0 Feasibility and Architecture Skeleton | #20 | Done |
+| M1 Static Practice Loop | #21 | Done |
+| M2 SQLite Persistence and Server-side Grading | #22 | Backlog |
+| M3 Core 100 Audio and Static MP3 Playback | #23 | Backlog |
+| M4 Progress and Settings | #24 | Backlog |
+| M5 Phoneme-Driven Scheduling | #25 | Backlog |
+| M6 Core 300 Content and Coverage | #26 | Backlog |
+| M7 VPS Deployment and Backup | #27 | Backlog |
+| M8 UK Accent Compare and Specialty Practice | #28 | Backlog |
+
+## M0：Feasibility and Architecture Skeleton
+
+Goal: validate the automatic content pipeline and establish stable repo boundaries.
+
+Child issues:
+
+```text
+#1 content auto-selection feasibility spike
+#2 FastAPI / React / content skeleton
+#3 content schema, phoneme inventory, validation baseline
+#4 developer workflow and CI smoke checks
+```
+
+Acceptance:
+
+```text
+content candidates can be generated from open sources
+US/UK IPA and phoneme coverage reports exist
+frontend and backend skeletons run
+```
+
+## M1：Static Practice Loop
+
+Goal: prove the IPA-first practice experience with static content.
+
+Child issues:
+
+```text
+#5 static seed pack
+#6 static /api/today
+#7 TodayPractice UI
+#8 static-loop verification and QA checklist
+```
+
+Acceptance:
+
+```text
+mobile browser can complete 10 words
+word is hidden before reveal
+answer feedback works
+manual QA is recorded
+```
+
+## M2：SQLite Persistence and Server-side Grading
+
+Goal: make learning behavior persistent and aggregate progress by phoneme.
+
+Child issues:
+
+```text
+#10 SQLite data layer and content import pipeline
+#11 database-backed /api/today
+#12 POST /api/attempt and phoneme_stats
+#13 frontend attempt submission and refresh survival
+```
+
+Acceptance:
+
+```text
+refresh does not lose today's session
+attempts persist
+phoneme_stats updates correctly
+errors have stable codes
+Epic #22 records end-to-end persisted-flow QA
+```
+
+## M3：Core 100 Audio and Static MP3 Playback
+
+Goal: move from browser TTS placeholder to static audio assets for real early use.
+
+Child issues:
+
+```text
+#14 Core 100 audio-ready content set
+#15 generate_tts_audio.py for US static MP3 assets
+#16 audio metadata validation and /audio static serving in dev
+#17 frontend static audio_url playback with browser TTS fallback
+```
+
+Acceptance:
+
+```text
+Core 100 has ipa_us and phoneme_tags_us
+Core 100 has audio_us paths or explicit missing reasons
+static /audio/us/*.mp3 playback works
+browser TTS fallback still works
+Epic #23 records audio/manual QA
+```
+
+## M4：Progress and Settings
+
+Goal: form a complete personal learning loop.
+
+Expected child issue areas:
+
+```text
+/api/progress
+/api/settings GET/PUT
+Progress page
+Settings page
+daily_word_count behavior
+```
+
+Acceptance:
+
+```text
+learner can see today status, streak, weak phonemes, strong phonemes
+settings affect future practice generation
+primary_accent remains modeled even if UI stays US-first
+```
+
+## M5：Phoneme-Driven Scheduling
+
+Goal: shift practice from fixed/static selection to phoneme-aware review.
+
+Expected child issue areas:
+
+```text
+new/review ratio
+weak phoneme weighting
+avoid short-term repeats
+focus_phonemes
+scheduler tests
+```
+
+Acceptance:
+
+```text
+weak phonemes appear more often after repeated mistakes
+disabled words are never scheduled
+short-term repetition is controlled
+```
+
+## M6：Core 300 Content and Coverage
+
+Goal: cover a full stage of IPA learning with enough high-quality content.
+
+Expected child issue areas:
+
+```text
+Core 300 candidate/core set
+coverage report
+minimal_pair_group expansion
+meaning_zh first pass
+targeted gap review
+```
+
+Acceptance:
+
+```text
+major US phonemes meet coverage goals
+difficult learner contrasts have enough examples
+sources, licenses, and rejection reasons remain traceable
+```
+
+## M7：VPS Deployment and Backup
+
+Goal: make the app reachable on a real phone and maintainable on a personal VPS.
+
+Expected child issue areas:
+
+```text
+Nginx
+HTTPS
+systemd backend service
+frontend build deployment
+SQLite backup and restore
+deployment.md
+```
+
+Acceptance:
+
+```text
+domain works over HTTPS
+/api/health works
+/audio/ works
+service survives restart
+backup can restore learning data
+```
+
+## M8：UK Accent Compare and Specialty Practice
+
+Goal: open optional UK comparison and specialty practice without changing core boundaries.
+
+Expected child issue areas:
+
+```text
+UK reviewed subset
+show_accent_compare
+minimal pair practice
+target phoneme practice
+accent-specific stats checks
+```
+
+Acceptance:
+
+```text
+US and UK stats do not mix
+UK comparison appears only when enabled
+specialty practice reuses question/grading/progress boundaries
+```
+
+## Scope Control
+
+Each Epic should:
+
+```text
+open only the smallest user-verifiable capability slice
+preserve content source and API contracts
+avoid premature multi-tenant/provider/account machinery
+turn cross-issue findings into Epic comments or follow-up child issues
+```

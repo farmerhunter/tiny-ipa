@@ -47,7 +47,7 @@ Runtime Data
 
 ## SQLite 表
 
-MVP 到 Milestone 2 建议：
+MVP 到 Epic M2 建议：
 
 ```sql
 words(

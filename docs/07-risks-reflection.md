@@ -98,7 +98,7 @@ validate_content 检查音频资产
 | 自动选词质量不足 | Core 300 不可用 | 先做 disposable experiment，输出候选样本和覆盖报告 |
 | IPA 来源 license 不清 | 开源发布受限 | 记录 source/license，避免商业词典抓取 |
 | US/UK 统计混淆 | 后续对照功能返工 | 从第一版保存 accent-specific tags 和 stats |
-| 浏览器 TTS 不稳定 | 学习体验不一致 | Milestone 3 切到 VPS 预生成 mp3 |
+| 浏览器 TTS 不稳定 | 学习体验不一致 | Epic M3 切到 VPS 预生成 mp3 |
 | TTS 过早抽象 | MVP 变重 | 只保留构建脚本参数，provider registry 后置 |
 | 调度算法过早复杂 | 难以测试 | 先做错题复现，再做 weak phoneme weighting |
 | 内容脚本失败不可复现 | 后续维护困难 | 输出 content_report 和 rejection reasons |
