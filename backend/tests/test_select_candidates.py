@@ -130,3 +130,15 @@ class TestHardFilters:
     def test_low_frequency_rejected(self):
         reason, _, _ = apply_hard_filters("rareword", 1.5, ["/ˈɹɛɝwɝd/"], [], self.CONFIG)
         assert reason == "low_frequency"
+
+    def test_function_word_rejected(self):
+        reason, _, _ = apply_hard_filters("the", 7.5, ["/ðə/"], ["/ðə/"], self.CONFIG)
+        assert reason == "function_word"
+
+    def test_pronoun_rejected(self):
+        reason, _, _ = apply_hard_filters("she", 5.0, ["/ʃi/"], ["/ʃiː/"], self.CONFIG)
+        assert reason == "function_word"
+
+    def test_content_word_not_rejected_as_function(self):
+        reason, _, _ = apply_hard_filters("ship", 4.5, ["/ʃɪp/"], ["/ʃɪp/"], self.CONFIG)
+        assert reason is None  # "ship" is not a function word

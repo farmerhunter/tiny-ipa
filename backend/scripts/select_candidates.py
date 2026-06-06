@@ -283,6 +283,51 @@ def _is_likely_proper_noun(word: str, freq_zipf: float) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Built-in function word blocklist
+# ---------------------------------------------------------------------------
+
+# Common English function words that are poor candidates for phonetic training.
+# These words often have reduced/weak forms, behave irregularly, or don't
+# provide clear phoneme-contrast value for beginners.
+FUNCTION_WORDS = {
+    # Determiners
+    "the", "a", "an", "this", "that", "these", "those", "some", "any", "no",
+    "every", "each", "all", "both", "few", "many", "much", "such", "several",
+    # Prepositions
+    "in", "on", "at", "of", "to", "for", "with", "by", "from", "up", "out",
+    "off", "over", "under", "into", "onto", "upon", "than", "as", "like",
+    "through", "after", "before", "between", "during", "since", "until",
+    "without", "within", "along", "across", "behind", "beyond", "among",
+    "toward", "towards",
+    # Conjunctions
+    "and", "but", "or", "if", "so", "yet", "nor", "for", "while", "because",
+    "although", "though", "unless", "since", "until", "when", "where",
+    "whether",
+    # Auxiliary / modal verbs
+    "be", "am", "is", "are", "was", "were", "been", "being",
+    "have", "has", "had", "having",
+    "do", "does", "did", "doing",
+    "can", "could", "will", "would", "shall", "should", "may", "might", "must",
+    "get", "got", "go", "goes", "going", "went", "gone",
+    # Pronouns
+    "i", "me", "my", "mine", "myself",
+    "you", "your", "yours", "yourself", "yourselves",
+    "he", "him", "his", "himself",
+    "she", "her", "hers", "herself",
+    "it", "its", "itself",
+    "we", "us", "our", "ours", "ourselves",
+    "they", "them", "their", "theirs", "themselves",
+    "who", "whom", "whose", "what", "which", "whatever",
+    "anyone", "someone", "everyone", "nobody", "nothing",
+    # Other function particles
+    "not", "n't", "to", "too", "very", "just", "only", "also", "now",
+    "then", "here", "there", "well", "even", "still", "again", "already",
+    "quite", "rather", "really", "almost", "enough", "perhaps", "maybe",
+    "please", "yes", "yeah", "no", "nope", "oh", "ah", "um", "er",
+}
+
+
+# ---------------------------------------------------------------------------
 # HARD FILTERS
 # ---------------------------------------------------------------------------
 
@@ -314,6 +359,11 @@ def apply_hard_filters(word: str, freq_zipf: float, ipa_us: list, ipa_uk: list,
     if filters.get("no_digits", True):
         if any(c.isdigit() for c in word):
             return "has_digits", [], []
+
+    # Reject function words (weak forms, poor phonetic value)
+    if filters.get("reject_function_words", True):
+        if word in FUNCTION_WORDS:
+            return "function_word", [], []
 
     # Missing US IPA (required)
     if filters.get("require_ipa_us", True):
@@ -652,6 +702,16 @@ def main():
         for tag in c["phoneme_tags_us"]:
             phoneme_cov_300[tag] += 1
 
+    # UK coverage (Core 300 words that have UK phoneme tags)
+    phoneme_cov_uk = Counter()
+    uk_tagged_words = 0
+    for c in core_300:
+        uk_tags = c.get("phoneme_tags_uk")
+        if uk_tags:
+            uk_tagged_words += 1
+            for tag in uk_tags:
+                phoneme_cov_uk[tag] += 1
+
     top_missing = []
     for phoneme, target in sorted(targets.items(), key=lambda x: -x[1]):
         actual = phoneme_cov_300.get(phoneme, 0)
@@ -667,6 +727,13 @@ def main():
         if len(sample_rejected) >= 10:
             break
 
+    # Known gaps that need manual curation for M1 seed pack
+    known_manual_gaps = {
+        "/ʌ/": "ipa-dict uses /ə/ for STRUT vowel; word-stress analysis needed to distinguish",
+        "/ɚ/": "ipa-dict uses /ɝ/ for r-colored vowels including unstressed positions",
+        "/ʒ/": "genuinely rare phoneme; only ~24 words in Core 300 have it",
+    }
+
     report = {
         "input_word_count": len(freq_words),
         "joined_us_count": joined_us,
@@ -677,11 +744,20 @@ def main():
         "core_300_count": len(core_300),
         "rejection_reasons": dict(rejection_reasons),
         "phoneme_coverage_us": dict(phoneme_cov_300),
+        "phoneme_coverage_uk": dict(phoneme_cov_uk),
+        "uk_tagged_in_core_300": uk_tagged_words,
         "unknown_ipa_symbols": sorted(list(unknown_ipa_symbols)),
         "top_missing_phonemes": top_missing[:10],
+        "known_manual_gaps": known_manual_gaps,
         "license_summary": "open-data (wordfreq: MIT/Apache-2.0, ipa-dict: see repo license)",
         "sample_selected_words": sample_selected,
         "sample_rejected_words": sample_rejected,
+        "curation_note": (
+            "Core 300 candidates are auto-selected for phoneme coverage, not curated for classroom use. "
+            "M1 seed pack (Issue #5) requires human review: (1) remove remaining function words or "
+            "age-inappropriate words, (2) manually add words for /ʌ/, /ɚ/, /ʒ/ gaps, "
+            "(3) verify minimal-pair suitability, and (4) add Chinese short meanings."
+        ),
     }
 
     # Write outputs
@@ -709,11 +785,18 @@ def main():
     print(f"Unknown IPA symbols:  {len(report['unknown_ipa_symbols'])}")
     if report["unknown_ipa_symbols"]:
         print(f"  Symbols: {', '.join(report['unknown_ipa_symbols'][:20])}")
+    print(f"Core 300 UK-tagged:    {report['uk_tagged_in_core_300']}")
     print(f"\nTop missing phonemes (Core 300 vs targets):")
     for m in top_missing[:5]:
         print(f"  {m['phoneme']}: have {m['actual']}, need {m['target']} (gap: {m['gap']})")
+    if top_missing:
+        print(f"\nKnown manual gaps (need human curation for M1 seed pack):")
+        for phoneme, note in report["known_manual_gaps"].items():
+            print(f"  {phoneme}: {note}")
     print(f"\nSample selected: {', '.join(sample_selected)}")
     print(f"Sample rejected: {', '.join(sample_rejected[:8])}")
+    print(f"\nCURATION NOTE:")
+    print(f"  {report['curation_note']}")
 
     # Feasibility answer
     print(f"\n{'=' * 60}")
