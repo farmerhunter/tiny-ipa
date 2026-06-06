@@ -1,4 +1,4 @@
-"""Repository helpers for words, phonemes, and settings tables.
+"""Repository helpers for words, phonemes, settings, sessions, and session_items tables.
 
 Plain sqlite3 queries — no ORM. JSON-serialised list fields are handled
 at this layer so callers work with Python lists, not raw strings.
@@ -10,7 +10,7 @@ import json
 import sqlite3
 from typing import List, Optional
 
-from app.models import Phoneme, Settings, Word
+from app.models import Attempt, DailySession, Phoneme, SessionItem, Settings, Word
 
 
 # ============================================================================
@@ -234,3 +234,141 @@ def get_settings(conn: sqlite3.Connection, user_id: str = "default") -> Optional
     if row is None:
         return None
     return _settings_from_row(row)
+
+
+# ============================================================================
+# Daily sessions
+# ============================================================================
+
+
+def _session_from_row(row: sqlite3.Row) -> DailySession:
+    return DailySession(
+        id=row["id"],
+        user_id=row["user_id"],
+        session_date=row["session_date"],
+        primary_accent=row["primary_accent"],
+        status=row["status"],
+        created_at=row["created_at"],
+        completed_at=row["completed_at"],
+    )
+
+
+def _session_item_from_row(row: sqlite3.Row) -> SessionItem:
+    return SessionItem(
+        id=row["id"],
+        session_id=row["session_id"],
+        word_id=row["word_id"],
+        order_index=row["order_index"],
+        target_phonemes=_parse_list(row["target_phonemes"]) or [],
+        question_type=row["question_type"],
+        status=row["status"],
+    )
+
+
+def create_session(conn: sqlite3.Connection, session: DailySession) -> str:
+    """Insert a new daily session row. Returns the session id."""
+    conn.execute(
+        """
+        INSERT INTO daily_sessions (
+            id, user_id, session_date, primary_accent, status, created_at, completed_at
+        ) VALUES (
+            :id, :user_id, :session_date, :primary_accent, :status, :created_at, :completed_at
+        )
+        """,
+        {
+            "id": session.id,
+            "user_id": session.user_id,
+            "session_date": session.session_date,
+            "primary_accent": session.primary_accent,
+            "status": session.status,
+            "created_at": session.created_at,
+            "completed_at": session.completed_at,
+        },
+    )
+    return session.id
+
+
+def get_session_for_date(
+    conn: sqlite3.Connection, user_id: str, session_date: str, primary_accent: str
+) -> Optional[DailySession]:
+    """Return the daily session for the given user, date and accent, or None."""
+    row = conn.execute(
+        """
+        SELECT * FROM daily_sessions
+        WHERE user_id = ? AND session_date = ? AND primary_accent = ?
+        """,
+        (user_id, session_date, primary_accent),
+    ).fetchone()
+    if row is None:
+        return None
+    return _session_from_row(row)
+
+
+def create_session_item(conn: sqlite3.Connection, item: SessionItem) -> str:
+    """Insert a session item row. Returns the item id."""
+    conn.execute(
+        """
+        INSERT INTO session_items (
+            id, session_id, word_id, order_index, target_phonemes, question_type, status
+        ) VALUES (
+            :id, :session_id, :word_id, :order_index, :target_phonemes, :question_type, :status
+        )
+        """,
+        {
+            "id": item.id,
+            "session_id": item.session_id,
+            "word_id": item.word_id,
+            "order_index": item.order_index,
+            "target_phonemes": _to_json(item.target_phonemes),
+            "question_type": item.question_type,
+            "status": item.status,
+        },
+    )
+    return item.id
+
+
+def get_session_items(
+    conn: sqlite3.Connection, session_id: str
+) -> List[SessionItem]:
+    """Return all session items for a session, ordered by order_index."""
+    rows = conn.execute(
+        "SELECT * FROM session_items WHERE session_id = ? ORDER BY order_index",
+        (session_id,),
+    ).fetchall()
+    return [_session_item_from_row(r) for r in rows]
+
+
+# ============================================================================
+# Attempts
+# ============================================================================
+
+
+def create_attempt(conn: sqlite3.Connection, attempt: Attempt) -> str:
+    """Insert an attempt row. Returns the attempt id."""
+    conn.execute(
+        """
+        INSERT INTO attempts (
+            id, user_id, session_item_id, word_id, primary_accent,
+            question_type, target_phoneme, selected_answer, correct_answer,
+            is_correct, created_at
+        ) VALUES (
+            :id, :user_id, :session_item_id, :word_id, :primary_accent,
+            :question_type, :target_phoneme, :selected_answer, :correct_answer,
+            :is_correct, :created_at
+        )
+        """,
+        {
+            "id": attempt.id,
+            "user_id": attempt.user_id,
+            "session_item_id": attempt.session_item_id,
+            "word_id": attempt.word_id,
+            "primary_accent": attempt.primary_accent,
+            "question_type": attempt.question_type,
+            "target_phoneme": attempt.target_phoneme,
+            "selected_answer": attempt.selected_answer,
+            "correct_answer": attempt.correct_answer,
+            "is_correct": int(attempt.is_correct),
+            "created_at": attempt.created_at,
+        },
+    )
+    return attempt.id
