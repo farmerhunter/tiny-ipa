@@ -39,7 +39,7 @@ from validate_content import (  # noqa: E402
     validate_words,
 )
 
-from app.db import get_db  # noqa: E402
+from app.db import DEFAULT_DB_PATH, get_db  # noqa: E402
 from app.models import Settings  # noqa: E402
 from app.services.db_schema import init_db, table_names  # noqa: E402
 from app.services.db_store import (  # noqa: E402
@@ -249,8 +249,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--db-url",
-        default="sqlite:///./tiny_ipa_dev.sqlite",
-        help="SQLite database path or sqlite:/// URI (default: sqlite:///./tiny_ipa_dev.sqlite).",
+        default=None,
+        help="SQLite database path or sqlite:/// URI (default: same as runtime DEFAULT_DB_PATH).",
     )
     parser.add_argument(
         "--skip-validation",
@@ -274,10 +274,11 @@ def main() -> None:
         print(f"Error: phonemes file not found: {phonemes_path}", file=sys.stderr)
         sys.exit(1)
 
+    db_path = args.db_url if args.db_url else DEFAULT_DB_PATH
     report = import_words(
         source_path=source_path,
         phonemes_path=phonemes_path,
-        db_path=args.db_url,
+        db_path=db_path,
         skip_validation=args.skip_validation,
     )
 

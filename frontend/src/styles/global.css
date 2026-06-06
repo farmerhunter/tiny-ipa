@@ -22,3 +22,193 @@ button {
   font: inherit;
   cursor: pointer;
 }
+
+/* ---------------------------------------------------------------------------
+ * Practice container — mobile-first, max 480px
+ * --------------------------------------------------------------------------- */
+
+.practice-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.practice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.progress-label {
+  font-weight: 600;
+}
+
+.accent-label {
+  background: #e8e8e8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.practice-error {
+  text-align: center;
+  padding: 32px 0;
+}
+
+.practice-error h2 {
+  margin-bottom: 8px;
+}
+
+.practice-error .hint {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+/* ---------------------------------------------------------------------------
+ * Choice question
+ * --------------------------------------------------------------------------- */
+
+.choice-question {
+  margin-bottom: 24px;
+}
+
+.word-display {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.word-text {
+  font-size: 2rem;
+  font-weight: 700;
+  display: block;
+}
+
+.word-meaning {
+  font-size: 0.9rem;
+  color: #888;
+  display: block;
+  margin-top: 4px;
+}
+
+.question-prompt {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 16px;
+}
+
+.choices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.choice-btn {
+  padding: 14px 16px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  background: #fafafa;
+  font-size: 1.25rem;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.choice-btn:hover:not(:disabled) {
+  border-color: #4a90d9;
+  background: #eef5fc;
+}
+
+.choice-btn:disabled {
+  cursor: default;
+}
+
+.choice-correct {
+  border-color: #2e7d32 !important;
+  background: #e8f5e9 !important;
+  color: #2e7d32;
+}
+
+.choice-wrong {
+  border-color: #c62828 !important;
+  background: #ffebee !important;
+  color: #c62828;
+}
+
+.submit-status {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #999;
+}
+
+/* ---------------------------------------------------------------------------
+ * Feedback
+ * --------------------------------------------------------------------------- */
+
+.feedback {
+  text-align: center;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+  font-size: 1rem;
+}
+
+.feedback-correct {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.feedback-wrong {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
+.feedback-error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+/* ---------------------------------------------------------------------------
+ * Summary
+ * --------------------------------------------------------------------------- */
+
+.practice-summary {
+  text-align: center;
+}
+
+.practice-summary h2 {
+  margin-bottom: 8px;
+}
+
+.summary-score {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.summary-list {
+  list-style: none;
+  text-align: left;
+  padding: 0;
+}
+
+.summary-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 0.95rem;
+}
+
+.summary-correct {
+  color: #2e7d32;
+}
+
+.summary-wrong {
+  color: #c62828;
+}

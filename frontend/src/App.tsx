@@ -1,37 +1,53 @@
 import { fetchHealth } from "./api";
 import { useEffect, useState } from "react";
+import TodayPractice from "./pages/TodayPractice";
 
 function App() {
-  const [health, setHealth] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [backendReady, setBackendReady] = useState<boolean>(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     fetchHealth()
-      .then((data) => setHealth(JSON.stringify(data, null, 2)))
-      .catch((err) => setError(err.message));
+      .then(() => setBackendReady(true))
+      .catch(() => setBackendReady(false))
+      .finally(() => setChecking(false));
   }, []);
 
-  return (
-    <main
-      style={{
-        maxWidth: 480,
-        margin: "0 auto",
-        padding: "24px 16px",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      <h1>Tiny IPA</h1>
-      <p>Daily IPA practice with small beginner word sets.</p>
-      {error && <p style={{ color: "red" }}>Error: {error}</p>}
-      {health ? (
-        <pre style={{ background: "#f5f5f5", padding: 12, borderRadius: 8 }}>
-          {health}
-        </pre>
-      ) : (
-        !error && <p>Connecting to backend…</p>
-      )}
-    </main>
-  );
+  if (checking) {
+    return (
+      <main
+        style={{
+          maxWidth: 480,
+          margin: "0 auto",
+          padding: "24px 16px",
+          fontFamily: "system-ui, sans-serif",
+        }}
+      >
+        <h1>Tiny IPA</h1>
+        <p>Connecting to backend…</p>
+      </main>
+    );
+  }
+
+  if (!backendReady) {
+    return (
+      <main
+        style={{
+          maxWidth: 480,
+          margin: "0 auto",
+          padding: "24px 16px",
+          fontFamily: "system-ui, sans-serif",
+        }}
+      >
+        <h1>Tiny IPA</h1>
+        <p style={{ color: "#c00" }}>
+          Cannot reach the backend. Make sure it is running on port 8010.
+        </p>
+      </main>
+    );
+  }
+
+  return <TodayPractice />;
 }
 
 export default App;

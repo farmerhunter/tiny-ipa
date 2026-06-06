@@ -5,6 +5,10 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
+// ---------------------------------------------------------------------------
+// Health
+// ---------------------------------------------------------------------------
+
 export interface HealthResponse {
   status: string;
   content_version: string;
@@ -15,6 +19,97 @@ export async function fetchHealth(): Promise<HealthResponse> {
   const res = await fetch(`${API_BASE}/health`);
   if (!res.ok) {
     throw new Error(`Health check failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Today practice
+// ---------------------------------------------------------------------------
+
+export interface TodayItem {
+  session_item_id: string;
+  word_id: string;
+  display_ipa: string;
+  word: string;
+  meaning_zh: string | null;
+  audio_url: string | null;
+  target_phonemes: string[];
+  question: {
+    type: string;
+    prompt: string;
+    choices: string[];
+  };
+}
+
+export interface TodayResponse {
+  session_id: string;
+  date: string;
+  primary_accent: string;
+  daily_word_count: number;
+  status: string;
+  items: TodayItem[];
+  error?: string;
+  detail?: string;
+}
+
+export async function fetchToday(): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/today`);
+  if (!res.ok) {
+    throw new Error(`GET /api/today failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Attempt submission
+// ---------------------------------------------------------------------------
+
+export interface UpdatedPhoneme {
+  phoneme: string;
+  attempt_count: number;
+  correct_count: number;
+  mastery_status: string;
+}
+
+export interface AttemptResponse {
+  is_correct: boolean;
+  correct_answer: string;
+  updated_phonemes: UpdatedPhoneme[];
+  next_action: string;
+}
+
+export async function submitAttempt(
+  sessionItemId: string,
+  selectedAnswer: string,
+): Promise<AttemptResponse> {
+  const res = await fetch(`${API_BASE}/attempt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_item_id: sessionItemId,
+      selected_answer: selectedAnswer,
+    }),
+  });
+  if (!res.ok) {
+    // Normalise FastAPI structured errors into a user-friendly string.
+    let message = `Request failed (HTTP ${res.status})`;
+    try {
+      const body = await res.json();
+      // FastAPI wraps HTTPException detail at top-level "detail"
+      const inner = body.detail ?? body;
+      if (typeof inner === "object" && inner !== null) {
+        // Prefer {error, detail} shape → "ERROR_CODE: detail"
+        const code = inner.error ?? "";
+        const text = inner.detail ?? JSON.stringify(inner);
+        message = code ? `${code}: ${text}` : String(text);
+      } else if (typeof inner === "string") {
+        message = inner;
+      }
+    } catch {
+      // Fall through with the default message.
+    }
+    throw new Error(message);
   }
   return res.json();
 }
