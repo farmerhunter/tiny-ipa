@@ -37,9 +37,13 @@ gh issue list -R farmerhunter/tiny-ipa --state open --label needs:merge
 
 When handing work to another role, update the label and add a short issue or PR comment explaining the next action.
 
+Do not put `needs:implementer` on an Epic. Implementers pick up child issues, not Epic containers. If an Epic-level concern requires execution, create a child task such as integration QA, cross-issue gap fixing, or final manual QA evidence.
+
 ## Issue-driven execution
 
 Each meaningful code change links to a child issue. Child issues are the source of truth for local scope, constraints, and acceptance criteria. Epic issues are the source of truth for cross-issue QA, readiness, and workflow closure.
+
+Epic-level findings should stay on the Epic only when they are coordination, review, or decision-making work. Split them into child issues when they require code changes, tests, manual verification, data migration, or an Implementer completion comment.
 
 ### Branch naming
 
@@ -104,13 +108,15 @@ Architect moves work from `Backlog` to `Ready`. Implementer moves claimed work t
 Handoff labels must match the current owner of the next action:
 
 ```text
-needs:implementer -> implementer should pick up or fix
+needs:implementer -> implementer should pick up or fix a child issue or PR
 needs:architect   -> architect should review, merge, or decide readiness
 needs:user        -> user decision is needed
 needs:ci          -> checks are still running
 needs:merge       -> reviewed and ready to merge
 blocked           -> latest comment explains the blocker
 ```
+
+Allowed Epic handoff labels are `needs:architect`, `needs:user`, and `blocked`. `needs:implementer`, `needs:ci`, and `needs:merge` belong on child issues or PRs.
 
 ## Local development
 

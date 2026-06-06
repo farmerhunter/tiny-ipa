@@ -64,6 +64,18 @@ An Epic issue should include:
 
 Child issues should stay scoped to one executable work package with clear acceptance criteria.
 
+Epic issues are coordination containers, not implementation work items. Do not put `needs:implementer` on an Epic just to indicate that its child issues are ready. Put `needs:implementer` on the ready child issues instead.
+
+If an Epic-level concern requires concrete implementer action, create a child task for it. Common examples:
+
+```text
+[M2] Run integration QA and close Epic readiness gaps
+[M2] Fix cross-issue session/attempt integration gaps
+[M2] Add final manual QA evidence for Epic closure
+```
+
+Keep the concern on the Epic when it is only coordination, review, or decision-making. Split it into a child task when it requires code, tests, manual verification, data migration, or a completion comment from an Implementer.
+
 ## Branch and PR Granularity
 
 Default:
@@ -117,6 +129,25 @@ needs:merge       Reviewed and ready to merge
 blocked           Blocked; latest comment must explain why
 ```
 
+Allowed use by issue type:
+
+```text
+type:task:
+  may use needs:implementer, needs:architect, needs:user, needs:ci, needs:merge, blocked
+
+type:epic:
+  may use needs:architect, needs:user, blocked
+  should not use needs:implementer, needs:ci, or needs:merge
+```
+
+Epic handoff labels mean the next action is coordination-level work:
+
+```text
+needs:architect on Epic -> planning, decomposition, readiness review, or closure decision
+needs:user on Epic      -> scope, priority, product, or process decision
+blocked on Epic         -> cross-issue dependency or external blocker
+```
+
 Recommended transitions:
 
 ```text
@@ -166,6 +197,8 @@ gh issue list -R farmerhunter/tiny-ipa --state open --label needs:merge
 ```
 
 When changing handoff ownership, always add a short comment that states what changed and what the next agent should do. The label is the routing signal; the comment is the context.
+
+When marking an Epic's child issues ready, leave a comment on the Epic that points Implementers to the child issues, but do not label the Epic `needs:implementer`.
 
 ## Comment Routing
 
