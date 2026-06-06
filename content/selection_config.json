@@ -1,0 +1,15 @@
+{
+  "_note": "Selection configuration for the content auto-selection pipeline. See docs/03-content-auto-selection.md.",
+  "input_word_count": 5000,
+  "min_frequency_zipf": 2.0,
+  "max_word_length": 8,
+  "phoneme_coverage_targets_us": {},
+  "hard_filters": {
+    "lowercase_ascii_only": true,
+    "no_spaces_hyphens_apostrophes": true,
+    "no_digits": true,
+    "no_proper_nouns": true,
+    "require_ipa_us": true,
+    "max_pronunciation_variants": 2
+  }
+}

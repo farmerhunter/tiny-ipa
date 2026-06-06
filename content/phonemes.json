@@ -1,0 +1,6 @@
+{
+  "_note": "Phoneme inventory for Tiny IPA. US-first MVP. See docs/01-product-domain.md and docs/03-content-auto-selection.md.",
+  "accent_scope": "US",
+  "vowels": [],
+  "consonants": []
+}
