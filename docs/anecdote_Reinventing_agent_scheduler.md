@@ -50,20 +50,26 @@ Codex 负责规划和 review，DeepSeek 负责执行。我负责在两个窗口�
 
 只要共享状态还在我的剪贴板里，我就会变成人肉消息队列。谁该开工、谁该 review、哪个 issue 已经 ready、哪个 PR 需要补测试，这些信息都不应该靠我记着。
 
-到这一步，问题已经不是 prompt engineering，而是 workflow engineering。
+到这一步，明显不是我不会用 prompt engineering，而是需要 workflow engineering 了。
 
-所谓自动化，也不是让两个 agent 神秘地互相聊天，而是把“下一步该谁做什么”变成一个可查询、可更新、可审计的系统状态。
 
-## 三、从 Issue 到 Milestone，再到 Epic
+## 三、重新拾回全套技术流程概念体系
 
-我们很自然地把工作流放到了 GitHub Project 上。
+利用一个文档传递项目规划的方式显然不够用了。
 
-原因也简单：既然 agent 都能用 `gh`，既然 issue / PR / comment / label 都是可读可写的，那 GitHub 就是最便宜、最稳、最不用自己造后台的协作数据库。
+我们很自然地把工作流放到了 GitHub Project 上。第一版很朴素：issue 记录 task，milestone 组织阶段，PR 承载代码交付。这已经足够让 DeepSeek 按 issue 执行，让 Codex 按 issue review。
 
-第一版很朴素：issue 记录 task，milestone 组织阶段，PR 承载代码交付。这已经足够让 DeepSeek 按 issue 执行，让 Codex 按 issue review。
+但 milestone 很快显出局限。于是又引入了Epic。。咦，怎么这么熟悉的感觉呢？想当年曾经为了说服队友们接受Epic这类层级架构磨破了嘴皮。。
 
-但 milestone 很快显出局限。
+且慢，还得引入明确的职责指定和流转规则。。这不也是当年每天都反复提醒的内容吗？
 
+好在现在agent都特听话，不但立即执行而且给足情绪价值。
+
+## 四、技术细节：目前揉出来的流程
+
+这一段讲具体流程，不感兴趣可以跳过。
+
+### 为什么milestone不够用
 Milestone 是时间切片，天然带有线性暗示：M0 完了再 M1，M1 完了再 M2。它适合表达路线图，却不适合表达多 agent 并行协作中的能力边界、依赖关系和集成验收。
 
 更具体地说，milestone 有三个问题：
@@ -80,11 +86,7 @@ Epic 对应一个能力阶段，下面挂 child issues。Child issue 是执行�
 
 这样 milestone 就退回到路线图和历史阶段，Epic 成为真正的协作单位。
 
-这个变化的价值不在“名字更时髦”，而在它打破了线性阶段感，让多 agent 协作可以围绕能力图而不是时间队列展开。
-
-## 四、技术夹层：我们最后揉出来的流程
-
-这一段讲具体流程，不感兴趣可以跳过。
+### 目前的流程
 
 现在 tiny-ipa 的多 agent 协作大概长这样：
 
@@ -133,11 +135,7 @@ needs:merge       -> 可以 merge
 blocked           -> 被阻塞，读最新 comment
 ```
 
-一个重要修正是：Epic 本身不是 implementer 的工作项。
-
-也就是说，不能因为 M2 的子任务 ready 了，就给 Epic #22 标 `needs:implementer`。Implementer 不应该“领取 Epic”，它应该领取 Epic 下面的 child issue。
-
-如果 Epic-level 的事情需要人执行，比如：
+Epic 本身不是 implementer 的工作项。如果 Epic-level 的事情需要人执行，比如：
 
 ```text
 Run integration QA and close Epic readiness gaps
@@ -145,13 +143,8 @@ Fix cross-issue session / attempt integration gaps
 Add final manual QA evidence for Epic closure
 ```
 
-那就新建一个 child issue。
+那就新建一个专门干这个的 child issue。
 
-这条规则看起来小，其实很要命。它决定了 agent inbox 里出现的是“可以动手的任务”，而不是“一个大概需要你关心的阶段”。
-
-人可以理解含糊话。
-
-Agent 最好少吃含糊话。
 
 ## 五、兜兜转转，又回到老本行
 
