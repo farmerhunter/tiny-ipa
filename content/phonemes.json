@@ -1,6 +1,64 @@
 {
-  "_note": "Phoneme inventory for Tiny IPA. US-first MVP. See docs/01-product-domain.md and docs/03-content-auto-selection.md.",
-  "accent_scope": "US",
-  "vowels": [],
-  "consonants": []
+  "_note": "Phoneme inventory for Tiny IPA. US-first MVP. Symbols use / / delimiters as defined in the content schema. See docs/01-product-domain.md and docs/03-content-auto-selection.md.",
+
+  "vowels": [
+    {"symbol": "/iː/", "category": "vowel", "example_word": "sheep", "priority": 1, "description_zh": "长元音 iː，如 sheep 中的 ee"},
+    {"symbol": "/ɪ/", "category": "vowel", "example_word": "ship", "priority": 1, "description_zh": "短元音 ɪ，如 ship 中的 i"},
+    {"symbol": "/e/", "category": "vowel", "example_word": "bed", "priority": 1, "description_zh": "短元音 e，如 bed 中的 e"},
+    {"symbol": "/æ/", "category": "vowel", "example_word": "cat", "priority": 1, "description_zh": "短元音 æ，如 cat 中的 a"},
+    {"symbol": "/ʌ/", "category": "vowel", "example_word": "cup", "priority": 1, "description_zh": "短元音 ʌ，如 cup 中的 u"},
+    {"symbol": "/ɑ/", "category": "vowel", "example_word": "hot", "priority": 2, "description_zh": "低元音 ɑ，如 hot 中的 o（美式）"},
+    {"symbol": "/ɔ/", "category": "vowel", "example_word": "thought", "priority": 2, "description_zh": "中低元音 ɔ，如 thought 中的 ou"},
+    {"symbol": "/ʊ/", "category": "vowel", "example_word": "book", "priority": 1, "description_zh": "短元音 ʊ，如 book 中的 oo"},
+    {"symbol": "/uː/", "category": "vowel", "example_word": "food", "priority": 1, "description_zh": "长元音 uː，如 food 中的 oo"},
+    {"symbol": "/ə/", "category": "vowel", "example_word": "about", "priority": 2, "description_zh": "中性元音 ə，如 about 中的 a"},
+    {"symbol": "/eɪ/", "category": "diphthong", "example_word": "face", "priority": 2, "description_zh": "双元音 eɪ，如 face 中的 a"},
+    {"symbol": "/aɪ/", "category": "diphthong", "example_word": "price", "priority": 2, "description_zh": "双元音 aɪ，如 price 中的 i"},
+    {"symbol": "/oʊ/", "category": "diphthong", "example_word": "go", "priority": 2, "description_zh": "双元音 oʊ，如 go 中的 o"},
+    {"symbol": "/aʊ/", "category": "diphthong", "example_word": "mouth", "priority": 2, "description_zh": "双元音 aʊ，如 mouth 中的 ou"},
+    {"symbol": "/ɔɪ/", "category": "diphthong", "example_word": "choice", "priority": 3, "description_zh": "双元音 ɔɪ，如 choice 中的 oi"},
+    {"symbol": "/ɝ/", "category": "r-colored", "example_word": "bird", "priority": 2, "description_zh": "r 化元音 ɝ，如 bird 中的 ir"},
+    {"symbol": "/ɚ/", "category": "r-colored", "example_word": "teacher", "priority": 2, "description_zh": "r 化元音 ɚ，如 teacher 中的 er"}
+  ],
+
+  "consonants": [
+    {"symbol": "/p/", "category": "consonant", "example_word": "pen", "priority": 2, "description_zh": "清塞音 p"},
+    {"symbol": "/b/", "category": "consonant", "example_word": "bed", "priority": 2, "description_zh": "浊塞音 b"},
+    {"symbol": "/t/", "category": "consonant", "example_word": "top", "priority": 2, "description_zh": "清塞音 t"},
+    {"symbol": "/d/", "category": "consonant", "example_word": "dog", "priority": 2, "description_zh": "浊塞音 d"},
+    {"symbol": "/k/", "category": "consonant", "example_word": "cat", "priority": 2, "description_zh": "清塞音 k"},
+    {"symbol": "/g/", "category": "consonant", "example_word": "go", "priority": 2, "description_zh": "浊塞音 g"},
+    {"symbol": "/f/", "category": "consonant", "example_word": "fish", "priority": 2, "description_zh": "清擦音 f"},
+    {"symbol": "/v/", "category": "consonant", "example_word": "van", "priority": 1, "description_zh": "浊擦音 v，注意与 w 区分"},
+    {"symbol": "/θ/", "category": "consonant", "example_word": "think", "priority": 1, "description_zh": "清齿擦音 θ，注意与 s 区分"},
+    {"symbol": "/ð/", "category": "consonant", "example_word": "this", "priority": 1, "description_zh": "浊齿擦音 ð，注意与 z/d 区分"},
+    {"symbol": "/s/", "category": "consonant", "example_word": "sun", "priority": 2, "description_zh": "清擦音 s"},
+    {"symbol": "/z/", "category": "consonant", "example_word": "zoo", "priority": 2, "description_zh": "浊擦音 z"},
+    {"symbol": "/ʃ/", "category": "consonant", "example_word": "ship", "priority": 1, "description_zh": "清腭擦音 ʃ，注意与 s 区分"},
+    {"symbol": "/ʒ/", "category": "consonant", "example_word": "vision", "priority": 3, "description_zh": "浊腭擦音 ʒ"},
+    {"symbol": "/h/", "category": "consonant", "example_word": "hat", "priority": 2, "description_zh": "清喉擦音 h"},
+    {"symbol": "/tʃ/", "category": "affricate", "example_word": "chip", "priority": 1, "description_zh": "清腭塞擦音 tʃ"},
+    {"symbol": "/dʒ/", "category": "affricate", "example_word": "jump", "priority": 2, "description_zh": "浊腭塞擦音 dʒ"},
+    {"symbol": "/m/", "category": "consonant", "example_word": "man", "priority": 2, "description_zh": "鼻音 m"},
+    {"symbol": "/n/", "category": "consonant", "example_word": "no", "priority": 2, "description_zh": "鼻音 n"},
+    {"symbol": "/ŋ/", "category": "consonant", "example_word": "sing", "priority": 1, "description_zh": "鼻音 ŋ，注意词尾发音"},
+    {"symbol": "/l/", "category": "consonant", "example_word": "leg", "priority": 1, "description_zh": "边音 l，注意与 r 区分"},
+    {"symbol": "/r/", "category": "consonant", "example_word": "red", "priority": 1, "description_zh": "近音 r，注意与 l 区分"},
+    {"symbol": "/w/", "category": "consonant", "example_word": "wet", "priority": 1, "description_zh": "近音 w，注意与 v 区分"},
+    {"symbol": "/j/", "category": "consonant", "example_word": "yes", "priority": 2, "description_zh": "近音 j，如 yes 中的 y"}
+  ],
+
+  "difficult_contrasts": [
+    {"pair": ["/iː/", "/ɪ/"], "description_zh": "长 iː vs 短 ɪ，如 sheep/ship"},
+    {"pair": ["/e/", "/æ/"], "description_zh": "e vs æ，如 bed/bad"},
+    {"pair": ["/ʌ/", "/ɑ/"], "description_zh": "ʌ vs ɑ，如 cup/cop"},
+    {"pair": ["/ʊ/", "/uː/"], "description_zh": "短 ʊ vs 长 uː，如 book/food"},
+    {"pair": ["/θ/", "/s/"], "description_zh": "θ vs s，如 think/sink"},
+    {"pair": ["/ð/", "/z/"], "description_zh": "ð vs z，如 this/zip"},
+    {"pair": ["/ʃ/", "/s/"], "description_zh": "ʃ vs s，如 ship/sip"},
+    {"pair": ["/tʃ/", "/ʃ/"], "description_zh": "tʃ vs ʃ，如 chip/ship"},
+    {"pair": ["/v/", "/w/"], "description_zh": "v vs w，如 van/wet"},
+    {"pair": ["/l/", "/r/"], "description_zh": "l vs r，如 leg/red"},
+    {"pair": ["/ŋ/", "/n/"], "description_zh": "ŋ vs n 词尾，如 sing/sin"}
+  ]
 }

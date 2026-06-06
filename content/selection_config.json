@@ -1,15 +1,84 @@
 {
   "_note": "Selection configuration for the content auto-selection pipeline. See docs/03-content-auto-selection.md.",
-  "input_word_count": 5000,
-  "min_frequency_zipf": 2.0,
-  "max_word_length": 8,
-  "phoneme_coverage_targets_us": {},
+
+  "input": {
+    "word_count": 5000,
+    "min_frequency_zipf": 2.0,
+    "max_word_length": 8,
+    "required_accent": "US"
+  },
+
   "hard_filters": {
     "lowercase_ascii_only": true,
     "no_spaces_hyphens_apostrophes": true,
     "no_digits": true,
     "no_proper_nouns": true,
     "require_ipa_us": true,
-    "max_pronunciation_variants": 2
+    "max_pronunciation_variants": 2,
+    "reject_function_words": true
+  },
+
+  "phoneme_coverage_targets_us": {
+    "/ɪ/": 20,
+    "/iː/": 20,
+    "/æ/": 20,
+    "/ʌ/": 15,
+    "/ʊ/": 10,
+    "/uː/": 15,
+    "/e/": 15,
+    "/ɑ/": 10,
+    "/ɔ/": 8,
+    "/ə/": 10,
+    "/eɪ/": 12,
+    "/aɪ/": 12,
+    "/oʊ/": 12,
+    "/aʊ/": 8,
+    "/ɔɪ/": 5,
+    "/ɝ/": 6,
+    "/ɚ/": 6,
+    "/p/": 12,
+    "/b/": 10,
+    "/t/": 12,
+    "/d/": 10,
+    "/k/": 12,
+    "/g/": 8,
+    "/f/": 10,
+    "/v/": 8,
+    "/θ/": 8,
+    "/ð/": 5,
+    "/s/": 12,
+    "/z/": 8,
+    "/ʃ/": 10,
+    "/ʒ/": 3,
+    "/h/": 8,
+    "/tʃ/": 10,
+    "/dʒ/": 6,
+    "/m/": 10,
+    "/n/": 12,
+    "/ŋ/": 8,
+    "/l/": 12,
+    "/r/": 12,
+    "/w/": 8,
+    "/j/": 5
+  },
+
+  "scoring": {
+    "frequency_score_weight": 0.15,
+    "phoneme_coverage_score_weight": 0.40,
+    "difficult_phoneme_value_weight": 0.15,
+    "minimal_pair_value_weight": 0.10,
+    "spelling_simplicity_score_weight": 0.10,
+    "accent_stability_score_weight": 0.05,
+    "variant_penalty": 5.0,
+    "function_word_penalty": 20.0,
+    "abstract_meaning_penalty": 5.0,
+    "ipa_complexity_penalty_per_phoneme": 2.0
+  },
+
+  "greedy_selection": {
+    "core_100_size": 100,
+    "core_300_size": 300,
+    "max_same_rhyme_group": 3,
+    "max_same_difficulty_tag": 5
   }
 }
