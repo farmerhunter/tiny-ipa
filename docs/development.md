@@ -118,6 +118,63 @@ CI runs on every push to `main` and every PR. It checks:
 
 CI does not require secrets. Content auto-selection is not run in CI because it requires downloading external data.
 
+## Milestone 1 manual QA checklist
+
+Run through these steps before approving M1 as complete:
+
+### Backend
+
+- [ ] `GET /api/health` returns `{"status": "ok", ...}`
+- [ ] `GET /api/today` returns 10 items with correct JSON shape
+- [ ] `GET /api/today?daily_word_count=5` returns 5 items
+- [ ] `GET /api/today?primary_accent=UK` returns UK IPA strings
+- [ ] `GET /api/today?session_date=2026-01-15` returns stable results across refreshes
+- [ ] `GET /api/today?primary_accent=FR` returns 422
+- [ ] `pytest tests/ -v` — all tests pass (49+)
+- [ ] Question choices include the correct IPA at least once per item
+- [ ] Distractors are phoneme-contrast-aware (not random strings)
+
+### Frontend
+
+- [ ] App opens to TodayPractice screen (no landing page)
+- [ ] Initial state shows IPA only; word is hidden
+- [ ] "Show word" button reveals word and Chinese meaning
+- [ ] Audio button visible after reveal; TTS plays without crashing when audio_url is null
+- [ ] Question choices appear after reveal
+- [ ] Correct answer → green highlight + "Correct!" feedback
+- [ ] Wrong answer → red highlight + shows correct answer
+- [ ] "Next" button advances to next item
+- [ ] After last item, completed screen shows score
+- [ ] "Try again" on error screen retries the API call
+- [ ] Layout works on mobile-sized viewport (375px–480px width)
+- [ ] IPA font is large and readable (2.5rem)
+- [ ] Buttons are finger-friendly (≥14px padding)
+
+### Content
+
+- [ ] No function words in seed_words.json (verified by validate_content.py)
+- [ ] All words have ipa_us, phoneme_tags_us, meaning_zh
+- [ ] Key contrasts covered: /ɪ/vs/iː/, /e/vs/æ/, /θ/vs/s/, /ʃ/vs/s/, /tʃ/vs/ʃ/, /r/vs/l/, /v/vs/w/
+- [ ] /ʌ/, /ɚ/, /ʒ/ have at least some representation
+
+## Completion checklist template
+
+When finishing an issue, include this in the completion comment:
+
+```markdown
+## Completion
+
+Scope completed:
+- ...
+
+Verification:
+- Command: `...`
+- Result: ...
+
+Residual risks:
+- ...
+```
+
 ## Directory conventions
 
 | Directory | Purpose | Tracked? |
