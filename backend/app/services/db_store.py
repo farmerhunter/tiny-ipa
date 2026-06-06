@@ -327,6 +327,16 @@ def create_session_item(conn: sqlite3.Connection, item: SessionItem) -> str:
     return item.id
 
 
+def get_session_by_id(conn: sqlite3.Connection, session_id: str) -> Optional[DailySession]:
+    """Return a daily session by its primary key, or None."""
+    row = conn.execute(
+        "SELECT * FROM daily_sessions WHERE id = ?", (session_id,)
+    ).fetchone()
+    if row is None:
+        return None
+    return _session_from_row(row)
+
+
 def get_session_items(
     conn: sqlite3.Connection, session_id: str
 ) -> List[SessionItem]:
