@@ -1,0 +1,4 @@
+{
+  "_note": "Blocklisted words excluded from candidate selection. Add word strings to the array.",
+  "words": []
+}

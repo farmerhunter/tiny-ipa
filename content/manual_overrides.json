@@ -1,0 +1,4 @@
+{
+  "_note": "Manual overrides for specific words. Keys are word_id values. Override any field from the source word schema.",
+  "overrides": {}
+}
