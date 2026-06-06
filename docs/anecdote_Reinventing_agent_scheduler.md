@@ -42,41 +42,17 @@ Codex 这边逐渐变成了 architect / reviewer / planner。先把整体架构�
 
 ## 二、我的工作变成了 Copy / Paste
 
-最早这种双 agent 协作非常土。
+最早这种双 agent 协作非常土，但有效。
 
-我在 Codex 这里讨论规划，Codex 生成 milestone 和 issue 草案。我复制到 GitHub。
+Codex 负责规划和 review，DeepSeek 负责执行。我负责在两个窗口之间转述：把计划贴过去，把完成报告贴回来，把 review 意见再贴过去。
 
-DeepSeek 在隔壁做完 M0，我回来告诉 Codex：“隔壁 DeepSeek 已经把 M0 做完了，你 review 一下。”
+这个模式跑了一阵以后，真正暴露出来的问题不是“agent 不会合作”，而是“合作缺少共享状态”。
 
-Codex review 出问题，我把 review comment 复制给 DeepSeek。
+只要共享状态还在我的剪贴板里，我就会变成人肉消息队列。谁该开工、谁该 review、哪个 issue 已经 ready、哪个 PR 需要补测试，这些信息都不应该靠我记着。
 
-DeepSeek 修完，我再回来告诉 Codex：“隔壁修好了，你再检查一下。”
+到这一步，问题已经不是 prompt engineering，而是 workflow engineering。
 
-Codex 说可以开工 M1，我再去通知 DeepSeek。
-
-这套流程居然能跑。
-
-而且越跑越顺。
-
-两个 agent 之间没有直接通信，也没有什么高大上的 agent orchestration framework。它们甚至不知道对方真实存在。它们只通过我的 copy / paste 彼此感知。
-
-但问题也很明显。
-
-我越来越像一个人肉消息队列。
-
-Architect 说：“这个 issue 需要 implementer 处理。”
-
-我复制。
-
-Implementer 说：“这个 PR 已经完成，请 review。”
-
-我复制。
-
-Architect 说：“这里有 blocker，不能 merge。”
-
-我再复制。
-
-这时老登终于拍了一下桌子：这不就是工作流状态流转吗？这不就是应该自动化的吗？
+所谓自动化，也不是让两个 agent 神秘地互相聊天，而是把“下一步该谁做什么”变成一个可查询、可更新、可审计的系统状态。
 
 ## 三、从 Issue 到 Milestone，再到 Epic
 
@@ -84,41 +60,27 @@ Architect 说：“这里有 blocker，不能 merge。”
 
 原因也简单：既然 agent 都能用 `gh`，既然 issue / PR / comment / label 都是可读可写的，那 GitHub 就是最便宜、最稳、最不用自己造后台的协作数据库。
 
-最开始只是用 issue 记 task。
+第一版很朴素：issue 记录 task，milestone 组织阶段，PR 承载代码交付。这已经足够让 DeepSeek 按 issue 执行，让 Codex 按 issue review。
 
-M0 要做什么，开几个 issue。M1 要做什么，再开几个 issue。每个 issue 写清楚背景、约束、验收标准、测试要求。DeepSeek 可以拿一个 issue 开工，Codex 可以基于 issue review。
+但 milestone 很快显出局限。
 
-这已经比“把一大段需求贴给 agent”强很多。
+Milestone 是时间切片，天然带有线性暗示：M0 完了再 M1，M1 完了再 M2。它适合表达路线图，却不适合表达多 agent 并行协作中的能力边界、依赖关系和集成验收。
 
-后来我们开始按 milestone 做规划、执行、review。
+更具体地说，milestone 有三个问题：
 
-M0 是 feasibility 和架构骨架。M1 是静态练习闭环。M2 是 SQLite 和服务端判题。M3 是核心 100 单词音频。每个 milestone 下面有一组 issue。做完以后，不是马上往前冲，而是先做 milestone-level review。
+* 它不擅长承载跨 issue 的 readiness 语义。一个阶段是否完成，不等于所有 issue mechanically closed。
+* 它容易把工作流串行化。多个 agent 本来可以并行推进不同能力，却被“当前 milestone”这个概念压回一条队列。
+* 它不是一个很好的讨论对象。跨 issue 风险、manual QA、integration gap、后续放行判断，都需要一个可以 comment、label、link child issue 的协调容器。
 
-这一步很关键。
+我们曾经用 milestone readiness issue 补这个洞，但这本质上是在给 milestone 外挂一个临时器官。
 
-因为有些问题不是某个 issue 独自负责的。
+Epic 才是更自然的边界。
 
-比如 M1 做完后，单个 issue 看起来都完成了，但整体手动 QA 有没有跑？英式 IPA 的选择题路径有没有真的用 UK accent？前端刷新后状态有没有保住？这些东西更像 integration review，而不是某个按钮 issue 的小尾巴。
+Epic 对应一个能力阶段，下面挂 child issues。Child issue 是执行单元，Epic 是协调单元。代码、测试、文档、manual QA 这些可以拆到 child issue；跨 issue 风险、readiness、scope decision 则留在 Epic。
 
-于是我们曾经发明了 milestone readiness issue。
+这样 milestone 就退回到路线图和历史阶段，Epic 成为真正的协作单位。
 
-看起来合理，但很快又别扭起来。
-
-Milestone 本质上还是线性的。M0 完了再 M1，M1 完了再 M2。它适合一个人排队干活，不适合多个 agent 同时往不同方向推进。
-
-更要命的是，readiness issue 有点像为了弥补 milestone 缺陷硬造出来的夹层。它不是能力本身，只是一个“等我检查完再放行”的门卫。
-
-这时候 Epic 出场了。
-
-我们把 milestone 对应的能力阶段转成 Epic issue：M2 是一个 Epic，下面挂 #10 到 #13；M3 是一个 Epic，下面挂 #14 到 #17。Epic 负责上下文、跨 issue 风险、集成验收、readiness。Child issue 负责具体执行。
-
-这一下舒服多了。
-
-不是“所有人排队等 M2 完了才能看 M3”，而是“每个 Epic 是一个能力容器，里面有可执行任务，任务之间有依赖，有些可以并行，有些需要等 readiness”。
-
-Milestone 退回成历史阶段和路线图标记。
-
-Epic 才是协作单位。
+这个变化的价值不在“名字更时髦”，而在它打破了线性阶段感，让多 agent 协作可以围绕能力图而不是时间队列展开。
 
 ## 四、技术夹层：我们最后揉出来的流程
 
@@ -221,17 +183,13 @@ Agent 也一样。
 
 ## 六、第二层顿悟：我在手搓 Agent Scheduler
 
-再往前想一层，就更好笑了。
+再往前想一层，这件事就更好笑了。
 
-我本来只是想做个音标练习工具。
+我本来只是想做个音标练习工具，结果先搭出了多 agent 协作流程，再把流程沉淀成 GitHub Project、Epic、label inbox、PR review 和 readiness gate。
 
-做着做着，先变成了多 agent 协作。
+换个名字看，这就是一个简陋的 agent scheduler。
 
-协作着协作着，又变成了 GitHub Project + Epic + label inbox + PR review + readiness gate。
-
-再往前推一步，这不就是一个简陋的智能体调度系统吗？
-
-只不过它没有漂亮的 dashboard，没有自动派单算法，没有 agent runtime，没有任务图数据库，也没有什么 MCP 大一统平台。
+它当然没有漂亮的 dashboard，没有自动派单算法，没有 agent runtime，也没有任务图数据库。
 
 它很土：
 
@@ -245,49 +203,13 @@ CI 是自动验收
 人类是仲裁器
 ```
 
-但是它已经有了调度系统的味道。
+但它已经具备调度系统最小闭环：任务对象、状态机、路由信号、上下文载体、交付物、验收门禁和人类仲裁。
 
-谁该干活？
+2026 年中，我很难相信只有我一个人在摸这块石头。一个 agent 可以靠对话驱动；两个 agent 就开始需要共享上下文；三个 agent 以后，调度、权限、成本、review、memory、handoff 都会变成显性问题。
 
-看 label。
+这时真正的问题不再是“哪个模型最聪明”，而是“怎么让这些不稳定的聪明，稳定地流过一个工程系统”。
 
-干什么？
-
-看 issue body 和最新 comment。
-
-做到哪了？
-
-看 Project status。
-
-能不能合？
-
-看 PR、CI、review、completion comment。
-
-有没有跨任务风险？
-
-看 Epic。
-
-需要用户拍板吗？
-
-挂 `needs:user`。
-
-这套东西当然还很原始。但在 2026 年中，我很难相信只有我一个人在往这个方向走。
-
-所有严肃的、业余的、半夜不睡觉折腾 agent 的玩家，大概都在某种程度上摸这块石头。
-
-一个 agent 很有用。
-
-两个 agent 开始需要协作。
-
-三个 agent 就会需要调度。
-
-再往后，测试 agent、review agent、文档 agent、planner agent、implementer agent、practice harvester agent、CI fixer agent，各自都有强项，也各自都会犯傻。
-
-这时真正的问题不是“哪个模型最聪明”。
-
-而是“怎么让这些不稳定的聪明，稳定地流过一个工程系统”。
-
-成熟平台迟早会来。也许哪家公司会做出一个漂亮的 agent operating system，把任务拆解、上下文装载、权限隔离、成本控制、review gate、memory、practice 全部打包起来。
+成熟平台迟早会来。也许某家公司会做出一个漂亮的 agent operating system，把任务拆解、上下文装载、权限隔离、成本控制、review gate、memory、practice 全部打包起来。
 
 但在那之前，手搓一个自己的小型 agent 调度管理系统，简直是每个 geek 很难抗拒的自然反应。
 
@@ -295,38 +217,18 @@ CI 是自动验收
 
 ## 七、老登的茶杯暂时还放不下
 
-所以 tiny-ipa 表面上是一个音标练习工具。
+所以 tiny-ipa 表面上是一个音标练习工具，暗线却是一套多 agent 软件开发流程的试验。
 
-暗线却是另一件事：我们在训练一套多 agent 软件开发流程。
+Codex 变成 architect，DeepSeek 变成 implementer。GitHub 从代码托管变成共享工作台，issue 变成上下文包，label 变成调度信号，comment 变成 agent-to-agent 的消息，Epic 变成跨任务的组织记忆。
 
-Codex 不只是写文档，它开始扮演 architect。
-
-DeepSeek 不只是写代码，它开始扮演 implementer。
-
-GitHub 不只是代码托管，它变成了 agent 之间的共享工作台。
-
-Issue 不只是任务列表，它变成了上下文包。
-
-Label 不只是分类，它变成了调度信号。
-
-Comment 不只是留言，它变成了 agent-to-agent 的消息。
-
-Epic 不只是大 issue，它变成了跨任务的组织记忆。
-
-我也没有真的甩手。
-
-我只是从“亲自写每一行代码”，退到了“设计协作系统，让 agent 在里面少走弯路”。听起来还是老登，甚至更老登。
-
-但这次有点不一样。
+我也没有真的甩手，只是从“亲自写每一行代码”，退到了“设计协作系统，让 agent 在里面少走弯路”。
 
 以前带人，流程是给人减轻沟通成本。
 
 现在带 agent，流程是给机器补上组织感。
 
-所谓 vibe coding，也许最后不是一个人对着一个 AI 许愿。
+所谓 vibe coding，也许最后不是一个人对着一个 AI 许愿，而是在一张很小的 GitHub Project 看板上，慢慢搭出一个软件团队的影子。
 
-它更像是在一张很小的 GitHub Project 看板上，慢慢搭出一个软件团队的影子。有人快，有人稳，有人 review，有人执行，有人记账，有人总结 practice。
-
-而人类端着茶杯，看着这些硅基同事在 label 和 comment 之间来回流转，偶尔忍不住感叹一句：
+人类端着茶杯，看着这些硅基同事在 label 和 comment 之间来回流转，偶尔忍不住感叹一句：
 
 兜兜转转，怎么又开始搞配置管理了。
