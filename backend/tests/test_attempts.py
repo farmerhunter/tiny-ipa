@@ -185,6 +185,29 @@ class TestAttemptRoute:
         for r in rows:
             assert r["primary_accent"] == "US"
 
+    def test_last_wrong_at_preserved_after_correct(self, client, seeded_db):
+        """After wrong→correct, last_wrong_at should persist, not be cleared."""
+        item = _get_first_item(client)
+        # Submit wrong answer first
+        client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": "/wrong/",
+        })
+        # Submit correct answer
+        client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": item["display_ipa"],
+        })
+        conn = get_connection(seeded_db)
+        rows = conn.execute(
+            "SELECT phoneme_id, last_wrong_at FROM phoneme_stats WHERE primary_accent = 'US'"
+        ).fetchall()
+        conn.close()
+        for r in rows:
+            assert r["last_wrong_at"] is not None, (
+                f"last_wrong_at was cleared for phoneme {r['phoneme_id']} after correct attempt"
+            )
+
     def test_client_correct_answer_ignored(self, client, seeded_db):
         """Client sending correct_answer in body is ignored."""
         item = _get_first_item(client)
