@@ -56,18 +56,24 @@ def _get_or_create_stat(
     default dict suitable for first-time insert."""
     row = conn.execute(
         """
-        SELECT attempt_count, correct_count, mastery_status
+        SELECT attempt_count, correct_count, mastery_status, last_wrong_at
         FROM phoneme_stats
         WHERE user_id = ? AND primary_accent = ? AND phoneme_id = ?
         """,
         (user_id, primary_accent, phoneme_id),
     ).fetchone()
     if row is None:
-        return {"attempt_count": 0, "correct_count": 0, "mastery_status": "new"}
+        return {
+            "attempt_count": 0,
+            "correct_count": 0,
+            "mastery_status": "new",
+            "last_wrong_at": None,
+        }
     return {
         "attempt_count": row["attempt_count"],
         "correct_count": row["correct_count"],
         "mastery_status": row["mastery_status"],
+        "last_wrong_at": row["last_wrong_at"],
     }
 
 
@@ -141,8 +147,10 @@ def update_phoneme_stats(
         new_count = stat["attempt_count"] + 1
         new_correct = stat["correct_count"] + (1 if is_correct else 0)
         mastery = _compute_mastery(new_count, new_correct)
-        wrong_at = None if is_correct else timestamp
-        if not is_correct:
+        # Preserve existing last_wrong_at on correct attempts.
+        if is_correct:
+            wrong_at = stat.get("last_wrong_at")
+        else:
             wrong_at = timestamp
 
         _upsert_phoneme_stat(
