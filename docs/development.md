@@ -96,6 +96,7 @@ Residual risks:
 - PRs that pass CI checks may be auto-merged for normal scoped changes.
 - Default PR granularity is one child issue per PR.
 - Cross-issue findings belong on the parent Epic unless one child issue clearly owns them.
+- For stacked PRs, merging a PR only merges into that PR's base branch. Before closing issues or Epics, verify the final commits are reachable from `origin/main`. Use a final integration PR to `main` or retarget PRs in order.
 - **Do not auto-merge** if:
   - CI is failing
   - The change touches the database schema without a migration path

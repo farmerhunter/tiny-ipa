@@ -95,6 +95,15 @@ Base:   main
 
 Milestone-sized PRs are not the default. They are allowed only when the child issues are tightly coupled, the PR body maps every child issue to completed scope, and review remains tractable.
 
+Stacked PRs are allowed when dependencies are real, but merging a stacked PR merges it into its base branch, not necessarily into `main`. Before closing issues or an Epic, verify that every required commit is reachable from `origin/main`. If stacked PRs were reviewed against non-main bases, use one of these release paths:
+
+```text
+Option A: retarget each PR to main after its lower dependency lands, then merge in order
+Option B: open a final integration PR from the top stack branch to main
+```
+
+Do not treat a stacked PR as complete merely because GitHub shows it as merged; check the merge destination.
+
 ## Project Status Flow
 
 Use the Kanban status as shared state:
