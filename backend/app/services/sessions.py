@@ -6,6 +6,7 @@ build the full API response.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import date, datetime, timezone
 from typing import Dict, List, Optional, Tuple
@@ -32,9 +33,14 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _stable_hash(s: str) -> int:
+    """Cross-process stable hash — ``hashlib.md5`` instead of Python ``hash()``."""
+    return int(hashlib.md5(s.encode()).hexdigest(), 16) & 0x7FFFFFFF
+
+
 def _seed_from_date(session_date: str) -> int:
     """Deterministic seed so same-date calls get the same word ordering."""
-    return hash(session_date) & 0x7FFFFFFF
+    return _stable_hash(session_date)
 
 
 def build_today_response(
@@ -154,7 +160,7 @@ def _build_response(
             word,
             accent=accent,
             distractor_pool=distractor_pool,
-            seed=hash(item.id) & 0x7FFFFFFF,
+            seed=_stable_hash(item.id),
         )
 
         item_dicts.append(

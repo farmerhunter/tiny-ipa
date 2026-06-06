@@ -293,6 +293,22 @@ class TestImportWords:
         conn2.close()
         assert len(tables_after) >= 7
 
+    def test_unknown_phoneme_tags_us_blocks_import(self, temp_db, tmp_path):
+        """Words with phoneme tags not in the inventory must fail the import."""
+        bad_file = tmp_path / "bad_phoneme.json"
+        bad_file.write_text(json.dumps([{
+            "word_id": "ship",
+            "word": "ship",
+            "level": "beginner",
+            "ipa_us": "/ʃɪp/",
+            "phoneme_tags_us": ["/ʃ/", "/ɪ/", "/ɸ/"],  # /ɸ/ is not in phonemes.json
+            "content_status": "core_selected",
+        }]))
+        report = import_words(bad_file, PHONEMES_PATH, temp_db)
+        assert report["validation_passed"] is False
+        assert report["validation_errors"] > 0
+        assert any("unknown phoneme tag" in e.lower() for e in report["errors"])
+
     def test_skip_validation_flag(self, temp_db, tmp_path):
         """With --skip-validation, content errors are bypassed."""
         bad_file = tmp_path / "unvalidated.json"
