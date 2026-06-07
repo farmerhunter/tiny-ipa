@@ -144,6 +144,14 @@ Architects may move a dependent sequence of child issues to `Ready` at the same 
 
 Implementers may queue multiple ready issues, but must execute them in dependency order. Do not create a working branch, code changes, or a PR for a dependent issue until its `Depends on` condition is satisfied.
 
+Avoid making review of each earlier issue a default queue-wide blocker. A child issue review blocks later implementation only when:
+
+- the later issue has an explicit `Depends on` gate that is not satisfied
+- the Architect adds a clear Epic-level hold comment
+- the review finding changes a shared contract that later issues would build on
+
+Otherwise, later ready issues can continue while earlier PRs are being reviewed. This keeps the workflow closer to fail-fast iteration instead of turning the Architect into a manual release valve after every child issue.
+
 If a dependency is not satisfied yet, the Implementer may leave a queue comment:
 
 ```markdown
@@ -275,16 +283,19 @@ Agent pickup commands:
 
 ```bash
 # Architect inbox
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:architect
+tools/agents/agent-inbox architect
 
 # Implementer inbox
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:implementer
+tools/agents/agent-inbox implementer
+
+# Implementer queue with dependency gates
+tools/agents/agent-ready-queue
 
 # User-decision queue
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:user
+tools/agents/agent-inbox user
 
 # Merge queue
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:merge
+tools/agents/agent-inbox merge
 ```
 
 When changing handoff ownership, always add a short comment that states what changed and what the next agent should do. The label is the routing signal; the comment is the context.
@@ -330,8 +341,8 @@ Do not rely on issue comments alone for a PR-specific or stacked-branch handoff.
 Implementer re-review pickup command:
 
 ```bash
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:implementer
-gh issue view <issue-number> -R farmerhunter/tiny-ipa --comments
+tools/agents/agent-inbox implementer
+tools/agents/agent-issue-context <issue-number>
 gh pr view <pr-number> -R farmerhunter/tiny-ipa --comments
 ```
 
@@ -406,6 +417,26 @@ The readiness comment should state whether downstream Epics may move from `Backl
 ## GitHub CLI Notes
 
 Prefer labels for agent pickup because they are fast, portable, and supported by `gh issue list`. GitHub Project v2 fields are still useful as the visual board, but Project item updates require Project item IDs, field IDs, and option IDs, which makes automation slower and more brittle.
+
+Tiny IPA has project-local helpers under `tools/agents/`:
+
+```bash
+tools/agents/agent-inbox architect
+tools/agents/agent-inbox implementer
+tools/agents/agent-ready-queue
+tools/agents/agent-issue-context <issue-number>
+tools/agents/agent-project-status <issue-number> "In Review"
+```
+
+Use these helpers first in daily agent work. They standardize retries, avoid unnecessary Project v2 reads, and cache Project item IDs in `.agent-cache/` when a Project status update is needed.
+
+Operational rule:
+
+```text
+Daily routing: labels + issue/PR comments
+Human board sync: Project status, updated after labels/comments
+Full Project scans: rare, cached, and not part of ordinary inbox lookup
+```
 
 Observed limitations and mitigations:
 
