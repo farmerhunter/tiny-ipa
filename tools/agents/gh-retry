@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/gh-retry <gh-or-git-command> [args...]
+
+Retries a GitHub-related command when network/TLS/HTTP2 hiccups occur.
+
+Environment:
+  GH_RETRY_ATTEMPTS  default: 3
+  GH_RETRY_SLEEP     default: 2
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+attempts="${GH_RETRY_ATTEMPTS:-3}"
+sleep_seconds="${GH_RETRY_SLEEP:-2}"
+
+export GH_NO_UPDATE_NOTIFIER=1
+export GH_PROMPT_DISABLED=1
+
+try=1
+while true; do
+  set +e
+  "$@"
+  status=$?
+  set -e
+
+  if [[ "$status" -eq 0 ]]; then
+    exit 0
+  fi
+
+  if (( try >= attempts )); then
+    exit "$status"
+  fi
+
+  printf 'Command failed with status %s. Retry %s/%s in %ss...\n' \
+    "$status" "$((try + 1))" "$attempts" "$sleep_seconds" >&2
+  sleep "$sleep_seconds"
+  try=$((try + 1))
+done

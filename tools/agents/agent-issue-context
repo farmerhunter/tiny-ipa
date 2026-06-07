@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-issue-context <issue-number>
+
+Prints the issue body, labels, latest comments, and open PR candidates.
+Use this before pickup, re-review, or handoff.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -ne 1 ]]; then
+  usage
+  exit 0
+fi
+
+issue="$1"
+
+printf '== Issue #%s ==\n' "$issue"
+"$gh_retry" gh issue view "$issue" \
+  --repo "$repo" \
+  --json number,title,state,labels,url,body \
+  --jq '"#\(.number) \(.title)\nstate: \(.state)\nurl: \(.url)\nlabels: \([.labels[].name] | join(", "))\n\n" + (.body // "")'
+
+printf '\n== Comments ==\n'
+"$gh_retry" gh issue view "$issue" \
+  --repo "$repo" \
+  --comments
+
+printf '\n== Open PR candidates ==\n'
+"$gh_retry" gh pr list \
+  --repo "$repo" \
+  --state open \
+  --limit 50 \
+  --json number,title,url,headRefName,baseRefName,labels,updatedAt \
+  --jq ".[] | select((.title | contains(\"#$issue\")) or (.headRefName | contains(\"/$issue-\")) or (.headRefName | contains(\"-$issue-\"))) | \"#\\(.number) \\(.title)\\n  \\(.url)\\n  \\(.headRefName) -> \\(.baseRefName)\\n  labels: \\([.labels[].name] | join(\", \"))\\n  updated: \\(.updatedAt)\""
