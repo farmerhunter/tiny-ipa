@@ -39,6 +39,8 @@ When handing work to another role, update the label and add a short issue or PR 
 
 Do not put `needs:implementer` on an Epic. Implementers pick up child issues, not Epic containers. If an Epic-level concern requires execution, create a child task such as integration QA, cross-issue gap fixing, or final manual QA evidence.
 
+`Ready + needs:implementer` may represent an Implementer queue, not only work that can start immediately. Implementers should read all ready issues in the queue, sort them by the `Depends on` line in each `Execution Contract`, and execute only the issues whose dependencies are satisfied.
+
 When an issue returns from Architect review, read both the issue handoff comment and the linked PR comment:
 
 ```bash
@@ -69,12 +71,22 @@ Example: `agent/2-scaffold-fastapi-react-skeleton`
 1. Read the docs referenced in the issue body.
 2. Check the parent Epic for dependencies and readiness notes.
 3. Confirm the child issue is in `Ready`.
-4. Move the child issue to `In progress`.
-5. Read the issue's `Execution Contract`.
-6. Comment with `Pickup confirmed`, including branch strategy, working branch, PR base, and verification plan.
-7. Create the issue branch from the contract's base branch.
+4. Read the issue's `Execution Contract`.
+5. Confirm every `Depends on` condition is satisfied.
+6. Move the child issue to `In progress`.
+7. Comment with `Pickup confirmed`, including branch strategy, working branch, PR base, and verification plan.
+8. Create the issue branch from the contract's base branch.
 
 Do not start implementation if the `Execution Contract` is missing or the PR base is ambiguous. Move the issue to `needs:architect` and ask for the missing branch strategy.
+
+Do not start implementation for a dependent issue whose `Depends on` condition is not satisfied yet. Leave the issue in `Ready` and optionally add:
+
+```markdown
+## Queued by Implementer
+
+Dependency not satisfied yet.
+Waiting for #... to merge into `epic/...`.
+```
 
 ### When completing an issue
 
@@ -115,6 +127,8 @@ Residual risks:
 ### Branch strategy
 
 The Architect decides branch strategy before moving a child issue to `Ready`.
+
+The Architect may move a whole dependent issue sequence to `Ready` at once when each issue has an `Execution Contract`. This avoids repeated Architect handoffs between issues. The Implementer owns queue ordering from that point, but dependency gates still apply.
 
 Default:
 

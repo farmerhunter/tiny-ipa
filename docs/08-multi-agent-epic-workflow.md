@@ -133,6 +133,26 @@ Merge rule: ...
 Verification required: ...
 ```
 
+`Ready` means the issue is planned, specified, and available for Implementer queue management. It does not always mean the issue can be coded immediately. The `Depends on` line is the executable gate.
+
+Architects may move a dependent sequence of child issues to `Ready` at the same time and label them `needs:implementer` when:
+
+- every issue has an execution contract
+- dependencies are explicit and checkable
+- all issue branches target the same Epic integration branch unless an exception is documented
+- the Implementer can continue the queue without another Architect handoff
+
+Implementers may queue multiple ready issues, but must execute them in dependency order. Do not create a working branch, code changes, or a PR for a dependent issue until its `Depends on` condition is satisfied.
+
+If a dependency is not satisfied yet, the Implementer may leave a queue comment:
+
+```markdown
+## Queued by Implementer
+
+Dependency not satisfied yet.
+Waiting for #... to merge into `epic/...`.
+```
+
 For the default Epic integration path:
 
 ```markdown
@@ -161,6 +181,8 @@ Working branch: `agent/<issue-number>-...`
 PR base: `...`
 Verification plan: ...
 ```
+
+Use `Pickup confirmed` only when dependencies are satisfied and implementation is actually starting.
 
 If the execution contract is missing or the intended PR base is unclear, the Implementer should move the issue to `needs:architect` instead of starting work.
 
