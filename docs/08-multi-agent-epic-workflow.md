@@ -34,7 +34,8 @@ These are roles, not identities. The same agent can play different roles in diff
 Epic issue = capability / outcome / cross-issue coordination hub
 Child issue = executable work and acceptance unit
 Branch = implementation line for one child issue
-PR = request to merge one child issue branch into main
+Issue PR = request to merge one child issue branch into its target integration branch
+Epic PR = request to merge one Epic integration branch into main
 Milestone = optional roadmap or historical phase marker
 ```
 
@@ -81,21 +82,31 @@ Keep the concern on the Epic when it is only coordination, review, or decision-m
 Default:
 
 ```text
-one child issue -> one branch -> one PR
+one Epic -> one integration branch -> one final PR to main
+one child issue -> one issue branch -> one PR to the Epic integration branch
 ```
 
 Example:
 
 ```text
+Epic:   #23 M3 TTS
+Branch: epic/m3-tts
+PR:     [M3] Integrate TTS capability
+Base:   main
+
 Issue:  #11 Persist daily sessions and make /api/today database-backed
 Branch: agent/11-db-backed-today
 PR:     [#11] Persist daily sessions and make /api/today database-backed
-Base:   main
+Base:   epic/m2-persisted-practice
 ```
 
-Milestone-sized PRs are not the default. They are allowed only when the child issues are tightly coupled, the PR body maps every child issue to completed scope, and review remains tractable.
+This is the preferred path for current multi-agent work. It keeps final integration reliable while preserving issue-level PRs for scoped review.
 
-Stacked PRs are allowed when dependencies are real, but merging a stacked PR merges it into its base branch, not necessarily into `main`. Before closing issues or an Epic, verify that every required commit is reachable from `origin/main`. If stacked PRs were reviewed against non-main bases, use one of these release paths:
+Issue branches may target `main` directly only for independent documentation, tooling, or small fixes that do not belong to an active Epic integration branch.
+
+Stacked PRs are an explicit exception, not the default. Use them only when every layer has independent review value, the dependency chain is real, and the Architect writes the stack order and final integration path before work starts.
+
+Merging a stacked PR merges it into its base branch, not necessarily into `main`. Before closing issues or an Epic, verify that every required commit is reachable from `origin/main`. If stacked PRs were reviewed against non-main bases, use one of these release paths:
 
 ```text
 Option A: retarget each PR to main after its lower dependency lands, then merge in order
@@ -103,6 +114,55 @@ Option B: open a final integration PR from the top stack branch to main
 ```
 
 Do not treat a stacked PR as complete merely because GitHub shows it as merged; check the merge destination.
+
+### Branch Strategy Contract
+
+The Architect decides the branch strategy before moving a child issue to `Ready`. Implementers should not infer or choose the strategy at pickup time.
+
+Every ready child issue should include an execution contract:
+
+```markdown
+## Execution Contract
+
+Branch strategy: epic integration branch | issue branch to main | stacked PR
+Base branch: `...`
+Target PR base: `...`
+Depends on: #... / none
+Expected PR shape: one PR for this issue
+Merge rule: ...
+Verification required: ...
+```
+
+For the default Epic integration path:
+
+```markdown
+Branch strategy: epic integration branch
+Base branch: `epic/m3-tts`
+Target PR base: `epic/m3-tts`
+Final integration: Architect owns the Epic PR from `epic/m3-tts` to `main`.
+```
+
+For a stacked PR exception:
+
+```markdown
+Branch strategy: stacked PR
+Base branch: `agent/<lower-issue-branch>`
+Target PR base: `agent/<lower-issue-branch>`
+Final integration: retarget in order or open one final integration PR to `main`.
+```
+
+When the Implementer picks up a ready issue, the first issue comment should confirm the contract:
+
+```markdown
+## Pickup confirmed
+
+Branch strategy: ...
+Working branch: `agent/<issue-number>-...`
+PR base: `...`
+Verification plan: ...
+```
+
+If the execution contract is missing or the intended PR base is unclear, the Implementer should move the issue to `needs:architect` instead of starting work.
 
 ## Project Status Flow
 

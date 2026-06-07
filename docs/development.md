@@ -5,7 +5,7 @@
 Tiny IPA uses Epic issues as the planning and cross-issue coordination layer. Child issues are the executable work and acceptance units.
 
 ```text
-Epic issue -> child issues -> issue branches -> PRs -> main
+Epic issue -> Epic integration branch -> child issues -> issue branches -> issue PRs -> Epic PR -> main
 ```
 
 Use:
@@ -70,7 +70,11 @@ Example: `agent/2-scaffold-fastapi-react-skeleton`
 2. Check the parent Epic for dependencies and readiness notes.
 3. Confirm the child issue is in `Ready`.
 4. Move the child issue to `In progress`.
-5. Create a branch from `main`.
+5. Read the issue's `Execution Contract`.
+6. Comment with `Pickup confirmed`, including branch strategy, working branch, PR base, and verification plan.
+7. Create the issue branch from the contract's base branch.
+
+Do not start implementation if the `Execution Contract` is missing or the PR base is ambiguous. Move the issue to `needs:architect` and ask for the missing branch strategy.
 
 ### When completing an issue
 
@@ -92,10 +96,13 @@ Residual risks:
 
 ### Pull requests and auto-merge
 
-- Code work should be submitted as a PR against `main`.
+- Default multi-agent code work should be submitted as an issue PR against the parent Epic integration branch.
+- The Architect owns the final Epic PR from the Epic integration branch to `main`.
 - PRs that pass CI checks may be auto-merged for normal scoped changes.
 - Default PR granularity is one child issue per PR.
+- Direct PRs to `main` are allowed for independent documentation, tooling, or small fixes outside an active Epic integration branch.
 - Cross-issue findings belong on the parent Epic unless one child issue clearly owns them.
+- Stacked PRs are an explicit exception. Use them only when the Architect has written the stack order and final integration path in the issue's `Execution Contract`.
 - For stacked PRs, merging a PR only merges into that PR's base branch. Before closing issues or Epics, verify the final commits are reachable from `origin/main`. Use a final integration PR to `main` or retarget PRs in order.
 - **Do not auto-merge** if:
   - CI is failing
@@ -104,6 +111,28 @@ Residual risks:
   - The change introduces new external dependencies without discussion
   - The PR description includes a "hold" or "do not merge" note
   - The PR spans multiple child issues without clear mapping
+
+### Branch strategy
+
+The Architect decides branch strategy before moving a child issue to `Ready`.
+
+Default:
+
+```text
+Branch strategy: epic integration branch
+Issue branch base: epic/<epic-short-name>
+Issue PR base: epic/<epic-short-name>
+Final PR base: main
+```
+
+Allowed exceptions:
+
+```text
+issue branch to main
+stacked PR
+```
+
+`issue branch to main` is for small independent work. `stacked PR` is for dependency chains where each layer has independent review value and the added Git complexity is justified.
 
 ### Project status flow
 
