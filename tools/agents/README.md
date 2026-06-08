@@ -36,10 +36,28 @@ then reads comments only for the queued issues.
 
 ```bash
 tools/agents/agent-issue-context 15
+tools/agents/agent-pr-context 44
 ```
 
 Use this before pickup, review, or re-review. The command prints the issue,
 comments, and likely open PRs. It also uses REST for issue/comment reads.
+
+Use `agent-pr-context` before PR review. It reads PR metadata, commits, files,
+comments, and review comments through REST, which is often faster and more
+reliable than `gh pr view` in this project.
+
+## Labels
+
+```bash
+tools/agents/agent-label 15 set-next needs:implementer
+tools/agents/agent-label 15 set-next needs:architect
+tools/agents/agent-label 15 remove needs:implementer
+```
+
+Use `agent-label` for role routing when GraphQL-backed `gh issue edit` is slow
+or flaky. `set-next` removes the other primary next-action labels before adding
+the requested label. It reads current labels first, so it avoids unnecessary
+delete/add calls when the issue is already in the requested route.
 
 ## Project Status
 

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-pr-context <pr-number>
+
+Prints PR metadata, commits, files, comments, and linked issue hints using
+GitHub REST API calls. Use this for review before falling back to GraphQL
+commands such as `gh pr view`.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -ne 1 ]]; then
+  usage
+  exit 0
+fi
+
+pr="$1"
+require_number "$pr" "PR number"
+
+printf '== PR #%s ==\n' "$pr"
+"$gh_retry" gh api "$(repo_api_path "$repo")/pulls/$pr" \
+  --jq '"#\(.number) \(.title)\nstate: \(.state)\nmergeable: \(.mergeable // "unknown")\ndraft: \(.draft)\nurl: \(.html_url)\nbase: \(.base.ref)\nhead: \(.head.ref)\nupdated: \(.updated_at)\n\n" + (.body // "")'
+
+printf '\n== Commits ==\n'
+"$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls/$pr/commits" \
+  -f per_page=100 \
+  --jq '.[] | "\(.sha[0:7]) \(.commit.message | split("\n")[0])"'
+
+printf '\n== Files ==\n'
+"$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls/$pr/files" \
+  -f per_page=100 \
+  --jq '.[] | "\(.status)\t\(.filename)\t+\(.additions)/-\(.deletions)"'
+
+printf '\n== Issue Hints ==\n'
+"$gh_retry" gh api "$(repo_api_path "$repo")/pulls/$pr" \
+  --jq '(.body // "" + "\n" + .title) |
+    [match("(close[sd]?|fix(e[sd])?|resolve[sd]?) +#([0-9]+)"; "ig")?.captures[2].string,
+     match("#([0-9]+)"; "g")?.captures[0].string] |
+    unique |
+    map(select(. != null)) |
+    if length == 0 then "No issue references found." else map("#" + .) | join("\n") end'
+
+printf '\n== PR Comments ==\n'
+"$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$pr/comments" \
+  -f per_page="$comments_limit" \
+  --jq '.[] |
+    "author: \(.user.login)\ncreated: \(.created_at)\nurl: \(.html_url)\n--\n\(.body)\n"'
+
+printf '\n== Review Comments ==\n'
+"$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls/$pr/comments" \
+  -f per_page="$comments_limit" \
+  --jq '.[] |
+    "author: \(.user.login)\ncreated: \(.created_at)\npath: \(.path):\(.line // .original_line // 0)\nurl: \(.html_url)\n--\n\(.body)\n"'

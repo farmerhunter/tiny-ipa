@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-label <issue-number> add <label>
+  tools/agents/agent-label <issue-number> remove <label>
+  tools/agents/agent-label <issue-number> set-next <needs:architect|needs:implementer|needs:user|needs:ci|needs:merge|blocked>
+
+Uses GitHub REST label endpoints to avoid `gh issue edit` GraphQL timeouts.
+`set-next` removes the primary next-action labels first, then adds the target.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -lt 3 ]]; then
+  usage
+  exit 0
+fi
+
+issue="$1"
+action="$2"
+label="$3"
+require_number "$issue" "Issue number"
+
+add_label() {
+  local target_label="$1"
+  "$gh_retry" gh api -X POST "$(repo_api_path "$repo")/issues/$issue/labels" \
+    -f "labels[]=$target_label" >/dev/null
+}
+
+remove_label() {
+  local target_label="$1"
+  "$gh_retry" gh api -X DELETE "$(repo_api_path "$repo")/issues/$issue/labels/$target_label" >/dev/null 2>&1 || true
+}
+
+current_labels_json() {
+  "$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue" \
+    --jq '[.labels[].name]'
+}
+
+has_label() {
+  local target_label="$1"
+  local labels_json="$2"
+
+  jq -e --arg label "$target_label" 'index($label) != null' <<< "$labels_json" >/dev/null
+}
+
+case "$action" in
+  add)
+    add_label "$label"
+    ;;
+  remove)
+    remove_label "$label"
+    ;;
+  set-next)
+    case "$label" in
+      needs:architect|needs:implementer|needs:user|needs:ci|needs:merge|blocked) ;;
+      *)
+        printf 'Unsupported next-action label: %s\n' "$label" >&2
+        exit 2
+        ;;
+    esac
+    labels_json="$(current_labels_json)"
+    for next_label in needs:architect needs:implementer needs:user needs:ci needs:merge blocked; do
+      if [[ "$next_label" != "$label" ]] && has_label "$next_label" "$labels_json"; then
+        remove_label "$next_label"
+      fi
+    done
+    if ! has_label "$label" "$labels_json"; then
+      add_label "$label"
+    fi
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+"$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue" \
+  --jq '"#\(.number) labels: " + ([.labels[].name] | join(", "))'
