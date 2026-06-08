@@ -224,6 +224,37 @@ def validate_words(
     return report
 
 
+_AUDIO_SANITY_MIN_BYTES = 128
+
+
+def _check_audio_files(words: List[dict], audio_dir: Path, accent: str) -> dict:
+    """Check that audio_us/audio_uk files exist and are non-empty.
+
+    Returns a report dict with ``missing_files``, ``empty_files``, and
+    ``checked`` counts.
+    """
+    audio_report: dict = {"missing_files": [], "empty_files": [], "checked": 0, "found_ok": 0}
+    audio_field = f"audio_{accent}"
+    for w in words:
+        path_str = w.get(audio_field)
+        if not path_str:
+            continue
+        audio_report["checked"] += 1
+        # /audio/us/ship.mp3 -> audio_dir / us / ship.mp3 (but audio_dir is already audio/)
+        # Handle both: path is relative like /audio/us/ship.mp3 -> strip leading /audio/
+        rel = path_str.lstrip("/")
+        if rel.startswith("audio/"):
+            rel = rel[len("audio/"):]
+        file_path = audio_dir / rel
+        if not file_path.exists():
+            audio_report["missing_files"].append({"word_id": w.get("word_id", w.get("word", "")), "path": str(file_path)})
+        elif file_path.stat().st_size < _AUDIO_SANITY_MIN_BYTES:
+            audio_report["empty_files"].append({"word_id": w.get("word_id", w.get("word", "")), "path": str(file_path), "size": file_path.stat().st_size})
+        else:
+            audio_report["found_ok"] += 1
+    return audio_report
+
+
 def print_report(report: dict, known_phonemes: Set[str]) -> None:
     """Print a human-readable content validation report."""
     error_count = len(report["errors"])
@@ -297,6 +328,24 @@ def print_report(report: dict, known_phonemes: Set[str]) -> None:
     else:
         print("  (none)")
 
+    # Audio validation section
+    audio = report.get("audio_validation")
+    if audio:
+        print()
+        print("--- Audio file validation ---")
+        print(f"Audio files checked:  {audio['checked']}")
+        print(f"Files found OK:       {audio['found_ok']}")
+        print(f"Missing files:        {len(audio['missing_files'])}")
+        print(f"Empty/too-small files:{len(audio['empty_files'])}")
+        if audio["missing_files"]:
+            print("  Missing:")
+            for m in audio["missing_files"][:10]:
+                print(f"    {m['word_id']}: {m['path']}")
+        if audio["empty_files"]:
+            print("  Empty/too-small:")
+            for e in audio["empty_files"][:10]:
+                print(f"    {e['word_id']}: {e['path']} ({e['size']} bytes)")
+
     print()
     print("--- License summary ---")
     for license_key, count in report["license_summary"].items():
@@ -337,6 +386,11 @@ def main():
         help="Primary accent for validation focus (default: US).",
     )
     parser.add_argument(
+        "--check-audio-files",
+        default=None,
+        help="Optional audio directory to verify audio_us/audio_uk files exist and are non-empty.",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Output the report as JSON instead of human-readable text.",
@@ -363,6 +417,17 @@ def main():
     words = load_words(words_path)
     known_phonemes = load_phoneme_set(phonemes_path)
     report = validate_words(words, known_phonemes, args.accent)
+
+    # ---- audio file check (opt-in) -------------------------------------------
+    if args.check_audio_files:
+        audio_dir = Path(args.check_audio_files)
+        audio_report = _check_audio_files(words, audio_dir, args.accent.lower())
+        report["audio_validation"] = audio_report
+        if audio_report["missing_files"]:
+            for entry in audio_report["missing_files"]:
+                report["errors"].append(
+                    f"{entry['word_id']}: audio file missing — {entry['path']}"
+                )
 
     if args.json:
         # Convert sets/lists for JSON serialization
