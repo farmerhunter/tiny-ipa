@@ -24,3 +24,6 @@ content/sources/
 .env
 .env.*
 !.env.example
+
+# Local agent helper cache
+.agent-cache/

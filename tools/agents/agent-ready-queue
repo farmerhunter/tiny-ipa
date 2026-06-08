@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+limit="${AGENT_READY_LIMIT:-30}"
+comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-ready-queue
+
+Lists needs:implementer issues and extracts the Execution Contract lines
+that determine queue order. A Ready issue may still be blocked by Depends on.
+
+Uses REST API calls instead of `gh issue list/view` to avoid GraphQL timeouts.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -gt 0 ]]; then
+  usage
+  exit 0
+fi
+
+issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
+  -f state=open \
+  -f labels=needs:implementer \
+  -f per_page="$limit")"
+
+if [[ "$(jq 'length' <<< "$issues_json")" -eq 0 ]]; then
+  printf 'No open issues labeled needs:implementer.\n'
+  exit 0
+fi
+
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  issue="$(jq -r '.number' <<< "$issue_json")"
+  title="$(jq -r '.title' <<< "$issue_json")"
+  url="$(jq -r '.html_url' <<< "$issue_json")"
+  body="$(jq -r '.body // ""' <<< "$issue_json")"
+  comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+    -f per_page="$comments_limit" \
+    --jq '[.[].body] | join("\n")')"
+  text="$body"$'\n'"$comments"
+
+  printf '#%s %s\n  %s\n' "$issue" "$title" "$url"
+  printf '  %s\n' "$(extract_contract_line "Branch strategy:" "$text")"
+  printf '  %s\n' "$(extract_contract_line "Base branch:" "$text")"
+  printf '  %s\n' "$(extract_contract_line "Target PR base:" "$text")"
+  printf '  %s\n' "$(extract_contract_line "Depends on:" "$text")"
+done < <(jq -c '.[]' <<< "$issues_json")

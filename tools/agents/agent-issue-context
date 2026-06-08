@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
+pr_limit="${AGENT_PR_LIMIT:-50}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-issue-context <issue-number>
+
+Prints the issue body, labels, latest comments, and open PR candidates.
+Use this before pickup, re-review, or handoff.
+
+Uses REST API calls for issue and comment reads to avoid GraphQL timeouts.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -ne 1 ]]; then
+  usage
+  exit 0
+fi
+
+issue="$1"
+
+printf '== Issue #%s ==\n' "$issue"
+"$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue" \
+  --jq '"#\(.number) \(.title)\nstate: \(.state)\nurl: \(.html_url)\nlabels: \([.labels[].name] | join(", "))\n\n" + (.body // "")'
+
+printf '\n== Comments ==\n'
+"$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+  -f per_page="$comments_limit" \
+  --jq '.[] |
+    "author: \(.user.login)\ncreated: \(.created_at)\nurl: \(.html_url)\n--\n\(.body)\n"'
+
+printf '\n== Open PR candidates ==\n'
+"$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls" \
+  -f state=open \
+  -f per_page="$pr_limit" \
+  --jq ".[] |
+    select((.title | contains(\"#$issue\")) or (.head.ref | contains(\"/$issue-\")) or (.head.ref | contains(\"-$issue-\"))) |
+    \"#\\(.number) \\(.title)\\n  \\(.html_url)\\n  \\(.head.ref) -> \\(.base.ref)\\n  updated: \\(.updated_at)\""

@@ -23,28 +23,37 @@ Use `needs:*` labels as the cross-agent handoff inbox. Project status remains th
 
 ```bash
 # Architect: planning, review, merge, readiness
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:architect
+tools/agents/agent-inbox architect
 
 # Implementer: coding, fixes, verification
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:implementer
+tools/agents/agent-inbox implementer
+
+# Implementer queue with dependency gates
+tools/agents/agent-ready-queue
 
 # User decision needed
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:user
+tools/agents/agent-inbox user
 
 # Ready to merge
-gh issue list -R farmerhunter/tiny-ipa --state open --label needs:merge
+tools/agents/agent-inbox merge
 ```
 
 When handing work to another role, update the label and add a short issue or PR comment explaining the next action.
+
+The raw `gh issue list` commands still work, but agents should prefer the local helpers above. They use retry defaults, avoid Project v2 queries during ordinary pickup, and keep the command surface consistent across Codex, Claude Code, DeepSeek, and similar environments.
+
+The helpers prefer GitHub REST API reads for inbox and issue context because `gh issue list/view` can use GraphQL and has been the most common source of TLS timeouts during M3.
 
 Do not put `needs:implementer` on an Epic. Implementers pick up child issues, not Epic containers. If an Epic-level concern requires execution, create a child task such as integration QA, cross-issue gap fixing, or final manual QA evidence.
 
 `Ready + needs:implementer` may represent an Implementer queue, not only work that can start immediately. Implementers should read all ready issues in the queue, sort them by the `Depends on` line in each `Execution Contract`, and execute only the issues whose dependencies are satisfied.
 
+Do not make every child issue review a queue-wide stop. A previous issue's review blocks later implementation only when the later issue's `Execution Contract` says so with a hard `Depends on` gate, or when the Architect posts an explicit hold on the Epic. Otherwise the Implementer may continue through the ready queue and let review feedback converge through the normal PR cycle.
+
 When an issue returns from Architect review, read both the issue handoff comment and the linked PR comment:
 
 ```bash
-gh issue view <issue-number> -R farmerhunter/tiny-ipa --comments
+tools/agents/agent-issue-context <issue-number>
 gh pr view <pr-number> -R farmerhunter/tiny-ipa --comments
 ```
 
@@ -157,6 +166,17 @@ Backlog -> Ready -> In progress -> In Review -> Done
 ```
 
 Architect moves work from `Backlog` to `Ready`. Implementer moves claimed work to `In progress` and then `In Review` once the PR is open. Architect moves it to `Done` only after merge, issue closure, and required verification.
+
+Use labels and comments first; sync Project status after the routing signal is already durable. For Project updates, prefer:
+
+```bash
+tools/agents/agent-project-status <issue-number> Ready
+tools/agents/agent-project-status <issue-number> "In progress"
+tools/agents/agent-project-status <issue-number> "In Review"
+tools/agents/agent-project-status <issue-number> Done
+```
+
+The helper caches Project item IDs under `.agent-cache/` to avoid repeated full Project scans.
 
 Handoff labels must match the current owner of the next action:
 
