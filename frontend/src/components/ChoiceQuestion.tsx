@@ -9,6 +9,7 @@
 import { useState } from "react";
 import type { TodayItem } from "../api";
 import { submitAttempt } from "../api";
+import { AudioButton } from "./AudioButton";
 
 export interface ChoiceResult {
   sessionItemId: string;
@@ -65,7 +66,14 @@ export function ChoiceQuestion({ item, onResult }: Props) {
     <div className="choice-question">
       {/* Word display — IPA-first: word is shown, user picks matching IPA */}
       <div className="word-display">
-        <span className="word-text">{item.word}</span>
+        <span className="word-text">
+          {item.word}
+          <AudioButton
+            audioUrl={item.audio_url}
+            word={item.word}
+            disabled={submitting}
+          />
+        </span>
         {item.meaning_zh && (
           <span className="word-meaning">{item.meaning_zh}</span>
         )}
