@@ -5,6 +5,7 @@ repo="${GH_REPO:-farmerhunter/tiny-ipa}"
 limit="${AGENT_INBOX_LIMIT:-30}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
 
 usage() {
   cat <<'USAGE'
@@ -13,6 +14,9 @@ Usage:
 
 Lists the machine-readable agent inbox from issue labels.
 Project v2 status is intentionally not queried here.
+
+Uses GitHub's REST API by default to avoid the GraphQL timeouts that can affect
+`gh issue list`.
 USAGE
 }
 
@@ -31,13 +35,26 @@ label_for_role() {
 print_label() {
   local label="$1"
   printf '\n== %s ==\n' "$label"
-  "$gh_retry" gh issue list \
-    --repo "$repo" \
-    --state open \
-    --label "$label" \
-    --limit "$limit" \
-    --json number,title,url,updatedAt \
-    --jq '.[] | "#\(.number) \(.title)\n  \(.url)\n  updated: \(.updatedAt)"'
+  "$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
+    -f state=open \
+    -f labels="$label" \
+    -f per_page="$limit" \
+    --jq '.[] |
+      (if has("pull_request") then "PR" else "Issue" end) as $kind |
+      "#\(.number) \(.title) [\($kind)]\n  \(.html_url)\n  updated: \(.updated_at)"'
+}
+
+print_label_from_json() {
+  local label="$1"
+  local issues_json="$2"
+
+  printf '\n== %s ==\n' "$label"
+  jq -r --arg label "$label" '
+    .[] |
+    select(any(.labels[].name; . == $label)) |
+    (if has("pull_request") then "PR" else "Issue" end) as $kind |
+    "#\(.number) \(.title) [\($kind)]\n  \(.html_url)\n  updated: \(.updated_at)"
+  ' <<< "$issues_json"
 }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -ne 1 ]]; then
@@ -48,8 +65,11 @@ fi
 role="$1"
 
 if [[ "$role" == "all" ]]; then
+  issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
+    -f state=open \
+    -f per_page="$limit")"
   for item in architect implementer user ci merge blocked; do
-    print_label "$(label_for_role "$item")"
+    print_label_from_json "$(label_for_role "$item")" "$issues_json"
   done
   exit 0
 fi
