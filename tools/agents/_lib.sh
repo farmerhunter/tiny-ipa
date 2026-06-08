@@ -5,6 +5,16 @@ repo_api_path() {
   printf 'repos/%s' "$repo"
 }
 
+require_number() {
+  local value="$1"
+  local name="$2"
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    printf '%s must be a number: %s\n' "$name" "$value" >&2
+    return 2
+  fi
+}
+
 extract_contract_line() {
   local prefix="$1"
   local text="$2"
