@@ -10,6 +10,9 @@ Usage:
 
 Dry-run (no network):
     python scripts/generate_tts_audio.py --source ../content/core_100_words.json --dry-run
+
+Default behaviour: existing files are never overwritten unless
+``--overwrite`` is passed.
 """
 
 from __future__ import annotations
@@ -20,14 +23,21 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 _HERE = Path(__file__).resolve().parent
 _REPO = _HERE.parent.parent
 
 DEFAULT_SOURCE = str(_REPO / "content" / "core_100_words.json")
-DEFAULT_OUTPUT_DIR = str(_REPO / "audio" / "us")
-DEFAULT_REPORT = str(_REPO / "content" / "generated" / "audio_report_us.json")
+
+
+def _default_output_dir(accent: str) -> str:
+    return str(_REPO / "audio" / accent)
+
+
+def _default_report(accent: str) -> str:
+    return str(_REPO / "content" / "generated" / f"audio_report_{accent}.json")
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -50,7 +60,6 @@ def output_path_for_word(entry: dict, output_dir: Path, accent: str = "us") -> P
     audio_field = f"audio_{accent}"
     audio_path = entry.get(audio_field, "")
     if audio_path:
-        # /audio/us/ship.mp3 -> ship.mp3 under output_dir
         fname = Path(audio_path).name
     else:
         wid = entry.get("word_id") or entry.get("word", "unknown")
@@ -62,11 +71,11 @@ def output_path_for_word(entry: dict, output_dir: Path, accent: str = "us") -> P
 # Generation
 # ---------------------------------------------------------------------------
 
-# Type alias for injectable generator: (text, output_path) -> None on success, raises on failure
-GenerateFn = Callable[[str, Path], None]
+# Type alias for injectable generator
+GenerateFn = Callable[[str, Path, str], None]
 
 
-async def _edge_tts_generate(text: str, out_path: Path) -> None:
+async def _edge_tts_generate(text: str, out_path: Path, voice: str = "") -> None:
     """Generate an MP3 file using edge-tts (async).
 
     Raises RuntimeError on failure. The caller is responsible for ensuring
@@ -79,8 +88,8 @@ async def _edge_tts_generate(text: str, out_path: Path) -> None:
             "edge-tts is not installed. Run: pip install edge-tts"
         ) from None
 
-    voice = os.getenv("TTS_VOICE_US", "en-US-JennyNeural")
-    communicate = edge_tts.Communicate(text, voice)
+    v = voice or os.getenv("TTS_VOICE_US", "en-US-JennyNeural")
+    communicate = edge_tts.Communicate(text, v)
     await communicate.save(str(out_path))
 
 
@@ -89,9 +98,10 @@ async def generate_audio_files(
     *,
     output_dir: Path,
     accent: str = "us",
-    only_missing: bool = False,
+    overwrite: bool = False,
     dry_run: bool = False,
     limit: Optional[int] = None,
+    voice: str = "",
     generate_fn: Optional[GenerateFn] = None,
 ) -> dict:
     """Generate MP3 files for a list of word entries.
@@ -100,9 +110,12 @@ async def generate_audio_files(
         words: Word entry dicts with ``word_id`` and ``audio_us``/``audio_uk``.
         output_dir: Where to write .mp3 files.
         accent: ``"us"`` or ``"uk"``.
-        only_missing: Skip words whose output file already exists.
+        overwrite: If True, overwrite existing files. Defaults to False
+                   (existing non-empty files are skipped).
         dry_run: Do everything except actually generate audio.
         limit: Only process at most this many words.
+        voice: TTS voice name (e.g. ``"en-US-JennyNeural"``). If empty,
+               falls back to env var or edge-tts default.
         generate_fn: Pluggable generator for testing. Defaults to edge-tts.
 
     Returns:
@@ -128,8 +141,8 @@ async def generate_audio_files(
         wid = entry.get("word_id") or entry.get("word", "")
         out_path = output_path_for_word(entry, output_dir, accent)
 
-        # Skip existing files
-        if only_missing and out_path.exists() and out_path.stat().st_size > 0:
+        # Default: skip existing non-empty files unless --overwrite
+        if not overwrite and out_path.exists() and out_path.stat().st_size > 0:
             report["skipped"] += 1
             continue
 
@@ -138,9 +151,8 @@ async def generate_audio_files(
             continue
 
         try:
-            # Determine TTS text: use the word itself
             text = entry.get("word", str(wid))
-            await gen(text, out_path)
+            await gen(text, out_path, voice)
             report["generated"] += 1
         except Exception as exc:
             report["failed"] += 1
@@ -193,13 +205,22 @@ def main() -> None:
         description="Generate static MP3 audio for Tiny IPA content."
     )
     parser.add_argument("--source", default=DEFAULT_SOURCE, help="Path to words JSON.")
-    parser.add_argument("--accent", default="us", choices=["us", "uk"], help="Accent (default: us).")
-    parser.add_argument("--output-dir", default=None, help="Output directory (default: ../audio/<accent>).")
-    parser.add_argument("--only-missing", action="store_true", help="Skip words with existing audio files.")
-    parser.add_argument("--dry-run", action="store_true", help="Run without making network calls.")
-    parser.add_argument("--limit", type=int, default=None, help="Limit to N words (for testing).")
-    parser.add_argument("--report", default=None, help="Path to write JSON report.")
-    parser.add_argument("--json", action="store_true", help="Print report as JSON to stdout.")
+    parser.add_argument("--accent", default="us", choices=["us", "uk"],
+                        help="Accent (default: us). Determines output/report defaults.")
+    parser.add_argument("--output-dir", default=None,
+                        help="Output directory (default: ../audio/<accent>).")
+    parser.add_argument("--overwrite", action="store_true",
+                        help="Overwrite existing audio files (default: skip existing).")
+    parser.add_argument("--voice", default="",
+                        help="TTS voice name, e.g. en-US-JennyNeural (default: env or edge-tts default).")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Run without making network calls.")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Limit to N words (for testing).")
+    parser.add_argument("--report", default=None,
+                        help="Path to write JSON report (default: content/generated/audio_report_<accent>.json).")
+    parser.add_argument("--json", action="store_true",
+                        help="Print report as JSON to stdout.")
     args = parser.parse_args()
 
     source_path = Path(args.source)
@@ -207,7 +228,9 @@ def main() -> None:
         print(f"Error: source file not found: {source_path}", file=sys.stderr)
         sys.exit(1)
 
-    output_dir = Path(args.output_dir) if args.output_dir else Path(DEFAULT_OUTPUT_DIR)
+    accent = args.accent
+    output_dir = Path(args.output_dir) if args.output_dir else Path(_default_output_dir(accent))
+    report_path = Path(args.report) if args.report else Path(_default_report(accent))
 
     words = load_words(source_path)
 
@@ -215,15 +238,14 @@ def main() -> None:
         return await generate_audio_files(
             words,
             output_dir=output_dir,
-            accent=args.accent,
-            only_missing=args.only_missing,
+            accent=accent,
+            overwrite=args.overwrite,
             dry_run=args.dry_run,
             limit=args.limit,
+            voice=args.voice,
         )
 
     report = asyncio.run(_run())
-
-    report_path = Path(args.report) if args.report else Path(DEFAULT_REPORT)
     write_report(report, report_path)
 
     if args.json:

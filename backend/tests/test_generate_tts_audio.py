@@ -28,9 +28,9 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 # ---------------------------------------------------------------------------
 
 
-async def _fake_generate(text: str, out_path: Path) -> None:
+async def _fake_generate(text: str, out_path: Path, voice: str = "") -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(f"fake mp3: {text}\n")
+    out_path.write_text(f"fake mp3: {text} voice={voice}\n")
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +99,8 @@ class TestGenerateAudio:
         assert (tmp_path / "ship.mp3").exists()
         assert (tmp_path / "cat.mp3").exists()
 
-    def test_only_missing_skips_existing(self, tmp_path):
+    def test_skips_existing_by_default(self, tmp_path):
+        """Default behaviour: existing non-empty files are skipped (no overwrite)."""
         existing = tmp_path / "ship.mp3"
         existing.write_text("already here")
         words = [
@@ -107,12 +108,27 @@ class TestGenerateAudio:
             {"word_id": "cat", "word": "cat", "audio_us": "/audio/us/cat.mp3"},
         ]
         report = asyncio.run(generate_audio_files(
-            words, output_dir=tmp_path, accent="us",
-            only_missing=True, generate_fn=_fake_generate,
+            words, output_dir=tmp_path, accent="us", generate_fn=_fake_generate,
         ))
         assert report["skipped"] == 1
         assert report["generated"] == 1
         assert existing.read_text() == "already here"
+
+    def test_overwrite_replaces_existing(self, tmp_path):
+        """With --overwrite, existing files are overwritten."""
+        existing = tmp_path / "ship.mp3"
+        existing.write_text("old content")
+        words = [
+            {"word_id": "ship", "word": "ship", "audio_us": "/audio/us/ship.mp3"},
+        ]
+        report = asyncio.run(generate_audio_files(
+            words, output_dir=tmp_path, accent="us",
+            overwrite=True, generate_fn=_fake_generate,
+        ))
+        assert report["generated"] == 1
+        assert report["skipped"] == 0
+        # Content was overwritten
+        assert "fake mp3" in existing.read_text()
 
     def test_per_word_failure(self, tmp_path):
         words = [
@@ -121,7 +137,7 @@ class TestGenerateAudio:
             {"word_id": "bad", "word": "bad"},
         ]
 
-        async def _selective_fail(text: str, out_path: Path) -> None:
+        async def _selective_fail(text: str, out_path: Path, voice: str = "") -> None:
             if text in ("fail", "bad"):
                 raise RuntimeError(f"test failure: {text}")
             await _fake_generate(text, out_path)
