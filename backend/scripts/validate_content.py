@@ -225,33 +225,60 @@ def validate_words(
 
 
 _AUDIO_SANITY_MIN_BYTES = 128
+_EXPECTED_AUDIO_PREFIX: dict[str, str] = {"us": "/audio/us/", "uk": "/audio/uk/"}
 
 
 def _check_audio_files(words: List[dict], audio_dir: Path, accent: str) -> dict:
-    """Check that audio_us/audio_uk files exist and are non-empty.
+    """Check that audio files exist, are non-empty, and have correct path prefix.
 
-    Returns a report dict with ``missing_files``, ``empty_files``, and
-    ``checked`` counts.
+    Returns a report dict with ``missing_files``, ``empty_files``,
+    ``invalid_prefix``, ``checked``, and ``found_ok`` counts.
     """
-    audio_report: dict = {"missing_files": [], "empty_files": [], "checked": 0, "found_ok": 0}
+    audio_report: dict = {
+        "missing_files": [],
+        "empty_files": [],
+        "invalid_prefix": [],
+        "checked": 0,
+        "found_ok": 0,
+    }
     audio_field = f"audio_{accent}"
+    expected_prefix = _EXPECTED_AUDIO_PREFIX.get(accent, f"/audio/{accent}/")
+
     for w in words:
         path_str = w.get(audio_field)
         if not path_str:
             continue
         audio_report["checked"] += 1
-        # /audio/us/ship.mp3 -> audio_dir / us / ship.mp3 (but audio_dir is already audio/)
-        # Handle both: path is relative like /audio/us/ship.mp3 -> strip leading /audio/
+        wid = w.get("word_id") or w.get("word", "")
+
+        # Validate accent-specific prefix (e.g. /audio/us/ for US)
+        if not path_str.startswith(expected_prefix):
+            audio_report["invalid_prefix"].append({
+                "word_id": wid,
+                "path": path_str,
+                "expected_prefix": expected_prefix,
+            })
+            continue
+
+        # Strip /audio/ prefix to resolve relative to audio_dir
+        # path_str is "/audio/us/ship.mp3" -> rel = "us/ship.mp3"
         rel = path_str.lstrip("/")
         if rel.startswith("audio/"):
             rel = rel[len("audio/"):]
         file_path = audio_dir / rel
+
         if not file_path.exists():
-            audio_report["missing_files"].append({"word_id": w.get("word_id", w.get("word", "")), "path": str(file_path)})
+            audio_report["missing_files"].append({
+                "word_id": wid, "path": str(file_path),
+            })
         elif file_path.stat().st_size < _AUDIO_SANITY_MIN_BYTES:
-            audio_report["empty_files"].append({"word_id": w.get("word_id", w.get("word", "")), "path": str(file_path), "size": file_path.stat().st_size})
+            audio_report["empty_files"].append({
+                "word_id": wid, "path": str(file_path),
+                "size": file_path.stat().st_size,
+            })
         else:
             audio_report["found_ok"] += 1
+
     return audio_report
 
 
@@ -336,7 +363,12 @@ def print_report(report: dict, known_phonemes: Set[str]) -> None:
         print(f"Audio files checked:  {audio['checked']}")
         print(f"Files found OK:       {audio['found_ok']}")
         print(f"Missing files:        {len(audio['missing_files'])}")
+        print(f"Invalid prefix:       {len(audio.get('invalid_prefix', []))}")
         print(f"Empty/too-small files:{len(audio['empty_files'])}")
+        if audio.get("invalid_prefix"):
+            print("  Invalid prefix:")
+            for ip in audio["invalid_prefix"][:10]:
+                print(f"    {ip['word_id']}: {ip['path']} (expected {ip['expected_prefix']})")
         if audio["missing_files"]:
             print("  Missing:")
             for m in audio["missing_files"][:10]:
@@ -423,11 +455,19 @@ def main():
         audio_dir = Path(args.check_audio_files)
         audio_report = _check_audio_files(words, audio_dir, args.accent.lower())
         report["audio_validation"] = audio_report
-        if audio_report["missing_files"]:
-            for entry in audio_report["missing_files"]:
-                report["errors"].append(
-                    f"{entry['word_id']}: audio file missing — {entry['path']}"
-                )
+        # All audio issues become errors in strict mode
+        for entry in audio_report["missing_files"]:
+            report["errors"].append(
+                f"{entry['word_id']}: audio file missing — {entry['path']}"
+            )
+        for entry in audio_report["empty_files"]:
+            report["errors"].append(
+                f"{entry['word_id']}: audio file too small ({entry['size']} bytes) — {entry['path']}"
+            )
+        for entry in audio_report["invalid_prefix"]:
+            report["errors"].append(
+                f"{entry['word_id']}: invalid audio path prefix — {entry['path']} (expected {entry['expected_prefix']})"
+            )
 
     if args.json:
         # Convert sets/lists for JSON serialization

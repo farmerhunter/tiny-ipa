@@ -113,6 +113,34 @@ class TestAudioValidation:
         report = _check_audio_files(words, tmp_path, "us")
         assert report["checked"] == 0
 
+    def test_invalid_prefix_reported(self, tmp_path: Path):
+        """Paths not starting with /audio/<accent>/ are flagged."""
+        audio_dir = tmp_path / "wrong"
+        audio_dir.mkdir(parents=True)
+        (audio_dir / "ship.mp3").write_text("x" * 200)
+
+        words = [{
+            "word_id": "ship", "word": "ship",
+            "audio_us": "/audio/uk/ship.mp3",  # wrong accent prefix for US check
+        }]
+        report = _check_audio_files(words, tmp_path, "us")
+        assert len(report["invalid_prefix"]) == 1
+        assert report["checked"] == 1
+
+    def test_valid_prefix_passes(self, tmp_path: Path):
+        """Correct /audio/us/ prefix for US accent passes prefix check."""
+        audio_dir = tmp_path / "us"
+        audio_dir.mkdir(parents=True)
+        (audio_dir / "ship.mp3").write_text("x" * 200)
+
+        words = [{
+            "word_id": "ship", "word": "ship",
+            "audio_us": "/audio/us/ship.mp3",
+        }]
+        report = _check_audio_files(words, tmp_path, "us")
+        assert len(report["invalid_prefix"]) == 0
+        assert report["found_ok"] == 1
+
     def test_uk_accent(self, tmp_path: Path):
         """audio_uk field is checked when accent=uk."""
         audio_dir = tmp_path / "uk"
