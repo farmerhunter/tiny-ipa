@@ -94,6 +94,65 @@ button {
   margin-top: 4px;
 }
 
+/* ---------------------------------------------------------------------------
+ * Audio button
+ * --------------------------------------------------------------------------- */
+
+.audio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-left: 8px;
+  border: 2px solid #ddd;
+  border-radius: 50%;
+  background: #fafafa;
+  font-size: 1.25rem;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.audio-btn:hover:not(:disabled) {
+  border-color: #4a90d9;
+  background: #eef5fc;
+}
+
+.audio-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.audio-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.audio-fallback-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #e65100;
+  background: #fff3e0;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 2px;
+  line-height: 1.2;
+}
+
+.audio-error-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #c62828;
+  background: #ffebee;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 2px;
+  line-height: 1.2;
+}
+
 .question-prompt {
   text-align: center;
   font-size: 0.95rem;
