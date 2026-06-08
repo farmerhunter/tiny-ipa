@@ -425,12 +425,13 @@ tools/agents/agent-inbox architect
 tools/agents/agent-inbox implementer
 tools/agents/agent-ready-queue
 tools/agents/agent-issue-context <issue-number>
+tools/agents/agent-pr-context <pr-number>
 tools/agents/agent-project-status <issue-number> "In Review"
 ```
 
 Use these helpers first in daily agent work. They standardize retries, avoid unnecessary Project v2 reads, and cache Project item IDs in `.agent-cache/` when a Project status update is needed.
 
-Inbox and issue-context helpers should prefer GitHub REST API reads over `gh issue list/view`, because `gh issue list/view` can use GraphQL and has repeatedly hit TLS timeouts in this project. Project v2 remains separate and low-frequency.
+Inbox, issue-context, PR-context, and label-routing helpers should prefer GitHub REST API reads/writes over `gh issue list/view/edit` and `gh pr view`, because those commands can use GraphQL and have repeatedly hit TLS timeouts in this project. Project v2 remains separate and low-frequency.
 
 Operational rule:
 

@@ -54,7 +54,7 @@ When an issue returns from Architect review, read both the issue handoff comment
 
 ```bash
 tools/agents/agent-issue-context <issue-number>
-gh pr view <pr-number> -R farmerhunter/tiny-ipa --comments
+tools/agents/agent-pr-context <pr-number>
 ```
 
 Architect must not rely on only one comment surface when moving an issue back to `needs:implementer`. The issue comment should point to the PR review, name the fix branch, and summarize the blocker. The PR conversation should also include the latest handoff or a pointer to it, especially for stacked-branch refresh requests.
@@ -187,6 +187,13 @@ needs:user        -> user decision is needed
 needs:ci          -> checks are still running
 needs:merge       -> reviewed and ready to merge
 blocked           -> latest comment explains the blocker
+```
+
+Prefer the REST-backed helper for next-action label routing:
+
+```bash
+tools/agents/agent-label <issue-number> set-next needs:implementer
+tools/agents/agent-label <issue-number> set-next needs:architect
 ```
 
 Allowed Epic handoff labels are `needs:architect`, `needs:user`, and `blocked`. `needs:implementer`, `needs:ci`, and `needs:merge` belong on child issues or PRs.
