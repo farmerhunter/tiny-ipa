@@ -211,6 +211,8 @@ def main() -> None:
                         help="Output directory (default: ../audio/<accent>).")
     parser.add_argument("--overwrite", action="store_true",
                         help="Overwrite existing audio files (default: skip existing).")
+    parser.add_argument("--only-missing", action="store_true",
+                        help="Compatibility alias — existing files are skipped by default.")
     parser.add_argument("--voice", default="",
                         help="TTS voice name, e.g. en-US-JennyNeural (default: env or edge-tts default).")
     parser.add_argument("--dry-run", action="store_true",
