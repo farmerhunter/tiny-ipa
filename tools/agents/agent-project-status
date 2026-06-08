@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+owner="${GH_PROJECT_OWNER:-farmerhunter}"
+project_number="${GH_PROJECT_NUMBER:-2}"
+project_id="${GH_PROJECT_ID:-PVT_kwHOAaWXD84BZ3xw}"
+status_field_id="${GH_PROJECT_STATUS_FIELD_ID:-PVTSSF_lAHOAaWXD84BZ3xwzhUzcCU}"
+cache_dir="${AGENT_CACHE_DIR:-.agent-cache}"
+cache_file="$cache_dir/project-items.tsv"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-project-status <issue-number> <Backlog|Ready|In progress|In Review|Done>
+  tools/agents/agent-project-status --refresh
+
+Updates GitHub Project v2 status for a known issue.
+This is intentionally separate from inbox lookup because Project v2 is slower
+and more brittle than issue labels.
+USAGE
+}
+
+option_id_for_status() {
+  case "$1" in
+    Backlog) echo "f75ad846" ;;
+    Ready) echo "61e4505c" ;;
+    "In progress") echo "47fc9ee4" ;;
+    "In Review") echo "df73e18b" ;;
+    Done) echo "98236657" ;;
+    *) return 1 ;;
+  esac
+}
+
+refresh_cache() {
+  mkdir -p "$cache_dir"
+  "$gh_retry" gh project item-list "$project_number" \
+    --owner "$owner" \
+    --format json \
+    --limit 200 \
+    --jq '.items[] | select(.content.type == "Issue") | [.content.number, .id] | @tsv' \
+    > "$cache_file"
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+if [[ "${1:-}" == "--refresh" ]]; then
+  refresh_cache
+  printf 'Refreshed %s\n' "$cache_file"
+  exit 0
+fi
+
+if [[ $# -ne 2 ]]; then
+  usage >&2
+  exit 2
+fi
+
+issue="$1"
+status="$2"
+option_id="$(option_id_for_status "$status")" || {
+  printf 'Unknown status: %s\n' "$status" >&2
+  exit 2
+}
+
+if [[ ! -f "$cache_file" ]] || ! grep -q "^${issue}[[:space:]]" "$cache_file"; then
+  refresh_cache
+fi
+
+item_id="$(awk -v issue="$issue" '$1 == issue { print $2; exit }' "$cache_file")"
+if [[ -z "$item_id" ]]; then
+  printf 'Issue #%s was not found in project cache. Try adding it to the Project first.\n' "$issue" >&2
+  exit 1
+fi
+
+"$gh_retry" gh project item-edit \
+  --id "$item_id" \
+  --project-id "$project_id" \
+  --field-id "$status_field_id" \
+  --single-select-option-id "$option_id"
+
+printf 'Updated issue #%s Project status to %s\n' "$issue" "$status"
