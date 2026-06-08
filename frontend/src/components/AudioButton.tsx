@@ -27,7 +27,8 @@ export function AudioButton({ audioUrl, word, disabled = false }: Props) {
     if (disabled || status === "playing") return;
 
     if (audioUrl) {
-      playStatic(audioUrl, setStatus);
+      // Try static mp3 first; fall back to TTS on failure
+      playStatic(audioUrl, () => playTTS(word, setStatus), setStatus);
     } else {
       playTTS(word, setStatus);
     }
@@ -56,6 +57,7 @@ let _currentAudio: HTMLAudioElement | null = null;
 
 function playStatic(
   url: string,
+  onFallback: () => void,
   setStatus: (s: "idle" | "playing" | "error") => void,
 ) {
   if (_currentAudio) {
@@ -66,15 +68,14 @@ function playStatic(
   setStatus("playing");
 
   audio.onended = () => setStatus("idle");
-  audio.onerror = () => {
-    setStatus("error");
-    setTimeout(() => setStatus("idle"), 2000);
+
+  const handleFailure = () => {
+    // Fall back to TTS if static audio fails
+    onFallback();
   };
 
-  audio.play().catch(() => {
-    setStatus("error");
-    setTimeout(() => setStatus("idle"), 2000);
-  });
+  audio.onerror = handleFailure;
+  audio.play().catch(handleFailure);
 }
 
 // ---------------------------------------------------------------------------
