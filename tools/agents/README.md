@@ -4,6 +4,13 @@ These helpers are project-local experiments for speeding up the Tiny IPA
 multi-agent workflow. They prefer issue labels and comments for daily routing,
 and touch GitHub Project v2 only when a human-visible Kanban status must change.
 
+Requirements:
+
+```bash
+gh
+jq
+```
+
 ## Fast Inbox
 
 ```bash
@@ -13,11 +20,17 @@ tools/agents/agent-ready-queue
 ```
 
 `agent-inbox` reads `needs:*` labels only. It deliberately avoids Project v2
-queries because labels are faster and more reliable for agent pickup.
+queries because labels are faster and more reliable for agent pickup. It uses
+GitHub's REST API rather than `gh issue list` because the latter can hit
+GraphQL/TLS timeouts in our current network setup. `agent-inbox all` fetches
+open issues once and groups labels locally, instead of making one network call
+per label.
 
 `agent-ready-queue` extracts `Execution Contract` lines so an Implementer can
 see which ready issues are immediately startable and which are waiting on
-`Depends on`.
+`Depends on`. It reads both issue bodies and issue comments because many
+contracts are added after issue creation. It fetches the issue list once and
+then reads comments only for the queued issues.
 
 ## Context Pickup
 
@@ -26,7 +39,7 @@ tools/agents/agent-issue-context 15
 ```
 
 Use this before pickup, review, or re-review. The command prints the issue,
-comments, and likely open PRs.
+comments, and likely open PRs. It also uses REST for issue/comment reads.
 
 ## Project Status
 

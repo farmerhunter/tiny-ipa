@@ -42,6 +42,8 @@ When handing work to another role, update the label and add a short issue or PR 
 
 The raw `gh issue list` commands still work, but agents should prefer the local helpers above. They use retry defaults, avoid Project v2 queries during ordinary pickup, and keep the command surface consistent across Codex, Claude Code, DeepSeek, and similar environments.
 
+The helpers prefer GitHub REST API reads for inbox and issue context because `gh issue list/view` can use GraphQL and has been the most common source of TLS timeouts during M3.
+
 Do not put `needs:implementer` on an Epic. Implementers pick up child issues, not Epic containers. If an Epic-level concern requires execution, create a child task such as integration QA, cross-issue gap fixing, or final manual QA evidence.
 
 `Ready + needs:implementer` may represent an Implementer queue, not only work that can start immediately. Implementers should read all ready issues in the queue, sort them by the `Depends on` line in each `Execution Contract`, and execute only the issues whose dependencies are satisfied.
