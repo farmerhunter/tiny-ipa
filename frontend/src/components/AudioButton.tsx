@@ -3,9 +3,12 @@
  * falls back to browser speechSynthesis otherwise.
  *
  * Finger-friendly, no layout shift, handles overlapping taps.
+ * Shows a visible indicator when TTS fallback is active.
  */
 
 import { useState, useEffect } from "react";
+
+type PlayStatus = "idle" | "playing" | "fallback" | "error";
 
 interface Props {
   audioUrl: string | null;
@@ -14,38 +17,62 @@ interface Props {
 }
 
 export function AudioButton({ audioUrl, word, disabled = false }: Props) {
-  const [status, setStatus] = useState<"idle" | "playing" | "error">("idle");
+  const [status, setStatus] = useState<PlayStatus>("idle");
 
-  // Cleanup on unmount
+  // Cleanup on unmount — guard for browsers without speechSynthesis
   useEffect(() => {
     return () => {
-      speechSynthesis.cancel();
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
   const handleClick = () => {
-    if (disabled || status === "playing") return;
+    if (disabled || status === "playing" || status === "fallback") return;
 
     if (audioUrl) {
       // Try static mp3 first; fall back to TTS on failure
-      playStatic(audioUrl, () => playTTS(word, setStatus), setStatus);
+      playStatic(
+        audioUrl,
+        () => playTTS(word, () => setStatus("fallback"), setStatus),
+        setStatus,
+      );
     } else {
-      playTTS(word, setStatus);
+      playTTS(word, () => setStatus("idle"), setStatus);
     }
   };
 
-  const icon = status === "playing" ? "🔊" : status === "error" ? "⚠️" : "🔈";
+  const disabled_ = disabled || status === "playing" || status === "fallback";
+
+  const icon =
+    status === "playing" ? "🔊" :
+    status === "fallback" ? "🔈" :
+    status === "error" ? "⚠️" :
+    "🔈";
+
+  const ttsLabel = audioUrl
+    ? (status === "fallback" ? "Static audio unavailable — using TTS" : "Play audio")
+    : "Play pronunciation (TTS)";
 
   return (
-    <button
-      className="audio-btn"
-      onClick={handleClick}
-      disabled={disabled || status === "playing"}
-      aria-label={audioUrl ? "Play audio" : "Play pronunciation (TTS)"}
-      title={audioUrl ? "Play audio" : "Play pronunciation (TTS)"}
-    >
-      {icon}
-    </button>
+    <span className="audio-btn-wrapper">
+      <button
+        className="audio-btn"
+        onClick={handleClick}
+        disabled={disabled_}
+        aria-label={ttsLabel}
+        title={ttsLabel}
+      >
+        {icon}
+      </button>
+      {status === "fallback" && (
+        <span className="audio-fallback-badge" aria-live="polite">TTS</span>
+      )}
+      {status === "error" && (
+        <span className="audio-error-badge" aria-live="polite">!</span>
+      )}
+    </span>
   );
 }
 
@@ -58,7 +85,7 @@ let _currentAudio: HTMLAudioElement | null = null;
 function playStatic(
   url: string,
   onFallback: () => void,
-  setStatus: (s: "idle" | "playing" | "error") => void,
+  setStatus: (s: PlayStatus) => void,
 ) {
   if (_currentAudio) {
     _currentAudio.pause();
@@ -70,7 +97,6 @@ function playStatic(
   audio.onended = () => setStatus("idle");
 
   const handleFailure = () => {
-    // Fall back to TTS if static audio fails
     onFallback();
   };
 
@@ -84,7 +110,8 @@ function playStatic(
 
 function playTTS(
   word: string,
-  setStatus: (s: "idle" | "playing" | "error") => void,
+  onStart: () => void,
+  setStatus: (s: PlayStatus) => void,
 ) {
   if (!window.speechSynthesis) {
     setStatus("error");
@@ -96,8 +123,9 @@ function playTTS(
 
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = "en-US";
-  utterance.rate = 0.85; // slightly slower for learners
-  setStatus("playing");
+  utterance.rate = 0.85;
+
+  onStart(); // signal fallback mode to UI
 
   utterance.onend = () => setStatus("idle");
   utterance.onerror = () => {
