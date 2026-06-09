@@ -2,11 +2,12 @@ import { fetchHealth } from "./api";
 import { useEffect, useState } from "react";
 import TodayPractice from "./pages/TodayPractice";
 import ProgressPage from "./pages/ProgressPage";
+import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   const [backendReady, setBackendReady] = useState<boolean>(false);
   const [checking, setChecking] = useState(true);
-  const [page, setPage] = useState<"today" | "progress">("today");
+  const [page, setPage] = useState<"today" | "progress" | "settings">("today");
 
   useEffect(() => {
     fetchHealth()
@@ -42,9 +43,13 @@ function App() {
           onClick={() => setPage("today")}>Today</button>
         <button className={`nav-tab ${page === "progress" ? "nav-active" : ""}`}
           onClick={() => setPage("progress")}>Progress</button>
+        <button className={`nav-tab ${page === "settings" ? "nav-active" : ""}`}
+          onClick={() => setPage("settings")}>Settings</button>
       </nav>
       {page === "progress"
         ? <ProgressPage onBack={() => setPage("today")} />
+        : page === "settings"
+        ? <SettingsPage onBack={() => setPage("today")} />
         : <TodayPractice />
       }
     </div>

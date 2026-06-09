@@ -412,3 +412,53 @@ button {
   font-size: 0.9rem;
   margin-top: 24px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Settings page
+ * --------------------------------------------------------------------------- */
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-row select,
+.setting-row input[type="number"] {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.setting-row input[type="number"] {
+  width: 64px;
+  text-align: center;
+}
+
+.setting-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
+
+.save-confirm {
+  color: #2e7d32;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.save-error {
+  color: #c62828;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
