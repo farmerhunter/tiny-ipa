@@ -16,6 +16,8 @@ type:task
 ```
 
 Read `docs/08-multi-agent-epic-workflow.md` before coordinating multi-agent work.
+Read `docs/09-role-generic-agent-helpers.md` when changing helper behavior or
+adding new role-routing automation.
 
 ## Finding agent work
 
@@ -37,6 +39,10 @@ tools/agents/agent-inbox user
 # Ready to merge
 tools/agents/agent-inbox merge
 ```
+
+The examples above are the roles currently used most often in Tiny IPA. The
+helper model is intentionally role-generic: future projects or later phases may
+add roles such as `reviewer` without changing the core inbox pattern.
 
 When handing work to another role, update the label and add a short issue or PR comment explaining the next action.
 

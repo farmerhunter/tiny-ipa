@@ -38,6 +38,9 @@
 8. [Multi-Agent Epic Workflow](08-multi-agent-epic-workflow.md)
    定义 Architect / Implementer 双 agent 协作、Epic/issue/branch/PR 粒度、评论路由和 merge 规则。
 
+9. [Role-Generic Agent Helper Model](09-role-generic-agent-helpers.md)
+   定义面向多角色、多 agent session 的 GitHub helper 设计，把 `needs:*` inbox、handoff contract、pickup/handoff/audit 工具从双角色流程泛化为可配置模型。
+
 ## 工程随笔
 
 1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)
