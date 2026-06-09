@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+limit="${AGENT_AUDIT_LIMIT:-100}"
+comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-audit
+
+Runs a read-only consistency audit for the label/comment based agent workflow.
+This intentionally avoids GitHub Project v2 so it stays fast and robust.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -gt 0 ]]; then
+  usage
+  exit 0
+fi
+
+next_labels=(needs:architect needs:implementer needs:user needs:ci needs:merge blocked)
+issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
+  -f state=open \
+  -f per_page="$limit")"
+prs_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls" \
+  -f state=open \
+  -f per_page="$limit")"
+
+printf '== Agent Workflow Audit ==\n'
+
+printf '\n== Open issues with multiple next-action labels ==\n'
+multi_count=0
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  labels="$(jq -r '[.labels[].name] | join("\n")' <<< "$issue_json")"
+  matched=()
+  for label in "${next_labels[@]}"; do
+    if grep -Fxq "$label" <<< "$labels"; then
+      matched+=("$label")
+    fi
+  done
+  if (( ${#matched[@]} > 1 )); then
+    multi_count=$((multi_count + 1))
+    printf '#%s %s\n  labels: %s\n  %s\n' \
+      "$(jq -r '.number' <<< "$issue_json")" \
+      "$(jq -r '.title' <<< "$issue_json")" \
+      "$(IFS=,; echo "${matched[*]}")" \
+      "$(jq -r '.html_url' <<< "$issue_json")"
+  fi
+done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$issues_json")
+if [[ "$multi_count" -eq 0 ]]; then
+  printf 'none\n'
+fi
+
+printf '\n== Open task issues without next-action labels ==\n'
+unrouted_count=0
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  labels="$(jq -r '[.labels[].name] | join("\n")' <<< "$issue_json")"
+  has_next=0
+  for label in "${next_labels[@]}"; do
+    if grep -Fxq "$label" <<< "$labels"; then
+      has_next=1
+    fi
+  done
+  if [[ "$has_next" -eq 0 ]] && grep -Fxq "type:task" <<< "$labels"; then
+    issue="$(jq -r '.number' <<< "$issue_json")"
+    comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+      -f per_page="$comments_limit" \
+      --jq '[.[].body] | join("\n")')"
+    if grep -Fq "Pickup confirmed" <<< "$comments"; then
+      state_hint="pickup confirmed"
+    else
+      state_hint="unrouted"
+    fi
+    unrouted_count=$((unrouted_count + 1))
+    printf '#%s %s\n  state hint: %s\n  %s\n' \
+      "$issue" \
+      "$(jq -r '.title' <<< "$issue_json")" \
+      "$state_hint" \
+      "$(jq -r '.html_url' <<< "$issue_json")"
+  fi
+done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$issues_json")
+if [[ "$unrouted_count" -eq 0 ]]; then
+  printf 'none\n'
+fi
+
+printf '\n== Closed issues still carrying next-action labels ==\n'
+closed_count=0
+for label in "${next_labels[@]}"; do
+  closed_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
+    -f state=closed \
+    -f labels="$label" \
+    -f per_page=30)"
+  while IFS= read -r issue_json; do
+    [[ -z "$issue_json" ]] && continue
+    closed_count=$((closed_count + 1))
+    printf '#%s %s\n  label: %s\n  %s\n' \
+      "$(jq -r '.number' <<< "$issue_json")" \
+      "$(jq -r '.title' <<< "$issue_json")" \
+      "$label" \
+      "$(jq -r '.html_url' <<< "$issue_json")"
+  done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$closed_json")
+done
+if [[ "$closed_count" -eq 0 ]]; then
+  printf 'none\n'
+fi
+
+printf '\n== needs:implementer contract gaps ==\n'
+gap_count=0
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  issue="$(jq -r '.number' <<< "$issue_json")"
+  title="$(jq -r '.title' <<< "$issue_json")"
+  body="$(jq -r '.body // ""' <<< "$issue_json")"
+  comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+    -f per_page="$comments_limit" \
+    --jq '[.[].body] | join("\n")')"
+  contract="$(extract_latest_contract_block "$body"$'\n'"$comments")"
+  missing=()
+  for prefix in "Branch strategy:" "Base branch:" "Target PR base:" "Depends on:" "Completion handoff:"; do
+    line="$(extract_contract_line "$prefix" "$contract")"
+    if [[ "$line" == "$prefix MISSING" ]]; then
+      missing+=("$prefix")
+    fi
+  done
+  if (( ${#missing[@]} > 0 )); then
+    gap_count=$((gap_count + 1))
+    printf '#%s %s\n  missing: %s\n  contract: %s\n  %s\n' \
+      "$issue" "$title" "$(IFS=,; echo "${missing[*]}")" \
+      "$(contract_header "$contract")" "$(jq -r '.html_url' <<< "$issue_json")"
+  fi
+done < <(jq -c '.[] |
+  select(has("pull_request") | not) |
+  select(any(.labels[].name; . == "needs:implementer"))' <<< "$issues_json")
+if [[ "$gap_count" -eq 0 ]]; then
+  printf 'none\n'
+fi
+
+printf '\n== Open PRs with suspicious base branch ==\n'
+base_count=0
+while IFS= read -r pr_json; do
+  [[ -z "$pr_json" ]] && continue
+  pr="$(jq -r '.number' <<< "$pr_json")"
+  base="$(jq -r '.base.ref' <<< "$pr_json")"
+  title="$(jq -r '.title' <<< "$pr_json")"
+  body="$(jq -r '.body // ""' <<< "$pr_json")"
+  issue="$(
+    printf '%s\n%s\n' "$title" "$body" |
+      sed -nE 's/.*#([0-9]+).*/\1/p' |
+      head -n 1
+  )"
+  if [[ -z "$issue" ]]; then
+    continue
+  fi
+  issue_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue" 2>/dev/null || true)"
+  if [[ -z "$issue_json" ]]; then
+    continue
+  fi
+  issue_body="$(jq -r '.body // ""' <<< "$issue_json")"
+  comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+    -f per_page="$comments_limit" \
+    --jq '[.[].body] | join("\n")')"
+  contract="$(extract_latest_contract_block "$issue_body"$'\n'"$comments")"
+  target_line="$(extract_contract_line "Target PR base:" "$contract")"
+  target="$(sed -nE 's/^Target PR base: `?([^` ]+)`?.*/\1/p' <<< "$target_line")"
+  if [[ -n "$target" && "$target" != "MISSING" && "$target" != "$base" ]]; then
+    base_count=$((base_count + 1))
+    printf '#%s %s\n  base: %s\n  contract target: %s\n  issue: #%s\n  %s\n' \
+      "$pr" "$title" "$base" "$target" "$issue" "$(jq -r '.html_url' <<< "$pr_json")"
+  fi
+done < <(jq -c '.[]' <<< "$prs_json")
+if [[ "$base_count" -eq 0 ]]; then
+  printf 'none\n'
+fi

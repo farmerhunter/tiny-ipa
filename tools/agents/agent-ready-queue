@@ -13,8 +13,9 @@ usage() {
 Usage:
   tools/agents/agent-ready-queue
 
-Lists needs:implementer issues and extracts the Execution Contract lines
-that determine queue order. A Ready issue may still be blocked by Depends on.
+Lists needs:implementer issues and extracts the latest effective Execution
+Contract lines that determine queue order. A Ready issue may still be blocked
+by Depends on.
 
 Uses REST API calls instead of `gh issue list/view` to avoid GraphQL timeouts.
 USAGE
@@ -35,6 +36,38 @@ if [[ "$(jq 'length' <<< "$issues_json")" -eq 0 ]]; then
   exit 0
 fi
 
+dependency_gate() {
+  local depends_line="$1"
+  local deps
+  local waiting=()
+  local dep state
+
+  if [[ "$depends_line" == *"none;"* || "$depends_line" == *"none"* ]]; then
+    printf 'Gate: startable'
+    return
+  fi
+
+  deps="$(grep -Eo '#[0-9]+' <<< "$depends_line" | tr -d '#')"
+  if [[ -z "$deps" ]]; then
+    printf 'Gate: manual check'
+    return
+  fi
+
+  while IFS= read -r dep; do
+    [[ -z "$dep" ]] && continue
+    state="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$dep" --jq '.state')"
+    if [[ "$state" != "closed" ]]; then
+      waiting+=("#$dep")
+    fi
+  done <<< "$deps"
+
+  if (( ${#waiting[@]} == 0 )); then
+    printf 'Gate: startable'
+  else
+    printf 'Gate: waiting on %s' "$(IFS=,; echo "${waiting[*]}")"
+  fi
+}
+
 while IFS= read -r issue_json; do
   [[ -z "$issue_json" ]] && continue
   issue="$(jq -r '.number' <<< "$issue_json")"
@@ -45,10 +78,18 @@ while IFS= read -r issue_json; do
     -f per_page="$comments_limit" \
     --jq '[.[].body] | join("\n")')"
   text="$body"$'\n'"$comments"
+  contract="$(extract_latest_contract_block "$text")"
+  if [[ -z "$contract" ]]; then
+    contract=""
+  fi
 
   printf '#%s %s\n  %s\n' "$issue" "$title" "$url"
-  printf '  %s\n' "$(extract_contract_line "Branch strategy:" "$text")"
-  printf '  %s\n' "$(extract_contract_line "Base branch:" "$text")"
-  printf '  %s\n' "$(extract_contract_line "Target PR base:" "$text")"
-  printf '  %s\n' "$(extract_contract_line "Depends on:" "$text")"
+  printf '  Contract: %s\n' "$(contract_header "$contract")"
+  printf '  %s\n' "$(extract_contract_line "Branch strategy:" "$contract")"
+  printf '  %s\n' "$(extract_contract_line "Base branch:" "$contract")"
+  printf '  %s\n' "$(extract_contract_line "Target PR base:" "$contract")"
+  depends_line="$(extract_contract_line "Depends on:" "$contract")"
+  printf '  %s\n' "$depends_line"
+  printf '  %s\n' "$(dependency_gate "$depends_line")"
+  printf '  %s\n' "$(extract_contract_line "Completion handoff:" "$contract")"
 done < <(jq -c '.[]' <<< "$issues_json")
