@@ -79,6 +79,40 @@ export interface AttemptResponse {
   next_action: string;
 }
 
+// ---------------------------------------------------------------------------
+// Progress
+// ---------------------------------------------------------------------------
+
+export interface PhonemeStat {
+  phoneme: string;
+  accuracy: number;
+  attempt_count: number;
+  correct_count: number;
+  mastery_status: string;
+}
+
+export interface ProgressResponse {
+  today_completed: boolean;
+  today_status: string;
+  streak_days: number;
+  total_attempts: number;
+  total_sessions: number;
+  weak_phonemes: PhonemeStat[];
+  strong_phonemes: PhonemeStat[];
+}
+
+export async function fetchProgress(): Promise<ProgressResponse> {
+  const res = await fetch(`${API_BASE}/progress`);
+  if (!res.ok) {
+    throw new Error(`GET /api/progress failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Attempt submission
+// ---------------------------------------------------------------------------
+
 export async function submitAttempt(
   sessionItemId: string,
   selectedAnswer: string,
