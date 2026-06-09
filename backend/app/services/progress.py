@@ -1,13 +1,17 @@
-"""Phoneme-level statistics and mastery computation.
+"""Phoneme-level statistics, mastery computation, and progress summaries.
 
 Every attempt submission updates ``phoneme_stats`` for each target
 phoneme on the session item. Mastery status is derived from attempt
 count and accuracy with documented precedence rules.
+
+GET /api/progress reads ``phoneme_stats``, ``attempts``, and
+``daily_sessions`` to produce a domain summary for the frontend.
 """
 
 from __future__ import annotations
 
 import sqlite3
+from datetime import date, timedelta
 from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
@@ -174,3 +178,157 @@ def update_phoneme_stats(
             }
         )
     return updated
+
+
+# ============================================================================
+# Progress summary for GET /api/progress
+# ============================================================================
+
+_MIN_ATTEMPTS_FOR_PHONEME_LIST = 2
+
+
+def build_progress_response(
+    conn: sqlite3.Connection,
+    user_id: str = "default",
+) -> dict:
+    """Build the GET /api/progress response dict from runtime data.
+
+    Returns zero/empty defaults when no data exists (no crash).
+    """
+    # ---- accent from settings ------------------------------------------------
+    primary_accent = "US"
+    row = conn.execute(
+        "SELECT primary_accent FROM settings WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    if row:
+        primary_accent = row["primary_accent"]
+
+    # ---- total attempts ------------------------------------------------------
+    total_row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM attempts WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    total_attempts = total_row["cnt"] if total_row else 0
+
+    # ---- total sessions ------------------------------------------------------
+    sess_row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM daily_sessions WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    total_sessions = sess_row["cnt"] if sess_row else 0
+
+    # ---- today ---------------------------------------------------------------
+    today_str = date.today().isoformat()
+    today_row = conn.execute(
+        """
+        SELECT status FROM daily_sessions
+        WHERE user_id = ? AND session_date = ?
+        """,
+        (user_id, today_str),
+    ).fetchone()
+    today_status = today_row["status"] if today_row else "none"
+    today_completed = today_status == "completed"
+
+    # ---- streak --------------------------------------------------------------
+    streak_days = _compute_streak(conn, user_id)
+
+    # ---- weak / strong phonemes ----------------------------------------------
+    weak_phonemes, strong_phonemes = _compute_phoneme_lists(
+        conn, user_id, primary_accent
+    )
+
+    return {
+        "today_completed": today_completed,
+        "today_status": today_status,
+        "streak_days": streak_days,
+        "total_attempts": total_attempts,
+        "total_sessions": total_sessions,
+        "weak_phonemes": weak_phonemes,
+        "strong_phonemes": strong_phonemes,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Streak
+# ---------------------------------------------------------------------------
+
+
+def _compute_streak(conn: sqlite3.Connection, user_id: str) -> int:
+    """Count consecutive completed daily sessions.
+
+    Walks backwards from yesterday; a gap or incomplete day breaks the streak.
+    Days that are not completed before the streak starts are skipped.
+    """
+    rows = conn.execute(
+        """
+        SELECT session_date FROM daily_sessions
+        WHERE user_id = ? AND status = 'completed'
+        ORDER BY session_date DESC
+        """,
+        (user_id,),
+    ).fetchall()
+    completed_dates = {r["session_date"] for r in rows}
+
+    if not completed_dates:
+        return 0
+
+    streak = 0
+    d = date.today() - timedelta(days=1)  # start from yesterday
+
+    for _ in range(366):  # safety limit
+        ds = d.isoformat()
+        if ds in completed_dates:
+            streak += 1
+            d = d - timedelta(days=1)
+        else:
+            # First miss after streak started (or no streak yet) — break
+            break
+
+    return streak
+
+
+# ---------------------------------------------------------------------------
+# Weak / strong phoneme lists
+# ---------------------------------------------------------------------------
+
+
+def _compute_phoneme_lists(
+    conn: sqlite3.Connection, user_id: str, primary_accent: str
+) -> Tuple[List[dict], List[dict]]:
+    """Return (weak_phonemes, strong_phonemes) sorted lists from phoneme_stats.
+
+    Only includes phonemes with attempt_count >= _MIN_ATTEMPTS_FOR_PHONEME_LIST.
+    """
+    rows = conn.execute(
+        """
+        SELECT phoneme_id, attempt_count, correct_count, mastery_status
+        FROM phoneme_stats
+        WHERE user_id = ? AND primary_accent = ?
+          AND attempt_count >= ?
+        """,
+        (user_id, primary_accent, _MIN_ATTEMPTS_FOR_PHONEME_LIST),
+    ).fetchall()
+
+    entries: List[dict] = []
+    for r in rows:
+        acc = r["correct_count"] / r["attempt_count"] if r["attempt_count"] > 0 else 0.0
+        entries.append({
+            "phoneme": r["phoneme_id"],
+            "accuracy": round(acc, 2),
+            "attempt_count": r["attempt_count"],
+            "correct_count": r["correct_count"],
+            "mastery_status": r["mastery_status"],
+        })
+
+    # Weak: sort by low accuracy then higher attempt count
+    weak = sorted(
+        [e for e in entries if e["accuracy"] < 0.70],
+        key=lambda e: (e["accuracy"], -e["attempt_count"]),
+    )
+
+    # Strong: sort by high accuracy then higher attempt count
+    strong = sorted(
+        [e for e in entries if e["accuracy"] >= 0.85],
+        key=lambda e: (-e["accuracy"], -e["attempt_count"]),
+    )
+
+    return weak, strong

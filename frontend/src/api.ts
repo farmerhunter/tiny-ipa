@@ -79,6 +79,40 @@ export interface AttemptResponse {
   next_action: string;
 }
 
+// ---------------------------------------------------------------------------
+// Progress
+// ---------------------------------------------------------------------------
+
+export interface PhonemeStat {
+  phoneme: string;
+  accuracy: number;
+  attempt_count: number;
+  correct_count: number;
+  mastery_status: string;
+}
+
+export interface ProgressResponse {
+  today_completed: boolean;
+  today_status: string;
+  streak_days: number;
+  total_attempts: number;
+  total_sessions: number;
+  weak_phonemes: PhonemeStat[];
+  strong_phonemes: PhonemeStat[];
+}
+
+export async function fetchProgress(): Promise<ProgressResponse> {
+  const res = await fetch(`${API_BASE}/progress`);
+  if (!res.ok) {
+    throw new Error(`GET /api/progress failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Attempt submission
+// ---------------------------------------------------------------------------
+
 export async function submitAttempt(
   sessionItemId: string,
   selectedAnswer: string,
@@ -100,6 +134,55 @@ export async function submitAttempt(
       const inner = body.detail ?? body;
       if (typeof inner === "object" && inner !== null) {
         // Prefer {error, detail} shape → "ERROR_CODE: detail"
+        const code = inner.error ?? "";
+        const text = inner.detail ?? JSON.stringify(inner);
+        message = code ? `${code}: ${text}` : String(text);
+      } else if (typeof inner === "string") {
+        message = inner;
+      }
+    } catch {
+      // Fall through with the default message.
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export interface SettingsData {
+  primary_accent: string;
+  daily_word_count: number;
+  show_translation: boolean;
+  show_accent_compare: boolean;
+  practice_mode: string;
+  review_strength: string;
+}
+
+export async function fetchSettings(): Promise<SettingsData> {
+  const res = await fetch(`${API_BASE}/settings`);
+  if (!res.ok) {
+    throw new Error(`GET /api/settings failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function saveSettings(
+  data: Partial<SettingsData>,
+): Promise<SettingsData> {
+  const res = await fetch(`${API_BASE}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    let message = `Request failed (HTTP ${res.status})`;
+    try {
+      const body = await res.json();
+      const inner = body.detail ?? body;
+      if (typeof inner === "object" && inner !== null) {
         const code = inner.error ?? "";
         const text = inner.detail ?? JSON.stringify(inner);
         message = code ? `${code}: ${text}` : String(text);
