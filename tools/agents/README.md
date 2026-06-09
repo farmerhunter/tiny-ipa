@@ -17,6 +17,7 @@ jq
 tools/agents/agent-inbox architect
 tools/agents/agent-inbox implementer
 tools/agents/agent-ready-queue
+tools/agents/agent-audit
 ```
 
 `agent-inbox` reads `needs:*` labels only. It deliberately avoids Project v2
@@ -29,8 +30,24 @@ per label.
 `agent-ready-queue` extracts `Execution Contract` lines so an Implementer can
 see which ready issues are immediately startable and which are waiting on
 `Depends on`. It reads both issue bodies and issue comments because many
-contracts are added after issue creation. It fetches the issue list once and
+contracts are added after issue creation. When multiple contracts exist, it
+uses the latest highest-priority contract: `Final Execution Contract`, then
+`Execution Contract`, then `Draft Execution Contract`. This prevents stale
+draft contracts in issue bodies from overriding newer final handoffs.
+It also prints a dependency gate hint, such as `Gate: startable` or
+`Gate: waiting on #39`, so Implementers do not need to inspect every dependency
+manually before deciding what to pick up. It fetches the issue list once and
 then reads comments only for the queued issues.
+
+`agent-audit` is a read-only consistency check. It looks for common workflow
+drift without touching GitHub Project v2:
+
+- open issues with multiple `needs:*` labels
+- open task issues with no next-action label, annotated as `pickup confirmed`
+  or `unrouted`
+- closed issues that still carry next-action labels
+- `needs:implementer` issues with missing contract fields
+- open PRs whose base branch does not match the linked issue contract
 
 ## Context Pickup
 
