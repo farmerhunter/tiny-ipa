@@ -52,9 +52,12 @@ then reads comments only for the queued issues.
 drift without touching GitHub Project v2:
 
 - open issues with multiple primary next-action labels
-- open task issues with no next-action label, annotated as `pickup confirmed`
-  or `unrouted`
+- open issues with unknown `needs:*` labels
+- open task issues with no next-action label, no active pickup comment, and no
+  batch checkpoint
 - closed issues that still carry next-action labels
+- pickup comments where the issue still carries a stale next-action label
+- unknown or missing role-generic `Completion handoff:` values
 - `needs:implementer` issues with missing contract fields
 - open PRs whose base branch does not match the linked issue contract
 

@@ -30,9 +30,105 @@ done < <(agent_primary_next_labels)
 issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
   -f state=open \
   -f per_page="$limit")"
+closed_issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
+  -f state=closed \
+  -f per_page="$limit")"
 prs_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls" \
   -f state=open \
   -f per_page="$limit")"
+
+labels_for_issue() {
+  jq -r '[.labels[].name] | join("\n")' <<< "$1"
+}
+
+issue_comments_text() {
+  local issue="$1"
+
+  "$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+    -f per_page="$comments_limit" \
+    --jq '[.[].body] | join("\n")'
+}
+
+has_any_next_label() {
+  local labels="$1"
+  local label
+
+  for label in "${next_labels[@]}"; do
+    if grep -Fxq "$label" <<< "$labels"; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+pickup_is_active() {
+  awk '
+    /Pickup confirmed/ {
+      active = 1
+    }
+    /completion handoff|Completion handoff|Routing: moved this issue back|Architect sync after PR merge/ {
+      active = 0
+    }
+    END {
+      exit active ? 0 : 1
+    }
+  ' <<< "$1"
+}
+
+matched_next_labels() {
+  local labels="$1"
+  local matched=()
+  local label
+
+  for label in "${next_labels[@]}"; do
+    if grep -Fxq "$label" <<< "$labels"; then
+      matched+=("$label")
+    fi
+  done
+
+  if (( ${#matched[@]} > 0 )); then
+    printf '%s\n' "${matched[@]}"
+  fi
+}
+
+contract_handoff_value() {
+  local contract="$1"
+  local line
+
+  line="$(extract_contract_line "Completion handoff:" "$contract")"
+  if [[ "$line" == "Completion handoff: MISSING" ]]; then
+    printf 'MISSING\n'
+    return
+  fi
+
+  sed -E 's/^Completion handoff:[[:space:]]*//' <<< "$line"
+}
+
+handoff_state() {
+  local value="$1"
+  local role
+
+  case "$value" in
+    MISSING)
+      printf 'missing'
+      ;;
+    "batch checkpoint"|"close after evidence"|hold|none)
+      printf 'ok'
+      ;;
+    to:*)
+      role="${value#to:}"
+      if agent_role_exists "$role"; then
+        printf 'ok'
+      else
+        printf 'unknown role'
+      fi
+      ;;
+    *)
+      printf 'unknown value'
+      ;;
+  esac
+}
 
 printf '== Agent Workflow Audit ==\n'
 
@@ -40,13 +136,12 @@ printf '\n== Open issues with multiple next-action labels ==\n'
 multi_count=0
 while IFS= read -r issue_json; do
   [[ -z "$issue_json" ]] && continue
-  labels="$(jq -r '[.labels[].name] | join("\n")' <<< "$issue_json")"
+  labels="$(labels_for_issue "$issue_json")"
   matched=()
-  for label in "${next_labels[@]}"; do
-    if grep -Fxq "$label" <<< "$labels"; then
-      matched+=("$label")
-    fi
-  done
+  while IFS= read -r label; do
+    [[ -z "$label" ]] && continue
+    matched+=("$label")
+  done < <(matched_next_labels "$labels")
   if (( ${#matched[@]} > 1 )); then
     multi_count=$((multi_count + 1))
     printf '#%s %s\n  labels: %s\n  %s\n' \
@@ -60,24 +155,45 @@ if [[ "$multi_count" -eq 0 ]]; then
   printf 'none\n'
 fi
 
+printf '\n== Open issues with unknown needs labels ==\n'
+unknown_count=0
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  labels="$(labels_for_issue "$issue_json")"
+  unknown=()
+  while IFS= read -r label; do
+    [[ -z "$label" ]] && continue
+    if [[ "$label" == needs:* ]] && ! agent_is_primary_next_label "$label"; then
+      unknown+=("$label")
+    fi
+  done <<< "$labels"
+  if (( ${#unknown[@]} > 0 )); then
+    unknown_count=$((unknown_count + 1))
+    printf '#%s %s\n  unknown: %s\n  %s\n' \
+      "$(jq -r '.number' <<< "$issue_json")" \
+      "$(jq -r '.title' <<< "$issue_json")" \
+      "$(IFS=,; echo "${unknown[*]}")" \
+      "$(jq -r '.html_url' <<< "$issue_json")"
+  fi
+done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$issues_json")
+if [[ "$unknown_count" -eq 0 ]]; then
+  printf 'none\n'
+fi
+
 printf '\n== Open task issues without next-action labels ==\n'
 unrouted_count=0
 while IFS= read -r issue_json; do
   [[ -z "$issue_json" ]] && continue
-  labels="$(jq -r '[.labels[].name] | join("\n")' <<< "$issue_json")"
-  has_next=0
-  for label in "${next_labels[@]}"; do
-    if grep -Fxq "$label" <<< "$labels"; then
-      has_next=1
-    fi
-  done
-  if [[ "$has_next" -eq 0 ]] && grep -Fxq "type:task" <<< "$labels"; then
+  labels="$(labels_for_issue "$issue_json")"
+  if ! has_any_next_label "$labels" && grep -Fxq "type:task" <<< "$labels"; then
     issue="$(jq -r '.number' <<< "$issue_json")"
-    comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
-      -f per_page="$comments_limit" \
-      --jq '[.[].body] | join("\n")')"
-    if grep -Fq "Pickup confirmed" <<< "$comments"; then
-      state_hint="pickup confirmed"
+    body="$(jq -r '.body // ""' <<< "$issue_json")"
+    comments="$(issue_comments_text "$issue")"
+    contract="$(extract_latest_contract_block "$body"$'\n'"$comments")"
+    if pickup_is_active "$comments"; then
+      continue
+    elif [[ "$(contract_handoff_value "$contract")" == "batch checkpoint" ]]; then
+      continue
     else
       state_hint="unrouted"
     fi
@@ -95,22 +211,72 @@ fi
 
 printf '\n== Closed issues still carrying next-action labels ==\n'
 closed_count=0
-for label in "${next_labels[@]}"; do
-  closed_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
-    -f state=closed \
-    -f labels="$label" \
-    -f per_page=30)"
-  while IFS= read -r issue_json; do
-    [[ -z "$issue_json" ]] && continue
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  labels="$(labels_for_issue "$issue_json")"
+  while IFS= read -r label; do
+    [[ -z "$label" ]] && continue
     closed_count=$((closed_count + 1))
     printf '#%s %s\n  label: %s\n  %s\n' \
       "$(jq -r '.number' <<< "$issue_json")" \
       "$(jq -r '.title' <<< "$issue_json")" \
       "$label" \
       "$(jq -r '.html_url' <<< "$issue_json")"
-  done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$closed_json")
-done
+  done < <(matched_next_labels "$labels")
+done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$closed_issues_json")
 if [[ "$closed_count" -eq 0 ]]; then
+  printf 'none\n'
+fi
+
+printf '\n== Pickup comments with stale next-action labels ==\n'
+pickup_count=0
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  labels="$(labels_for_issue "$issue_json")"
+  if has_any_next_label "$labels"; then
+    issue="$(jq -r '.number' <<< "$issue_json")"
+    comments="$(issue_comments_text "$issue")"
+    if pickup_is_active "$comments"; then
+      matched="$(matched_next_labels "$labels" | agent_join_lines)"
+      pickup_count=$((pickup_count + 1))
+      printf '#%s %s\n  stale labels: %s\n  %s\n' \
+        "$issue" \
+        "$(jq -r '.title' <<< "$issue_json")" \
+        "$matched" \
+        "$(jq -r '.html_url' <<< "$issue_json")"
+    fi
+  fi
+done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$issues_json")
+if [[ "$pickup_count" -eq 0 ]]; then
+  printf 'none\n'
+fi
+
+printf '\n== Contract handoff route issues ==\n'
+handoff_count=0
+while IFS= read -r issue_json; do
+  [[ -z "$issue_json" ]] && continue
+  labels="$(labels_for_issue "$issue_json")"
+  if ! grep -Fxq "type:task" <<< "$labels"; then
+    continue
+  fi
+  issue="$(jq -r '.number' <<< "$issue_json")"
+  title="$(jq -r '.title' <<< "$issue_json")"
+  body="$(jq -r '.body // ""' <<< "$issue_json")"
+  comments="$(issue_comments_text "$issue")"
+  contract="$(extract_latest_contract_block "$body"$'\n'"$comments")"
+  if [[ -z "$contract" ]]; then
+    continue
+  fi
+  handoff="$(contract_handoff_value "$contract")"
+  state="$(handoff_state "$handoff")"
+  if [[ "$state" != "ok" ]]; then
+    handoff_count=$((handoff_count + 1))
+    printf '#%s %s\n  handoff: %s (%s)\n  contract: %s\n  %s\n' \
+      "$issue" "$title" "$handoff" "$state" \
+      "$(contract_header "$contract")" "$(jq -r '.html_url' <<< "$issue_json")"
+  fi
+done < <(jq -c '.[] | select(has("pull_request") | not)' <<< "$issues_json")
+if [[ "$handoff_count" -eq 0 ]]; then
   printf 'none\n'
 fi
 
@@ -121,9 +287,7 @@ while IFS= read -r issue_json; do
   issue="$(jq -r '.number' <<< "$issue_json")"
   title="$(jq -r '.title' <<< "$issue_json")"
   body="$(jq -r '.body // ""' <<< "$issue_json")"
-  comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
-    -f per_page="$comments_limit" \
-    --jq '[.[].body] | join("\n")')"
+  comments="$(issue_comments_text "$issue")"
   contract="$(extract_latest_contract_block "$body"$'\n'"$comments")"
   missing=()
   for prefix in "Branch strategy:" "Base branch:" "Target PR base:" "Depends on:" "Completion handoff:"; do
