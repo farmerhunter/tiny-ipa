@@ -13,8 +13,9 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from import_words import import_words  # noqa: E402
-from app.main import app  # noqa: E402
+
 from app.db import get_connection  # noqa: E402
+from app.main import app  # noqa: E402
 from app.services.db_schema import init_db  # noqa: E402
 from app.services.db_store import get_settings  # noqa: E402
 
@@ -50,16 +51,19 @@ class TestSettingsApi:
         assert data["primary_accent"] == "US"
         assert data["daily_word_count"] == 10
         assert data["show_translation"] is True
+        assert data["focus_phonemes"] == []
 
     def test_put_updates_and_persists(self, client, seeded_db):
         resp = client.put("/api/settings", json={
             "daily_word_count": 5,
             "show_translation": False,
+            "focus_phonemes": ["/ʃ/", " /ɪ/ "],
         })
         assert resp.status_code == 200
         data = resp.json()
         assert data["daily_word_count"] == 5
         assert data["show_translation"] is False
+        assert data["focus_phonemes"] == ["/ʃ/", "/ɪ/"]
         # Other fields unchanged
         assert data["primary_accent"] == "US"
 
@@ -70,6 +74,7 @@ class TestSettingsApi:
         assert s is not None
         assert s.daily_word_count == 5
         assert s.show_translation is False
+        assert s.focus_phonemes == ["/ʃ/", "/ɪ/"]
 
     def test_put_invalid_daily_word_count(self, client):
         resp = client.put("/api/settings", json={"daily_word_count": 100})
@@ -84,6 +89,20 @@ class TestSettingsApi:
 
     def test_put_invalid_practice_mode(self, client):
         resp = client.put("/api/settings", json={"practice_mode": "random"})
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "SETTINGS_INVALID"
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"focus_phonemes": "/ʃ/"},
+            {"focus_phonemes": ["/ʃ/", ""]},
+            {"focus_phonemes": ["/ʃ/", 123]},
+            {"focus_phonemes": None},
+        ],
+    )
+    def test_put_invalid_focus_phonemes(self, client, payload):
+        resp = client.put("/api/settings", json=payload)
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "SETTINGS_INVALID"
 
@@ -108,5 +127,6 @@ class TestSettingsApi:
             resp = c.get("/api/settings")
             assert resp.status_code == 200
             assert resp.json()["daily_word_count"] == 10
+            assert resp.json()["focus_phonemes"] == []
         finally:
             db_mod.DEFAULT_DB_PATH = orig

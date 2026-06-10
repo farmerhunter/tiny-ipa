@@ -14,8 +14,9 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from import_words import import_words  # noqa: E402
+
+from app.db import get_connection  # noqa: E402
 from app.main import app  # noqa: E402
-from app.db import get_connection, get_db  # noqa: E402
 from app.services.db_schema import init_db  # noqa: E402
 from app.services.progress import build_progress_response  # noqa: E402
 
@@ -158,7 +159,13 @@ class TestStreak:
         init_db(conn)
         # Insert settings so build_progress_response doesn't 500
         conn.execute(
-            "INSERT INTO settings VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')"
+            """
+            INSERT INTO settings (
+                user_id, primary_accent, daily_word_count,
+                show_translation, show_accent_compare,
+                practice_mode, review_strength, updated_at
+            ) VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')
+            """
         )
         conn.commit()
         resp = build_progress_response(conn)
@@ -170,7 +177,13 @@ class TestStreak:
         conn = get_connection(db_path)
         init_db(conn)
         conn.execute(
-            "INSERT INTO settings VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')"
+            """
+            INSERT INTO settings (
+                user_id, primary_accent, daily_word_count,
+                show_translation, show_accent_compare,
+                practice_mode, review_strength, updated_at
+            ) VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')
+            """
         )
         today = date.today()
         yesterday = today - timedelta(days=1)
@@ -192,7 +205,13 @@ class TestStreak:
         conn = get_connection(db_path)
         init_db(conn)
         conn.execute(
-            "INSERT INTO settings VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')"
+            """
+            INSERT INTO settings (
+                user_id, primary_accent, daily_word_count,
+                show_translation, show_accent_compare,
+                practice_mode, review_strength, updated_at
+            ) VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')
+            """
         )
         today = date.today()
         two_days_ago = today - timedelta(days=2)
@@ -223,7 +242,13 @@ class TestPhonemeOrdering:
         conn = get_connection(db_path)
         init_db(conn)
         conn.execute(
-            "INSERT INTO settings VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')"
+            """
+            INSERT INTO settings (
+                user_id, primary_accent, daily_word_count,
+                show_translation, show_accent_compare,
+                practice_mode, review_strength, updated_at
+            ) VALUES ('default','US',10,1,0,'ipa_first','normal','2026-01-01T00:00:00Z')
+            """
         )
         # Insert stats with varying accuracy
         stats = [
@@ -239,7 +264,10 @@ class TestPhonemeOrdering:
         ]
         for phoneme_id, cnt, correct in stats:
             conn.execute(
-                "INSERT INTO phoneme_stats VALUES ('default','US',?,?,?,'2026-01-01T00:00:00Z',NULL,'new')",
+                """
+                INSERT INTO phoneme_stats
+                VALUES ('default','US',?,?,?,'2026-01-01T00:00:00Z',NULL,'new')
+                """,
                 (phoneme_id, cnt, correct),
             )
         conn.commit()

@@ -159,6 +159,7 @@ export interface SettingsData {
   show_accent_compare: boolean;
   practice_mode: string;
   review_strength: string;
+  focus_phonemes: string[];
 }
 
 export async function fetchSettings(): Promise<SettingsData> {
