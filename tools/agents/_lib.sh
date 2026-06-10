@@ -299,6 +299,93 @@ extract_contract_line() {
   ' <<< "$text"
 }
 
+extract_contract_value() {
+  local prefix="$1"
+  local text="$2"
+  local line
+
+  line="$(extract_contract_line "$prefix" "$text")"
+  if [[ "$line" == "$prefix MISSING" ]]; then
+    printf 'MISSING\n'
+    return
+  fi
+
+  sed -E "s/^${prefix//\//\\/}[[:space:]]*//" <<< "$line"
+}
+
+contract_role_value_state() {
+  local value="$1"
+
+  case "$value" in
+    MISSING)
+      printf 'missing'
+      ;;
+    none)
+      printf 'none'
+      ;;
+    "")
+      printf 'malformed'
+      ;;
+    *)
+      if [[ ! "$value" =~ ^[a-z][a-z0-9_]*$ ]]; then
+        printf 'malformed'
+      elif agent_role_exists "$value"; then
+        printf 'ok'
+      else
+        printf 'unknown role'
+      fi
+      ;;
+  esac
+}
+
+contract_handoff_value_state() {
+  local value="$1"
+  local role
+
+  case "$value" in
+    MISSING)
+      printf 'missing'
+      ;;
+    none)
+      printf 'none'
+      ;;
+    "batch checkpoint"|"close after evidence"|hold)
+      printf 'ok'
+      ;;
+    to:*)
+      role="${value#to:}"
+      if [[ -z "$role" || ! "$role" =~ ^[a-z][a-z0-9_]*$ ]]; then
+        printf 'malformed'
+      elif agent_role_exists "$role"; then
+        printf 'ok'
+      else
+        printf 'unknown role'
+      fi
+      ;;
+    "")
+      printf 'malformed'
+      ;;
+    *)
+      printf 'unknown value'
+      ;;
+  esac
+}
+
+contract_role_field_report() {
+  local contract="$1"
+  local owner review acceptance handoff
+
+  owner="$(extract_contract_value "Owner role:" "$contract")"
+  review="$(extract_contract_value "Review role:" "$contract")"
+  acceptance="$(extract_contract_value "Acceptance role:" "$contract")"
+  handoff="$(extract_contract_value "Completion handoff:" "$contract")"
+
+  printf 'Owner role: %s [%s]\n' "$owner" "$(contract_role_value_state "$owner")"
+  printf 'Review role: %s [%s]\n' "$review" "$(contract_role_value_state "$review")"
+  printf 'Acceptance role: %s [%s]\n' "$acceptance" "$(contract_role_value_state "$acceptance")"
+  printf 'Completion handoff: %s [%s]\n' "$handoff" "$(contract_handoff_value_state "$handoff")"
+}
+
 extract_latest_contract_block() {
   local text="$1"
 

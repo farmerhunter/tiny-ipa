@@ -45,8 +45,11 @@ uses the latest highest-priority contract: `Final Execution Contract`, then
 draft contracts in issue bodies from overriding newer final handoffs.
 It also prints a dependency gate hint, such as `Gate: startable` or
 `Gate: waiting on #39`, so Implementers do not need to inspect every dependency
-manually before deciding what to pick up. It fetches the issue list once and
-then reads comments only for the queued issues.
+manually before deciding what to pick up. It also prints role-related contract
+fields (`Owner role`, `Review role`, `Acceptance role`, and `Completion
+handoff`) when present, using the same line-oriented contract parsing helpers
+as other scripts. It fetches the issue list once and then reads comments only
+for the queued issues.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
