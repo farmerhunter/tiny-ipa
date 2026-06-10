@@ -115,8 +115,30 @@ if (( ${#role_errors[@]} > 0 )); then
   exit 2
 fi
 
+dependency_release_allows_start() {
+  local depends_line="$1"
+  local release_text="$2"
+  local deps dep
+
+  if [[ "$release_text" != *"Architect release"* || "$release_text" != *"unblocked"* ]]; then
+    return 1
+  fi
+
+  deps="$(grep -Eo '#[0-9]+' <<< "$depends_line" | tr -d '#')"
+  [[ -n "$deps" ]] || return 1
+  while IFS= read -r dep; do
+    [[ -z "$dep" ]] && continue
+    if [[ "$release_text" != *"#$dep"* ]]; then
+      return 1
+    fi
+  done <<< "$deps"
+
+  return 0
+}
+
 dependency_gate() {
   local depends_line="$1"
+  local release_text="$2"
   local deps
   local waiting=()
   local dep state
@@ -142,6 +164,8 @@ dependency_gate() {
 
   if (( ${#waiting[@]} == 0 )); then
     printf 'Gate: startable'
+  elif dependency_release_allows_start "$depends_line" "$release_text"; then
+    printf 'Gate: startable (Architect release comment marks dependencies unblocked)'
   else
     printf 'Gate: waiting on %s' "$(IFS=,; echo "${waiting[*]}")"
     return 1
@@ -153,7 +177,7 @@ base_line="$(extract_contract_line "Base branch:" "$contract")"
 target_line="$(extract_contract_line "Target PR base:" "$contract")"
 depends_line="$(extract_contract_line "Depends on:" "$contract")"
 handoff_line="$(extract_contract_line "Completion handoff:" "$contract")"
-gate="$(dependency_gate "$depends_line")" || {
+gate="$(dependency_gate "$depends_line" "$comments")" || {
   printf 'Pickup blocked: issue #%s dependency gate is not satisfied: %s\n' "$issue" "$gate" >&2
   exit 2
 }

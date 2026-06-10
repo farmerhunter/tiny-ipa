@@ -35,6 +35,11 @@ issue_json() {
     }'
 }
 
+if [[ "$*" == *"/issues/6/comments"* ]]; then
+  jq -n '[{body: "Architect release after dependency merge:\n\n#10 has merged into the epic branch, so this issue is unblocked."}]'
+  exit 0
+fi
+
 if [[ "$*" == *"/issues/"* && "$*" == *"/comments"* ]]; then
   printf '[]\n'
   exit 0
@@ -60,6 +65,7 @@ case "$*" in
   *"/issues/3"*) issue_json 3 "Missing contract" "" "type:task,needs:implementer" ;;
   *"/issues/4"*) issue_json 4 "Missing route" "$contract_ok" "type:task,needs:architect" ;;
   *"/issues/5"*) issue_json 5 "Blocked dependency" "$contract_blocked" "type:task,needs:implementer" ;;
+  *"/issues/6"*) issue_json 6 "Released dependency" "$contract_blocked" "type:task,needs:architect" ;;
   *) printf 'unexpected fake gh call: %s\n' "$*" >&2; exit 21 ;;
 esac
 SH
@@ -95,6 +101,10 @@ if "$fixture_root/tools/agents/agent-pickup" 5 --role implementer >/dev/null 2>&
   printf 'blocked dependency unexpectedly succeeded\n' >&2
   exit 1
 fi
+
+released_output="$("$fixture_root/tools/agents/agent-pickup" 6 --role architect)"
+grep -Fq "Gate: startable (Architect release comment marks dependencies unblocked)" <<< "$released_output"
+grep -Fq "Work mode: review/decision; no coding branch implied" <<< "$released_output"
 
 if "$fixture_root/tools/agents/agent-pickup" 1 --role implementer --apply >/dev/null 2>&1; then
   printf 'apply unexpectedly succeeded\n' >&2
