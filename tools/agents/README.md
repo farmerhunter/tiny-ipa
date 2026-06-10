@@ -19,6 +19,7 @@ tools/agents/agent-inbox implementer
 tools/agents/agent-inbox reviewer
 tools/agents/agent-role-config
 tools/agents/agent-ready-queue
+tools/agents/agent-ready-queue --role reviewer
 tools/agents/agent-audit
 ```
 
@@ -36,9 +37,11 @@ GraphQL/TLS timeouts in our current network setup. `agent-inbox all` fetches
 open issues once and groups the configured primary labels locally, instead of
 making one network call per label.
 
-`agent-ready-queue` extracts `Execution Contract` lines so an Implementer can
-see which ready issues are immediately startable and which are waiting on
-`Depends on`. It reads both issue bodies and issue comments because many
+`agent-ready-queue` defaults to the configured `implementer` role and also
+accepts `--role <role>` for other configured role inboxes, such as `reviewer`.
+It extracts `Execution Contract` lines so an agent can see which ready issues
+are immediately startable and which are waiting on `Depends on`. It reads both
+issue bodies and issue comments because many
 contracts are added after issue creation. When multiple contracts exist, it
 uses the latest highest-priority contract: `Final Execution Contract`, then
 `Execution Contract`, then `Draft Execution Contract`. This prevents stale
@@ -48,8 +51,8 @@ It also prints a dependency gate hint, such as `Gate: startable` or
 manually before deciding what to pick up. It also prints role-related contract
 fields (`Owner role`, `Review role`, `Acceptance role`, and `Completion
 handoff`) when present, using the same line-oriented contract parsing helpers
-as other scripts. It fetches the issue list once and then reads comments only
-for the queued issues.
+as other scripts. It fetches the open issue list once, filters configured role
+labels locally, and then reads comments only for the queued issues.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:

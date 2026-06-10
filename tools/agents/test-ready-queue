@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-ready-queue" "$fixture_root/tools/agents/agent-ready-queue"
+ln -s "$root/tools/agents/role-routing.conf" "$fixture_root/tools/agents/role-routing.conf"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+
+if [[ "$*" == *"/issues/9"* && "$*" == *"--jq .state"* ]]; then
+  printf 'closed\n'
+  exit 0
+fi
+
+if [[ "$*" == *"/issues/"* && "$*" == *"/comments"* ]]; then
+  printf '[]\n'
+  exit 0
+fi
+
+if [[ "$*" == *"-X GET"* && "$*" == *"/issues"* && "$*" == *"state=open"* ]]; then
+  if [[ "$*" == *"labels="* ]]; then
+    printf 'unexpected label-filtered ready-queue call\n' >&2
+    exit 20
+  fi
+  cat <<'JSON'
+[
+  {
+    "number": 1,
+    "title": "Implementer task",
+    "html_url": "https://example.test/issues/1",
+    "body": "## Final Execution Contract\n\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nOwner role: implementer\nReview role: architect\nAcceptance role: architect\nDepends on: none\nCompletion handoff: to:architect\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:implementer"}]
+  },
+  {
+    "number": 2,
+    "title": "Reviewer task",
+    "html_url": "https://example.test/issues/2",
+    "body": "## Final Execution Contract\n\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nOwner role: reviewer\nReview role: none\nAcceptance role: architect\nDepends on: #9\nCompletion handoff: batch checkpoint\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:reviewer"}]
+  },
+  {
+    "number": 3,
+    "title": "Architect task",
+    "html_url": "https://example.test/issues/3",
+    "body": "## Final Execution Contract\n\nDepends on: none\nCompletion handoff: to:architect\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:architect"}]
+  }
+]
+JSON
+  exit 0
+fi
+
+printf 'unexpected fake gh call: %s\n' "$*" >&2
+exit 21
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+FAKE_GH_LOG="$tmp_dir/default-gh.log" output="$(
+  FAKE_GH_LOG="$tmp_dir/default-gh.log" "$fixture_root/tools/agents/agent-ready-queue"
+)"
+grep -Fq "#1 Implementer task" <<< "$output"
+! grep -Fq "#2 Reviewer task" <<< "$output"
+grep -Fq "Owner role: implementer" <<< "$output"
+grep -Fq "Gate: startable" <<< "$output"
+[[ "$(grep -c "/issues" "$tmp_dir/default-gh.log")" == "2" ]]
+! grep -Fq "labels=" "$tmp_dir/default-gh.log"
+
+FAKE_GH_LOG="$tmp_dir/reviewer-gh.log" reviewer_output="$(
+  FAKE_GH_LOG="$tmp_dir/reviewer-gh.log" "$fixture_root/tools/agents/agent-ready-queue" --role reviewer
+)"
+grep -Fq "#2 Reviewer task" <<< "$reviewer_output"
+! grep -Fq "#1 Implementer task" <<< "$reviewer_output"
+grep -Fq "Review role: none" <<< "$reviewer_output"
+grep -Fq "Gate: startable" <<< "$reviewer_output"
+grep -Fq "Completion handoff: batch checkpoint" <<< "$reviewer_output"
+! grep -Fq "labels=" "$tmp_dir/reviewer-gh.log"
+
+if "$fixture_root/tools/agents/agent-ready-queue" --role ghost >/dev/null 2>&1; then
+  printf 'unknown role unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-ready-queue" --role >/tmp/ready-queue-missing-role.out 2>"$tmp_dir/missing-role.err"; then
+  printf 'missing role unexpectedly succeeded\n' >&2
+  exit 1
+fi
+grep -Fq -- "--role requires a role name" "$tmp_dir/missing-role.err"
+
+printf 'ready-queue fixture checks passed\n'
