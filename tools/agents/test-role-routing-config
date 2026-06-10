@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+check() {
+  local name="$1"
+  shift
+
+  printf 'check: %s\n' "$name"
+  "$@"
+}
+
+check "built-in fallback includes reviewer" \
+  env AGENT_ROLE_ROUTING_CONFIG="$tmp_dir/missing.conf" ROOT="$root" bash -c '
+    set -euo pipefail
+    source "$ROOT/tools/agents/_lib.sh"
+    [[ "$(agent_role_label_for_role reviewer)" == "needs:reviewer" ]]
+    agent_require_primary_next_label needs:architect
+    agent_require_primary_next_label needs:implementer
+    agent_require_primary_next_label needs:reviewer
+  '
+
+cat > "$tmp_dir/custom.conf" <<'CONFIG'
+AGENT_ROLES=(architect reviewer)
+AGENT_ROLE_LABEL_architect="needs:architect"
+AGENT_ROLE_LABEL_reviewer="needs:reviewer"
+AGENT_PRIMARY_NEXT_LABELS=(needs:architect needs:reviewer blocked)
+CONFIG
+
+check "custom config maps configured roles" \
+  env AGENT_ROLE_ROUTING_CONFIG="$tmp_dir/custom.conf" ROOT="$root" bash -c '
+    set -euo pipefail
+    source "$ROOT/tools/agents/_lib.sh"
+    [[ "$(agent_role_label_for_role architect)" == "needs:architect" ]]
+    [[ "$(agent_role_label_for_role reviewer)" == "needs:reviewer" ]]
+    agent_require_primary_next_label blocked
+  '
+
+cat > "$tmp_dir/invalid.conf" <<'CONFIG'
+AGENT_ROLES=(architect reviewer)
+AGENT_ROLE_LABEL_architect="needs:architect"
+AGENT_ROLE_LABEL_reviewer="needs:reviewer"
+AGENT_PRIMARY_NEXT_LABELS=(needs:architect blocked)
+CONFIG
+
+check "invalid config fails closed" \
+  env AGENT_ROLE_ROUTING_CONFIG="$tmp_dir/invalid.conf" ROOT="$root" bash -c '
+    set -euo pipefail
+    if bash -c '"'"'
+      source "$ROOT/tools/agents/_lib.sh"
+      agent_primary_next_labels >/dev/null
+    '"'"' 2>/dev/null; then
+      exit 1
+    fi
+  '
+
+check "unknown next-action label fails closed" \
+  env AGENT_ROLE_ROUTING_CONFIG="$tmp_dir/custom.conf" ROOT="$root" bash -c '
+    set -euo pipefail
+    if bash -c '"'"'
+      source "$ROOT/tools/agents/_lib.sh"
+      agent_require_primary_next_label needs:unknown >/dev/null
+    '"'"' 2>/dev/null; then
+      exit 1
+    fi
+  '
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-inbox" "$fixture_root/tools/agents/agent-inbox"
+ln -s "$root/tools/agents/agent-label" "$fixture_root/tools/agents/agent-label"
+ln -s "$root/tools/agents/role-routing.conf" "$fixture_root/tools/agents/role-routing.conf"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+
+if [[ "$*" == *"-X GET"* && "$*" == *"/issues"* && "$*" == *"state=open"* ]]; then
+  if [[ "$*" == *"labels="* ]]; then
+    printf 'unexpected label-filtered inbox call\n' >&2
+    exit 20
+  fi
+  cat <<'JSON'
+[
+  {
+    "number": 1,
+    "title": "Architect task",
+    "html_url": "https://example.test/issues/1",
+    "updated_at": "2026-06-10T00:00:00Z",
+    "labels": [{"name": "needs:architect"}]
+  },
+  {
+    "number": 2,
+    "title": "Reviewer task",
+    "html_url": "https://example.test/issues/2",
+    "updated_at": "2026-06-10T00:00:00Z",
+    "labels": [{"name": "needs:reviewer"}]
+  }
+]
+JSON
+  exit 0
+fi
+
+if [[ "$*" == *"repos/farmerhunter/tiny-ipa/issues/60"* && "$*" == *"--jq [.labels[].name]"* ]]; then
+  printf '["needs:architect","needs:implementer","needs:reviewer","blocked","area:tooling"]\n'
+  exit 0
+fi
+
+if [[ "$*" == *"-X DELETE"* || "$*" == *"-X POST"* ]]; then
+  exit 0
+fi
+
+if [[ "$*" == *"repos/farmerhunter/tiny-ipa/issues/60"* && "$*" == *"--jq"* ]]; then
+  printf '#60 labels: needs:reviewer, area:tooling\n'
+  exit 0
+fi
+
+printf 'unexpected fake gh call: %s\n' "$*" >&2
+exit 21
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+check "agent-inbox all groups configured labels with one issue fetch" \
+  env FAKE_GH_LOG="$tmp_dir/inbox-gh.log" bash -c '
+    set -euo pipefail
+    output="$("$1/tools/agents/agent-inbox" all)"
+    grep -Fq "== needs:architect ==" <<< "$output"
+    grep -Fq "== needs:reviewer ==" <<< "$output"
+    grep -Fq "#1 Architect task" <<< "$output"
+    grep -Fq "#2 Reviewer task" <<< "$output"
+    [[ "$(wc -l < "$FAKE_GH_LOG" | tr -d " ")" == "1" ]]
+  ' bash "$fixture_root"
+
+check "agent-label set-next removes other configured primary labels" \
+  env FAKE_GH_LOG="$tmp_dir/label-gh.log" bash -c '
+    set -euo pipefail
+    "$1/tools/agents/agent-label" 60 set-next needs:reviewer >/dev/null
+    grep -Fq "/issues/60/labels/needs:architect" "$FAKE_GH_LOG"
+    grep -Fq "/issues/60/labels/needs:implementer" "$FAKE_GH_LOG"
+    grep -Fq "/issues/60/labels/blocked" "$FAKE_GH_LOG"
+    ! grep -Fq "/issues/60/labels/needs:reviewer" "$FAKE_GH_LOG"
+    ! grep -Fq "labels[]=needs:reviewer" "$FAKE_GH_LOG"
+  ' bash "$fixture_root"
+
+printf 'role routing config checks passed\n'

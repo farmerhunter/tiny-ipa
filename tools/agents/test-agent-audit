@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-audit" "$fixture_root/tools/agents/agent-audit"
+ln -s "$root/tools/agents/role-routing.conf" "$fixture_root/tools/agents/role-routing.conf"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$*" == *"/pulls"* ]]; then
+  printf '[]\n'
+  exit 0
+fi
+
+if [[ "$*" == *"/issues/4/comments"* ]]; then
+  cat <<'JSON'
+[{"body": "## Pickup confirmed\n\nStarting work."}]
+JSON
+  exit 0
+fi
+
+if [[ "$*" == *"/issues/5/comments"* ]]; then
+  cat <<'JSON'
+[{"body": "## Pickup confirmed\n\nStarting work."}]
+JSON
+  exit 0
+fi
+
+if [[ "$*" == *"/issues/8/comments"* ]]; then
+  cat <<'JSON'
+[{"body": "## Pickup confirmed\n\nStarting work."}, {"body": "## Implementer handoff complete\n\nNext action: Routed back to architect."}]
+JSON
+  exit 0
+fi
+
+if [[ "$*" == *"/issues/"* && "$*" == *"/comments"* ]]; then
+  printf '[]\n'
+  exit 0
+fi
+
+if [[ "$*" == *"/issues"* && "$*" == *"state=closed"* ]]; then
+  cat <<'JSON'
+[
+  {
+    "number": 7,
+    "title": "Closed stale route",
+    "html_url": "https://example.test/issues/7",
+    "labels": [{"name": "type:task"}, {"name": "needs:merge"}]
+  }
+]
+JSON
+  exit 0
+fi
+
+if [[ "$*" == *"/issues"* && "$*" == *"state=open"* ]]; then
+  cat <<'JSON'
+[
+  {
+    "number": 1,
+    "title": "Conflicting routes",
+    "html_url": "https://example.test/issues/1",
+    "body": "## Final Execution Contract\n\nCompletion handoff: to:architect\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:architect"}, {"name": "needs:reviewer"}]
+  },
+  {
+    "number": 2,
+    "title": "Unknown route",
+    "html_url": "https://example.test/issues/2",
+    "body": "## Final Execution Contract\n\nCompletion handoff: to:architect\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:unknown"}]
+  },
+  {
+    "number": 3,
+    "title": "Batch checkpoint",
+    "html_url": "https://example.test/issues/3",
+    "body": "## Final Execution Contract\n\nCompletion handoff: batch checkpoint\n",
+    "labels": [{"name": "type:task"}]
+  },
+  {
+    "number": 4,
+    "title": "Picked up without route",
+    "html_url": "https://example.test/issues/4",
+    "body": "## Final Execution Contract\n\nCompletion handoff: to:architect\n",
+    "labels": [{"name": "type:task"}]
+  },
+  {
+    "number": 5,
+    "title": "Picked up with stale route",
+    "html_url": "https://example.test/issues/5",
+    "body": "## Final Execution Contract\n\nCompletion handoff: to:ghost\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nDepends on: none\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:implementer"}]
+  },
+  {
+    "number": 6,
+    "title": "Missing handoff",
+    "html_url": "https://example.test/issues/6",
+    "body": "## Final Execution Contract\n\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nDepends on: none\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:implementer"}]
+  },
+  {
+    "number": 8,
+    "title": "Handoff completed route",
+    "html_url": "https://example.test/issues/8",
+    "body": "## Final Execution Contract\n\nCompletion handoff: to:architect\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:architect"}]
+  }
+]
+JSON
+  exit 0
+fi
+
+printf 'unexpected fake gh call: %s\n' "$*" >&2
+exit 21
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+output="$("$fixture_root/tools/agents/agent-audit")"
+
+grep -Fq "#1 Conflicting routes" <<< "$output"
+grep -Fq "labels: needs:architect,needs:reviewer" <<< "$output"
+grep -Fq "#2 Unknown route" <<< "$output"
+grep -Fq "unknown: needs:unknown" <<< "$output"
+grep -Fq "#7 Closed stale route" <<< "$output"
+grep -Fq "label: needs:merge" <<< "$output"
+grep -Fq "#5 Picked up with stale route" <<< "$output"
+grep -Fq "stale labels: needs:implementer" <<< "$output"
+grep -Fq "handoff: to:ghost (unknown role)" <<< "$output"
+grep -Fq "#6 Missing handoff" <<< "$output"
+grep -Fq "handoff: MISSING (missing)" <<< "$output"
+! grep -Fq "#3 Batch checkpoint" <<< "$output"
+! grep -Fq "#4 Picked up without route" <<< "$output"
+! grep -Fq "#8 Handoff completed route" <<< "$output"
+
+printf 'agent-audit fixture checks passed\n'

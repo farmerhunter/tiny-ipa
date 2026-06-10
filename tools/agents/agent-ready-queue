@@ -11,28 +11,55 @@ source "$root/tools/agents/_lib.sh"
 usage() {
   cat <<'USAGE'
 Usage:
-  tools/agents/agent-ready-queue
+  tools/agents/agent-ready-queue [--role <role>]
 
-Lists needs:implementer issues and extracts the latest effective Execution
-Contract lines that determine queue order. A Ready issue may still be blocked
-by Depends on.
+Lists queued issues for a configured role and extracts the latest effective
+Execution Contract lines that determine queue order. A Ready issue may still be
+blocked by Depends on. Defaults to --role implementer.
 
 Uses REST API calls instead of `gh issue list/view` to avoid GraphQL timeouts.
 USAGE
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -gt 0 ]]; then
+role="implementer"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
 fi
 
-issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --role)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--role requires a role name' >&2
+        exit 2
+      fi
+      role="$2"
+      shift 2
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+role_label="$(agent_role_label_for_role "$role")"
+
+all_issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
   -f state=open \
-  -f labels=needs:implementer \
   -f per_page="$limit")"
+issues_json="$(jq --arg label "$role_label" '
+  [
+    .[] |
+    select(has("pull_request") | not) |
+    select(any(.labels[].name; . == $label))
+  ]
+' <<< "$all_issues_json")"
 
 if [[ "$(jq 'length' <<< "$issues_json")" -eq 0 ]]; then
-  printf 'No open issues labeled needs:implementer.\n'
+  printf 'No open issues labeled %s.\n' "$role_label"
   exit 0
 fi
 
@@ -88,6 +115,9 @@ while IFS= read -r issue_json; do
   printf '  %s\n' "$(extract_contract_line "Branch strategy:" "$contract")"
   printf '  %s\n' "$(extract_contract_line "Base branch:" "$contract")"
   printf '  %s\n' "$(extract_contract_line "Target PR base:" "$contract")"
+  printf '  %s\n' "$(extract_contract_line "Owner role:" "$contract")"
+  printf '  %s\n' "$(extract_contract_line "Review role:" "$contract")"
+  printf '  %s\n' "$(extract_contract_line "Acceptance role:" "$contract")"
   depends_line="$(extract_contract_line "Depends on:" "$contract")"
   printf '  %s\n' "$depends_line"
   printf '  %s\n' "$(dependency_gate "$depends_line")"

@@ -11,7 +11,7 @@ usage() {
 Usage:
   tools/agents/agent-label <issue-number> add <label>
   tools/agents/agent-label <issue-number> remove <label>
-  tools/agents/agent-label <issue-number> set-next <needs:architect|needs:implementer|needs:user|needs:ci|needs:merge|blocked>
+  tools/agents/agent-label <issue-number> set-next <primary-next-action-label>
 
 Uses GitHub REST label endpoints to avoid `gh issue edit` GraphQL timeouts.
 `set-next` removes the primary next-action labels first, then adds the target.
@@ -59,19 +59,13 @@ case "$action" in
     remove_label "$label"
     ;;
   set-next)
-    case "$label" in
-      needs:architect|needs:implementer|needs:user|needs:ci|needs:merge|blocked) ;;
-      *)
-        printf 'Unsupported next-action label: %s\n' "$label" >&2
-        exit 2
-        ;;
-    esac
+    agent_require_primary_next_label "$label"
     labels_json="$(current_labels_json)"
-    for next_label in needs:architect needs:implementer needs:user needs:ci needs:merge blocked; do
+    while IFS= read -r next_label; do
       if [[ "$next_label" != "$label" ]] && has_label "$next_label" "$labels_json"; then
         remove_label "$next_label"
       fi
-    done
+    done < <(agent_primary_next_labels)
     if ! has_label "$label" "$labels_json"; then
       add_label "$label"
     fi

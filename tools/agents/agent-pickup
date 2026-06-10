@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-pickup <issue-number> --role <role>
+
+Dry-runs role-generic issue pickup. The default path does not mutate GitHub,
+does not post comments, and does not read Project v2.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -lt 1 ]]; then
+  usage
+  exit 0
+fi
+
+issue="$1"
+shift
+role=""
+apply=0
+require_number "$issue" "Issue number"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --role)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--role requires a role name' >&2
+        exit 2
+      fi
+      role="$2"
+      shift 2
+      ;;
+    --apply)
+      apply=1
+      shift
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ -z "$role" ]]; then
+  printf '%s\n' '--role is required' >&2
+  exit 2
+fi
+
+if [[ "$apply" -eq 1 ]]; then
+  printf '%s\n' '--apply is not implemented in this dry-run prototype' >&2
+  exit 2
+fi
+
+role_label="$(agent_role_label_for_role "$role")"
+issue_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue")"
+title="$(jq -r '.title' <<< "$issue_json")"
+url="$(jq -r '.html_url' <<< "$issue_json")"
+labels="$(jq -r '[.labels[].name] | join("\n")' <<< "$issue_json")"
+
+if ! grep -Fxq "$role_label" <<< "$labels"; then
+  printf 'Pickup blocked: issue #%s is missing %s\n' "$issue" "$role_label" >&2
+  exit 2
+fi
+
+body="$(jq -r '.body // ""' <<< "$issue_json")"
+comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+  -f per_page="$comments_limit" \
+  --jq '[.[].body] | join("\n")')"
+contract="$(extract_latest_contract_block "$body"$'\n'"$comments")"
+if [[ -z "$contract" ]]; then
+  printf 'Pickup blocked: issue #%s has no Execution Contract\n' "$issue" >&2
+  exit 2
+fi
+
+missing=()
+for prefix in \
+  "Branch strategy:" \
+  "Base branch:" \
+  "Target PR base:" \
+  "Owner role:" \
+  "Review role:" \
+  "Acceptance role:" \
+  "Depends on:" \
+  "Completion handoff:"; do
+  line="$(extract_contract_line "$prefix" "$contract")"
+  if [[ "$line" == "$prefix MISSING" ]]; then
+    missing+=("$prefix")
+  fi
+done
+
+if (( ${#missing[@]} > 0 )); then
+  printf 'Pickup blocked: issue #%s contract missing %s\n' "$issue" "$(IFS=,; echo "${missing[*]}")" >&2
+  exit 2
+fi
+
+role_errors=()
+while IFS= read -r report_line; do
+  [[ -z "$report_line" ]] && continue
+  if [[ "$report_line" != *"[ok]"* && "$report_line" != *"[none]"* ]]; then
+    role_errors+=("$report_line")
+  fi
+done < <(contract_role_field_report "$contract")
+
+if (( ${#role_errors[@]} > 0 )); then
+  printf 'Pickup blocked: issue #%s has invalid role contract fields\n' "$issue" >&2
+  printf '  %s\n' "${role_errors[@]}" >&2
+  exit 2
+fi
+
+dependency_release_allows_start() {
+  local depends_line="$1"
+  local release_text="$2"
+  local deps dep
+
+  if [[ "$release_text" != *"Architect release"* || "$release_text" != *"unblocked"* ]]; then
+    return 1
+  fi
+
+  deps="$(grep -Eo '#[0-9]+' <<< "$depends_line" | tr -d '#')"
+  [[ -n "$deps" ]] || return 1
+  while IFS= read -r dep; do
+    [[ -z "$dep" ]] && continue
+    if [[ "$release_text" != *"#$dep"* ]]; then
+      return 1
+    fi
+  done <<< "$deps"
+
+  return 0
+}
+
+dependency_gate() {
+  local depends_line="$1"
+  local release_text="$2"
+  local deps
+  local waiting=()
+  local dep state
+
+  if [[ "$depends_line" == *"none;"* || "$depends_line" == *"none"* ]]; then
+    printf 'Gate: startable'
+    return 0
+  fi
+
+  deps="$(grep -Eo '#[0-9]+' <<< "$depends_line" | tr -d '#')"
+  if [[ -z "$deps" ]]; then
+    printf 'Gate: manual check'
+    return 0
+  fi
+
+  while IFS= read -r dep; do
+    [[ -z "$dep" ]] && continue
+    state="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$dep" --jq '.state')"
+    if [[ "$state" != "closed" ]]; then
+      waiting+=("#$dep")
+    fi
+  done <<< "$deps"
+
+  if (( ${#waiting[@]} == 0 )); then
+    printf 'Gate: startable'
+  elif dependency_release_allows_start "$depends_line" "$release_text"; then
+    printf 'Gate: startable (Architect release comment marks dependencies unblocked)'
+  else
+    printf 'Gate: waiting on %s' "$(IFS=,; echo "${waiting[*]}")"
+    return 1
+  fi
+}
+
+branch_line="$(extract_contract_line "Branch strategy:" "$contract")"
+base_line="$(extract_contract_line "Base branch:" "$contract")"
+target_line="$(extract_contract_line "Target PR base:" "$contract")"
+depends_line="$(extract_contract_line "Depends on:" "$contract")"
+handoff_line="$(extract_contract_line "Completion handoff:" "$contract")"
+gate="$(dependency_gate "$depends_line" "$comments")" || {
+  printf 'Pickup blocked: issue #%s dependency gate is not satisfied: %s\n' "$issue" "$gate" >&2
+  exit 2
+}
+
+printf '#%s %s\n' "$issue" "$title"
+printf 'Mode: dry-run\n'
+printf 'Role: %s (%s)\n' "$role" "$role_label"
+printf 'URL: %s\n' "$url"
+printf 'Contract: %s\n' "$(contract_header "$contract")"
+printf '%s\n' "$branch_line"
+printf '%s\n' "$base_line"
+printf '%s\n' "$target_line"
+printf '%s\n' "$depends_line"
+printf '%s\n' "$gate"
+printf '%s\n' "$handoff_line"
+printf '\nScheduler changes if applied:\n'
+printf '%s\n' "- remove $role_label"
+printf '%s\n' '- leave Project v2 unchanged by this dry-run path'
+printf '%s\n' '- post pickup confirmation comment'
+printf '\nPickup comment template:\n'
+printf '## Pickup confirmed\n'
+printf '\n'
+printf 'Role: %s\n' "$role"
+printf 'Branch strategy: %s\n' "${branch_line#Branch strategy: }"
+if [[ "$role" == "implementer" ]]; then
+  printf 'Working branch: <create from %s>\n' "${base_line#Base branch: }"
+  printf 'PR base: %s\n' "${target_line#Target PR base: }"
+else
+  printf 'Work mode: review/decision; no coding branch implied\n'
+fi
+printf 'Dependency gate: startable\n'
