@@ -253,6 +253,34 @@ Minimum checks:
   role
 - pickup comment exists while old `needs:<role>` label remains
 - closed issue still carries a primary next-action label
+- Project Status and configured Roadmap Status disagree when project sync is
+  explicitly enabled
+- Project Status implies a route such as Ready or In Review, but the issue has
+  no matching next-action label or review/acceptance route
+
+Audit should be layered so ordinary runs stay fast and portable:
+
+```text
+Level 1: label routing consistency
+  Default. Fast REST issue reads. Checks missing, unknown, conflicting, and
+  stale next-action labels.
+
+Level 2: contract/comment consistency
+  Default or selectively enabled. Reads comments only for candidate issues that
+  need contract, pickup, handoff, or batch-checkpoint validation.
+
+Level 3: Project/Roadmap status consistency
+  Optional. Requires project config. May query Project v2 and configured
+  Roadmap Status fields. Read-only by default.
+
+Level 4: Project/Roadmap repair
+  Explicit apply-only workflow. Runs for a specified issue or narrow filter and
+  prints a dry-run plan before mutation.
+```
+
+The fast path must not depend on Project v2. Project and roadmap consistency is
+important for human planning, but it is too slow and project-specific to make
+part of ordinary inbox, pickup, or ready-queue commands.
 
 ## Configuration
 
@@ -301,6 +329,55 @@ Example shape:
 The first implementation can keep this config embedded in shell defaults, but
 the design target should be explicit configuration so other projects can add or
 rename roles without editing helper code.
+
+Configuration should be split into default-safe core settings and optional
+project-specific settings.
+
+Core defaults should cover:
+
+```text
+roles
+primary next-action labels
+blocked label
+label mutual exclusion
+no Project v2 dependency
+```
+
+Optional project config may cover:
+
+```text
+issue type labels
+allowed labels by issue type
+Project owner, number, status field, and status options
+Roadmap Status source and allowed values
+Project Status <-> Roadmap Status mapping
+Epic and child issue conventions
+```
+
+When optional config is absent, helpers must fail closed or skip that capability
+with a clear message. A new project should be able to run basic label-routing
+audit without defining Project v2 or Roadmap Status. Unknown labels, unknown
+status mappings, or unknown Roadmap values should be reported, not silently
+rewritten.
+
+Project/Roadmap synchronization should therefore be opt-in:
+
+```text
+agent-audit
+  fast label and contract checks
+
+agent-audit --project
+  slower Project/Roadmap drift checks, only when configured
+
+agent-project-sync --dry-run
+  print a repair plan for configured Project/Roadmap drift
+
+agent-project-sync --apply
+  explicit mutation for a specified issue or narrow filter
+```
+
+This avoids importing Tiny IPA-specific labels, Project fields, or roadmap
+states into projects that only want the portable role-routing helpers.
 
 ## What Not To Automate Yet
 
