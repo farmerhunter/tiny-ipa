@@ -2,8 +2,8 @@
  * SettingsPage — display and edit user settings.
  *
  * Only exposes MVP-supported controls.  Future settings (UK accent,
- * reveal_first, extra_review/quick, accent compare) are intentionally
- * hidden until the practice flow supports them.
+ * reveal_first, accent compare) are intentionally hidden until the practice
+ * flow supports them.
  */
 
 import { useEffect, useState } from "react";
@@ -19,13 +19,17 @@ interface Props {
 
 export default function SettingsPage({ onBack }: Props) {
   const [settings, setSettings] = useState<SettingsData | null>(null);
+  const [focusInput, setFocusInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetchSettings()
-      .then(setSettings)
+      .then((data) => {
+        setSettings(data);
+        setFocusInput(data.focus_phonemes.join(", "));
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -40,11 +44,20 @@ export default function SettingsPage({ onBack }: Props) {
     try {
       const updated = await saveSettings(patch);
       setSettings(updated);
+      setFocusInput(updated.focus_phonemes.join(", "));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save settings");
     }
+  };
+
+  const saveFocusPhonemes = () => {
+    const focus_phonemes = focusInput
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    void update({ focus_phonemes });
   };
 
   return (
@@ -72,6 +85,41 @@ export default function SettingsPage({ onBack }: Props) {
             onChange={e => update({ show_translation: e.target.checked })} />
         </label>
 
+        <label className="setting-row">
+          <span>Review strength</span>
+          <select value={settings.review_strength}
+            onChange={e => update({ review_strength: e.target.value })}>
+            <option value="quick">Quick</option>
+            <option value="normal">Normal</option>
+            <option value="extra_review">Extra review</option>
+          </select>
+        </label>
+
+        <label className="setting-row setting-row-stacked">
+          <span>Focus phonemes</span>
+          <input
+            className="focus-input"
+            type="text"
+            value={focusInput}
+            placeholder="/ʃ/, /æ/"
+            onBlur={saveFocusPhonemes}
+            onChange={e => setFocusInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
+          />
+        </label>
+
+        {settings.focus_phonemes.length > 0 && (
+          <div className="phoneme-chip-list">
+            {settings.focus_phonemes.map((phoneme) => (
+              <span className="phoneme-chip" key={phoneme}>{phoneme}</span>
+            ))}
+          </div>
+        )}
+
         {/* ---- Future controls (hidden until practice flow supports them) ----
         <label className="setting-row">
           <span>Primary accent</span>
@@ -80,10 +128,6 @@ export default function SettingsPage({ onBack }: Props) {
         <label className="setting-row">
           <span>Practice mode</span>
           <select value={settings.practice_mode} … />
-        </label>
-        <label className="setting-row">
-          <span>Review strength</span>
-          <select value={settings.review_strength} … />
         </label>
         <label className="setting-row">
           <span>Show accent compare</span>
