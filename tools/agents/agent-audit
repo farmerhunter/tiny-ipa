@@ -23,7 +23,10 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -gt 0 ]]; then
   exit 0
 fi
 
-next_labels=(needs:architect needs:implementer needs:user needs:ci needs:merge blocked)
+next_labels=()
+while IFS= read -r label; do
+  next_labels+=("$label")
+done < <(agent_primary_next_labels)
 issues_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues" \
   -f state=open \
   -f per_page="$limit")"
