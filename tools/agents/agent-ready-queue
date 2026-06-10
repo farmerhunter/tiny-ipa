@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --role)
       if [[ -z "${2:-}" ]]; then
-        printf '--role requires a role name\n' >&2
+        printf '%s\n' '--role requires a role name' >&2
         exit 2
       fi
       role="$2"

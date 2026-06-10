@@ -90,4 +90,10 @@ if "$fixture_root/tools/agents/agent-ready-queue" --role ghost >/dev/null 2>&1; 
   exit 1
 fi
 
+if "$fixture_root/tools/agents/agent-ready-queue" --role >/tmp/ready-queue-missing-role.out 2>"$tmp_dir/missing-role.err"; then
+  printf 'missing role unexpectedly succeeded\n' >&2
+  exit 1
+fi
+grep -Fq -- "--role requires a role name" "$tmp_dir/missing-role.err"
+
 printf 'ready-queue fixture checks passed\n'
