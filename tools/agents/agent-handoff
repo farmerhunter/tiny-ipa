@@ -1,0 +1,342 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-handoff <issue-number> --from <role> [--to <role|none|batch>]
+
+Dry-runs role-generic issue handoff. The default path does not mutate GitHub,
+does not post comments, does not close issues, and does not read Project v2.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -lt 1 ]]; then
+  usage
+  exit 0
+fi
+
+issue="$1"
+shift
+from_role=""
+to_override=""
+apply=0
+require_number "$issue" "Issue number"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --from)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--from requires a role name' >&2
+        exit 2
+      fi
+      from_role="$2"
+      shift 2
+      ;;
+    --to)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--to requires a target' >&2
+        exit 2
+      fi
+      to_override="$2"
+      shift 2
+      ;;
+    --apply)
+      apply=1
+      shift
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ -z "$from_role" ]]; then
+  printf '%s\n' '--from is required' >&2
+  exit 2
+fi
+
+if [[ "$apply" -eq 1 ]]; then
+  printf '%s\n' '--apply is not implemented in this dry-run prototype' >&2
+  exit 2
+fi
+
+from_label="$(agent_role_label_for_role "$from_role")"
+
+normalize_contract_target() {
+  local raw="$1"
+  local role
+
+  case "$raw" in
+    to:*)
+      role="${raw#to:}"
+      agent_role_label_for_role "$role" >/dev/null
+      printf 'role:%s\n' "$role"
+      ;;
+    batch|"batch checkpoint")
+      printf 'batch\n'
+      ;;
+    none)
+      printf 'none\n'
+      ;;
+    "close after evidence")
+      printf 'close-after-evidence\n'
+      ;;
+    hold)
+      printf 'hold\n'
+      ;;
+    "")
+      printf '%s\n' 'missing'
+      return 2
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+}
+
+normalize_override_target() {
+  local raw="$1"
+
+  case "$raw" in
+    batch)
+      printf 'batch\n'
+      ;;
+    none)
+      printf 'none\n'
+      ;;
+    "")
+      printf '%s\n' 'missing'
+      return 2
+      ;;
+    *)
+      agent_role_label_for_role "$raw" >/dev/null
+      printf 'role:%s\n' "$raw"
+      ;;
+  esac
+}
+
+target_description() {
+  local normalized="$1"
+  local role label
+
+  case "$normalized" in
+    role:*)
+      role="${normalized#role:}"
+      label="$(agent_role_label_for_role "$role")"
+      printf 'to:%s (%s)' "$role" "$label"
+      ;;
+    batch)
+      printf 'batch checkpoint (no next-action label)'
+      ;;
+    none)
+      printf 'none (no next-action label)'
+      ;;
+    close-after-evidence)
+      printf 'close after evidence (manual close reminder)'
+      ;;
+    hold)
+      printf 'hold (blocked)'
+      ;;
+  esac
+}
+
+planned_label_changes() {
+  local normalized="$1"
+  local current_labels="$2"
+  local current_primary="$3"
+  local role label
+  local target_label=""
+
+  if [[ "$normalized" == role:* ]]; then
+    role="${normalized#role:}"
+    target_label="$(agent_role_label_for_role "$role")"
+  elif [[ "$normalized" == hold ]]; then
+    target_label="blocked"
+  fi
+
+  if [[ -n "$current_primary" ]]; then
+    while IFS= read -r label; do
+      [[ -z "$label" ]] && continue
+      [[ -n "$target_label" && "$label" == "$target_label" ]] && continue
+      printf '%s\n' "- remove $label"
+    done <<< "$current_primary"
+  else
+    printf '%s\n' '- no current primary next-action label to remove'
+  fi
+
+  case "$normalized" in
+    role:*)
+      if grep -Fxq "$target_label" <<< "$current_labels"; then
+        printf '%s\n' "- keep $target_label"
+      else
+        printf '%s\n' "- add $target_label"
+      fi
+      ;;
+    hold)
+      if grep -Fxq "blocked" <<< "$current_labels"; then
+        printf '%s\n' '- keep blocked'
+      else
+        printf '%s\n' '- add blocked'
+      fi
+      ;;
+    batch|none|close-after-evidence)
+      printf '%s\n' '- add no next-action label'
+      ;;
+  esac
+}
+
+next_action_text() {
+  local normalized="$1"
+  local role
+
+  case "$normalized" in
+    role:implementer)
+      printf 'Implementer picks up fixes, verification, or follow-up work.'
+      ;;
+    role:reviewer)
+      printf 'Reviewer performs review or QA; no coding branch is implied.'
+      ;;
+    role:architect)
+      printf 'Architect reviews, accepts, plans, or decides next routing.'
+      ;;
+    role:*)
+      role="${normalized#role:}"
+      printf '%s picks up the next role-specific action.' "$role"
+      ;;
+    batch)
+      printf 'No per-issue next actor; include this in the batch checkpoint.'
+      ;;
+    none)
+      printf 'No next route; leave unrouted only if the contract explicitly allows it.'
+      ;;
+    close-after-evidence)
+      printf 'Confirm evidence and close manually; this helper does not close issues.'
+      ;;
+    hold)
+      printf 'Resolve the hold reason before routing to another actor.'
+      ;;
+  esac
+}
+
+issue_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue")"
+title="$(jq -r '.title' <<< "$issue_json")"
+url="$(jq -r '.html_url' <<< "$issue_json")"
+labels="$(jq -r '[.labels[].name] | join("\n")' <<< "$issue_json")"
+body="$(jq -r '.body // ""' <<< "$issue_json")"
+comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+  -f per_page="$comments_limit" \
+  --jq '[.[].body] | join("\n")')"
+contract="$(extract_latest_contract_block "$body"$'\n'"$comments")"
+
+if [[ -z "$contract" ]]; then
+  printf 'Handoff blocked: issue #%s has no Execution Contract\n' "$issue" >&2
+  exit 2
+fi
+
+current_primary=()
+while IFS= read -r next_label; do
+  [[ -z "$next_label" ]] && continue
+  if grep -Fxq "$next_label" <<< "$labels"; then
+    current_primary+=("$next_label")
+  fi
+done < <(agent_primary_next_labels)
+
+if (( ${#current_primary[@]} > 1 )); then
+  printf 'Handoff blocked: issue #%s has multiple current next-action labels: %s\n' \
+    "$issue" "$(IFS=,; echo "${current_primary[*]}")" >&2
+  exit 2
+fi
+
+if (( ${#current_primary[@]} == 1 )) && [[ "${current_primary[0]}" != "$from_label" ]]; then
+  printf 'Handoff blocked: issue #%s is routed to %s, not %s\n' \
+    "$issue" "${current_primary[0]}" "$from_label" >&2
+  exit 2
+fi
+
+missing=()
+for prefix in \
+  "Owner role:" \
+  "Review role:" \
+  "Acceptance role:" \
+  "Completion handoff:"; do
+  line="$(extract_contract_line "$prefix" "$contract")"
+  if [[ "$line" == "$prefix MISSING" ]]; then
+    missing+=("$prefix")
+  fi
+done
+
+if (( ${#missing[@]} > 0 )); then
+  printf 'Handoff blocked: issue #%s contract missing %s\n' "$issue" "$(IFS=,; echo "${missing[*]}")" >&2
+  exit 2
+fi
+
+role_errors=()
+while IFS= read -r report_line; do
+  [[ -z "$report_line" ]] && continue
+  if [[ "$report_line" == "Completion handoff:"* && -n "$to_override" ]]; then
+    continue
+  fi
+  if [[ "$report_line" != *"[ok]"* && "$report_line" != *"[none]"* ]]; then
+    role_errors+=("$report_line")
+  fi
+done < <(contract_role_field_report "$contract")
+
+if (( ${#role_errors[@]} > 0 )); then
+  printf 'Handoff blocked: issue #%s has invalid role contract fields\n' "$issue" >&2
+  printf '  %s\n' "${role_errors[@]}" >&2
+  exit 2
+fi
+
+if [[ -n "$to_override" ]]; then
+  target_source="--to $to_override"
+  normalized_target="$(normalize_override_target "$to_override")" || {
+    printf 'Handoff blocked: unsupported --to target: %s\n' "$to_override" >&2
+    exit 2
+  }
+else
+  handoff_value="$(extract_contract_value "Completion handoff:" "$contract")"
+  target_source="Completion handoff: $handoff_value"
+  normalized_target="$(normalize_contract_target "$handoff_value")" || {
+    printf 'Handoff blocked: unsupported contract handoff target: %s\n' "$handoff_value" >&2
+    exit 2
+  }
+fi
+
+current_primary_text=""
+if (( ${#current_primary[@]} > 0 )); then
+  current_primary_text="$(printf '%s\n' "${current_primary[@]}")"
+fi
+
+printf '#%s %s\n' "$issue" "$title"
+printf 'Mode: dry-run\n'
+printf 'From: %s (%s)\n' "$from_role" "$from_label"
+printf 'Target: %s\n' "$(target_description "$normalized_target")"
+printf 'Source: %s\n' "$target_source"
+printf 'URL: %s\n' "$url"
+printf 'Contract: %s\n' "$(contract_header "$contract")"
+printf '\nScheduler changes if applied:\n'
+planned_label_changes "$normalized_target" "$labels" "$current_primary_text"
+printf '%s\n' '- leave Project v2 unchanged by this dry-run path'
+printf '%s\n' '- post completion/handoff comment'
+printf '\nCompletion/handoff comment template:\n'
+printf '## %s handoff complete\n' "$from_role"
+printf '\n'
+printf 'Scope completed:\n'
+printf '%s\n' '- <what changed or what was reviewed>'
+printf '\n'
+printf 'Verification:\n'
+printf '%s\n' '- <checks run and result>'
+printf '\n'
+printf 'Residual risks:\n'
+printf '%s\n' '- <known limits or none>'
+printf '\n'
+printf 'Next action:\n'
+printf '%s\n' "- $(next_action_text "$normalized_target")"

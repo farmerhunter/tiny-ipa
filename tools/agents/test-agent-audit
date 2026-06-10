@@ -34,6 +34,13 @@ JSON
   exit 0
 fi
 
+if [[ "$*" == *"/issues/8/comments"* ]]; then
+  cat <<'JSON'
+[{"body": "## Pickup confirmed\n\nStarting work."}, {"body": "## Implementer handoff complete\n\nNext action: Routed back to architect."}]
+JSON
+  exit 0
+fi
+
 if [[ "$*" == *"/issues/"* && "$*" == *"/comments"* ]]; then
   printf '[]\n'
   exit 0
@@ -97,6 +104,13 @@ if [[ "$*" == *"/issues"* && "$*" == *"state=open"* ]]; then
     "html_url": "https://example.test/issues/6",
     "body": "## Final Execution Contract\n\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nDepends on: none\n",
     "labels": [{"name": "type:task"}, {"name": "needs:implementer"}]
+  },
+  {
+    "number": 8,
+    "title": "Handoff completed route",
+    "html_url": "https://example.test/issues/8",
+    "body": "## Final Execution Contract\n\nCompletion handoff: to:architect\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:architect"}]
   }
 ]
 JSON
@@ -123,5 +137,6 @@ grep -Fq "#6 Missing handoff" <<< "$output"
 grep -Fq "handoff: MISSING (missing)" <<< "$output"
 ! grep -Fq "#3 Batch checkpoint" <<< "$output"
 ! grep -Fq "#4 Picked up without route" <<< "$output"
+! grep -Fq "#8 Handoff completed route" <<< "$output"
 
 printf 'agent-audit fixture checks passed\n'

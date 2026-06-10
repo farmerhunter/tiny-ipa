@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-handoff" "$fixture_root/tools/agents/agent-handoff"
+ln -s "$root/tools/agents/role-routing.conf" "$fixture_root/tools/agents/role-routing.conf"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+issue_json() {
+  local number="$1"
+  local title="$2"
+  local body="$3"
+  local labels="$4"
+
+  jq -n \
+    --argjson number "$number" \
+    --arg title "$title" \
+    --arg body "$body" \
+    --arg labels "$labels" \
+    '{
+      number: $number,
+      title: $title,
+      html_url: ("https://example.test/issues/" + ($number | tostring)),
+      body: $body,
+      labels: ($labels | split(",") | map(select(length > 0) | {name: .}))
+    }'
+}
+
+if [[ "$*" == *"/issues/"* && "$*" == *"/comments"* ]]; then
+  printf '[]\n'
+  exit 0
+fi
+
+contract() {
+  local owner="$1"
+  local review="$2"
+  local acceptance="$3"
+  local handoff="$4"
+  printf '## Final Execution Contract\n\nOwner role: %s\nReview role: %s\nAcceptance role: %s\nCompletion handoff: %s\n' \
+    "$owner" "$review" "$acceptance" "$handoff"
+}
+
+case "$*" in
+  *"/issues/10"*) issue_json 10 "Bare role contract" "$(contract implementer architect architect architect)" "type:task" ;;
+  *"/issues/11"*) issue_json 11 "Same route" "$(contract reviewer none architect to:reviewer)" "type:task,needs:reviewer" ;;
+  *"/issues/1"*) issue_json 1 "Implementer to architect" "$(contract implementer architect architect to:architect)" "type:task" ;;
+  *"/issues/2"*) issue_json 2 "Implementer to reviewer" "$(contract implementer reviewer architect to:architect)" "type:task,needs:implementer" ;;
+  *"/issues/3"*) issue_json 3 "Reviewer to implementer" "$(contract reviewer none architect to:architect)" "type:task,needs:reviewer" ;;
+  *"/issues/4"*) issue_json 4 "Reviewer to architect" "$(contract reviewer none architect to:architect)" "type:task,needs:reviewer" ;;
+  *"/issues/5"*) issue_json 5 "Hold state" "$(contract implementer architect architect hold)" "type:task" ;;
+  *"/issues/6"*) issue_json 6 "Close after evidence" "$(contract implementer architect architect "close after evidence")" "type:task" ;;
+  *"/issues/7"*) issue_json 7 "Batch checkpoint" "$(contract implementer architect architect "batch checkpoint")" "type:task" ;;
+  *"/issues/8"*) issue_json 8 "Missing contract" "" "type:task" ;;
+  *"/issues/9"*) issue_json 9 "Wrong route" "$(contract implementer architect architect to:architect)" "type:task,needs:architect" ;;
+  *) printf 'unexpected fake gh call: %s\n' "$*" >&2; exit 21 ;;
+esac
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+impl_arch="$("$fixture_root/tools/agents/agent-handoff" 1 --from implementer)"
+grep -Fq "Target: to:architect (needs:architect)" <<< "$impl_arch"
+grep -Fq "add needs:architect" <<< "$impl_arch"
+grep -Fq "Completion/handoff comment template:" <<< "$impl_arch"
+grep -Fq "Scope completed:" <<< "$impl_arch"
+grep -Fq "Verification:" <<< "$impl_arch"
+grep -Fq "Residual risks:" <<< "$impl_arch"
+grep -Fq "Next action:" <<< "$impl_arch"
+
+impl_review="$("$fixture_root/tools/agents/agent-handoff" 2 --from implementer --to reviewer)"
+grep -Fq "From: implementer (needs:implementer)" <<< "$impl_review"
+grep -Fq "Target: to:reviewer (needs:reviewer)" <<< "$impl_review"
+grep -Fq "remove needs:implementer" <<< "$impl_review"
+grep -Fq "add needs:reviewer" <<< "$impl_review"
+
+review_impl="$("$fixture_root/tools/agents/agent-handoff" 3 --from reviewer --to implementer)"
+grep -Fq "Target: to:implementer (needs:implementer)" <<< "$review_impl"
+grep -Fq "remove needs:reviewer" <<< "$review_impl"
+grep -Fq "add needs:implementer" <<< "$review_impl"
+
+review_arch="$("$fixture_root/tools/agents/agent-handoff" 4 --from reviewer --to architect)"
+grep -Fq "Target: to:architect (needs:architect)" <<< "$review_arch"
+grep -Fq "Architect reviews, accepts, plans, or decides next routing." <<< "$review_arch"
+
+hold_output="$("$fixture_root/tools/agents/agent-handoff" 5 --from implementer)"
+grep -Fq "Target: hold (blocked)" <<< "$hold_output"
+grep -Fq "add blocked" <<< "$hold_output"
+
+close_output="$("$fixture_root/tools/agents/agent-handoff" 6 --from implementer)"
+grep -Fq "Target: close after evidence (manual close reminder)" <<< "$close_output"
+grep -Fq "Confirm evidence and close manually" <<< "$close_output"
+
+batch_output="$("$fixture_root/tools/agents/agent-handoff" 7 --from implementer)"
+grep -Fq "Target: batch checkpoint (no next-action label)" <<< "$batch_output"
+grep -Fq "add no next-action label" <<< "$batch_output"
+! grep -Fq "add needs:" <<< "$batch_output"
+
+none_output="$("$fixture_root/tools/agents/agent-handoff" 1 --from implementer --to none)"
+grep -Fq "Target: none (no next-action label)" <<< "$none_output"
+grep -Fq "add no next-action label" <<< "$none_output"
+
+same_route="$("$fixture_root/tools/agents/agent-handoff" 11 --from reviewer)"
+grep -Fq "Target: to:reviewer (needs:reviewer)" <<< "$same_route"
+grep -Fq "keep needs:reviewer" <<< "$same_route"
+! grep -Fq "remove needs:reviewer" <<< "$same_route"
+
+if "$fixture_root/tools/agents/agent-handoff" 1 --from ghost >/dev/null 2>&1; then
+  printf 'unknown from role unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-handoff" 8 --from implementer >/dev/null 2>&1; then
+  printf 'missing contract unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-handoff" 1 --from implementer --to ghost >/dev/null 2>&1; then
+  printf 'unknown target unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-handoff" 1 --from implementer --to close >/dev/null 2>&1; then
+  printf 'unsupported explicit target unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-handoff" 1 --from implementer --to hold >/dev/null 2>&1; then
+  printf 'unsupported explicit hold target unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-handoff" 10 --from implementer >/dev/null 2>&1; then
+  printf 'unsupported bare-role contract target unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-handoff" 9 --from implementer >/dev/null 2>&1; then
+  printf 'wrong current route unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-handoff" 1 --from implementer --apply >/dev/null 2>&1; then
+  printf 'apply unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+printf 'handoff fixture checks passed\n'
