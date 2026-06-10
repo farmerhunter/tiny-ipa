@@ -15,11 +15,10 @@ if str(_SCRIPTS) not in sys.path:
 
 from import_words import build_phoneme_rows, import_words  # noqa: E402
 
-from app.db import get_connection, get_db  # noqa: E402
+from app.db import get_connection  # noqa: E402
 from app.models import Settings  # noqa: E402
 from app.services.db_schema import init_db, table_names  # noqa: E402
 from app.services.db_store import (  # noqa: E402
-    count_phonemes,
     count_words,
     get_phoneme_by_id,
     get_settings,
@@ -81,6 +80,43 @@ class TestSchemaInitialisation:
         after = table_names(conn)
         conn.close()
         assert before == after
+
+    def test_init_adds_focus_phonemes_to_existing_settings_table(self, temp_db):
+        conn = get_connection(temp_db)
+        conn.execute(
+            """
+            CREATE TABLE settings (
+                user_id              TEXT PRIMARY KEY,
+                primary_accent       TEXT    NOT NULL,
+                daily_word_count     INTEGER NOT NULL,
+                show_translation     INTEGER NOT NULL,
+                show_accent_compare  INTEGER NOT NULL,
+                practice_mode        TEXT    NOT NULL,
+                review_strength      TEXT    NOT NULL,
+                updated_at           TEXT    NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO settings (
+                user_id, primary_accent, daily_word_count,
+                show_translation, show_accent_compare,
+                practice_mode, review_strength, updated_at
+            ) VALUES ('default', 'US', 10, 1, 0, 'ipa_first', 'normal', '2026-06-06T00:00:00Z')
+            """
+        )
+        init_db(conn)
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(settings)").fetchall()
+        }
+        settings = get_settings(conn, "default")
+        conn.close()
+
+        assert "focus_phonemes" in columns
+        assert settings is not None
+        assert settings.focus_phonemes == []
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +240,7 @@ class TestSettingsStore:
             show_accent_compare=False,
             practice_mode="ipa_first",
             review_strength="normal",
+            focus_phonemes=["/ʃ/", "/ɪ/"],
             updated_at="2026-06-06T00:00:00Z",
         )
         upsert_settings(self.conn, s)
@@ -215,6 +252,7 @@ class TestSettingsStore:
         assert got.show_accent_compare is False
         assert got.practice_mode == "ipa_first"
         assert got.review_strength == "normal"
+        assert got.focus_phonemes == ["/ʃ/", "/ɪ/"]
 
     def test_get_missing_settings(self):
         assert get_settings(self.conn, "no_such_user") is None
@@ -259,6 +297,7 @@ class TestImportWords:
         assert settings.user_id == "default"
         assert settings.primary_accent == "US"
         assert settings.daily_word_count == 10
+        assert settings.focus_phonemes == []
 
     def test_import_preserves_accent_fields(self, temp_db):
         """After import, ship.ipa_uk and phoneme_tags_uk are stored."""
