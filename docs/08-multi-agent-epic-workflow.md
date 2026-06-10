@@ -470,6 +470,33 @@ Human board sync: Project status, updated after labels/comments
 Full Project scans: rare, cached, and not part of ordinary inbox lookup
 ```
 
+Roadmap Status or other project-specific planning fields should be treated the
+same way as Project status: important for planning, but optional and
+configuration-driven for helper scripts. The default scheduler path must not
+depend on those fields.
+
+Use layered checks:
+
+```text
+agent-audit
+  fast label and contract consistency
+
+agent-audit --project
+  optional Project/Roadmap drift check when the project config defines fields
+
+agent-project-sync --dry-run
+  print intended Project/Roadmap repairs
+
+agent-project-sync --apply
+  mutate only a specified issue or narrow filter
+```
+
+Do not make ordinary inbox, ready-queue, pickup, or handoff commands query
+Project v2 just to detect board drift. These commands should remain fast and
+portable. Project/Roadmap synchronization belongs in audit or explicit sync
+commands, and missing config should produce a clear skip message instead of
+false errors.
+
 Observed limitations and mitigations:
 
 - Project status and issue state are separate. Moving a card to `Done` does not close the issue, and closing an issue does not always update every Project field as expected. Agents should update both when finishing work.
