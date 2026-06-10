@@ -11,7 +11,7 @@ import sqlite3
 from typing import List, Optional
 
 from app.models import Attempt, DailySession, Phoneme, SessionItem, Settings, Word
-
+from app.services.db_schema import ensure_settings_schema
 
 # ============================================================================
 # Serialisation helpers
@@ -89,6 +89,7 @@ def _settings_from_row(row: sqlite3.Row) -> Settings:
         show_accent_compare=bool(row["show_accent_compare"]),
         practice_mode=row["practice_mode"],
         review_strength=row["review_strength"],
+        focus_phonemes=_parse_list(row["focus_phonemes"]) or [],
         updated_at=row["updated_at"],
     )
 
@@ -202,16 +203,17 @@ def get_phoneme_by_id(conn: sqlite3.Connection, phoneme_id: str) -> Optional[Pho
 
 def upsert_settings(conn: sqlite3.Connection, settings: Settings) -> None:
     """Create or replace the settings row for a given user_id."""
+    ensure_settings_schema(conn)
     conn.execute(
         """
         INSERT OR REPLACE INTO settings (
             user_id, primary_accent, daily_word_count,
             show_translation, show_accent_compare,
-            practice_mode, review_strength, updated_at
+            practice_mode, review_strength, focus_phonemes, updated_at
         ) VALUES (
             :user_id, :primary_accent, :daily_word_count,
             :show_translation, :show_accent_compare,
-            :practice_mode, :review_strength, :updated_at
+            :practice_mode, :review_strength, :focus_phonemes, :updated_at
         )
         """,
         {
@@ -222,12 +224,14 @@ def upsert_settings(conn: sqlite3.Connection, settings: Settings) -> None:
             "show_accent_compare": int(settings.show_accent_compare),
             "practice_mode": settings.practice_mode,
             "review_strength": settings.review_strength,
+            "focus_phonemes": _to_json(settings.focus_phonemes),
             "updated_at": settings.updated_at,
         },
     )
 
 
 def get_settings(conn: sqlite3.Connection, user_id: str = "default") -> Optional[Settings]:
+    ensure_settings_schema(conn)
     row = conn.execute(
         "SELECT * FROM settings WHERE user_id = ?", (user_id,)
     ).fetchone()

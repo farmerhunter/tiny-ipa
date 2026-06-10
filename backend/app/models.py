@@ -8,7 +8,6 @@ Callers construct them from ``sqlite3.Row`` dicts or raw kwargs.
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Words
 # ---------------------------------------------------------------------------
@@ -64,6 +63,7 @@ class Settings:
     show_accent_compare: bool = False
     practice_mode: str = "ipa_first"
     review_strength: str = "normal"
+    focus_phonemes: List[str] = field(default_factory=list)
     updated_at: str = ""
 
 

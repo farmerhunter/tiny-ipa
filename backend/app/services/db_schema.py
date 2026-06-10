@@ -9,7 +9,6 @@ it uses ``IF NOT EXISTS`` on every table.
 import sqlite3
 from typing import List
 
-
 TABLES_DDL: List[str] = [
     # ------------------------------------------------------------------
     # words
@@ -57,6 +56,7 @@ TABLES_DDL: List[str] = [
         show_accent_compare  INTEGER NOT NULL,   -- boolean 0/1
         practice_mode        TEXT    NOT NULL,
         review_strength      TEXT    NOT NULL,
+        focus_phonemes       TEXT    NOT NULL DEFAULT '[]', -- JSON array
         updated_at           TEXT    NOT NULL
     )
     """,
@@ -136,6 +136,25 @@ def init_db(conn: sqlite3.Connection) -> None:
     """
     for ddl in TABLES_DDL:
         conn.execute(ddl)
+    ensure_settings_schema(conn)
+
+
+def ensure_settings_schema(conn: sqlite3.Connection) -> None:
+    """Apply tiny compatibility patches for existing settings tables."""
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
+    ).fetchone()
+    if table is None:
+        return
+
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(settings)").fetchall()
+    }
+    if "focus_phonemes" not in columns:
+        conn.execute(
+            "ALTER TABLE settings ADD COLUMN focus_phonemes TEXT NOT NULL DEFAULT '[]'"
+        )
 
 
 def table_names(conn: sqlite3.Connection) -> List[str]:

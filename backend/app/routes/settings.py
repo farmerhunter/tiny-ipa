@@ -31,6 +31,7 @@ def settings_get():
                 "show_accent_compare": False,
                 "practice_mode": "ipa_first",
                 "review_strength": "normal",
+                "focus_phonemes": [],
             }
         return {
             "primary_accent": s.primary_accent,
@@ -39,6 +40,7 @@ def settings_get():
             "show_accent_compare": s.show_accent_compare,
             "practice_mode": s.practice_mode,
             "review_strength": s.review_strength,
+            "focus_phonemes": s.focus_phonemes,
         }
 
 
@@ -100,6 +102,15 @@ async def settings_put(request: Request):
             else:
                 existing.review_strength = v
 
+        if "focus_phonemes" in body:
+            v = body["focus_phonemes"]
+            if not isinstance(v, list) or any(
+                not isinstance(item, str) or not item.strip() for item in v
+            ):
+                errors.append("focus_phonemes must be a list of non-empty strings")
+            else:
+                existing.focus_phonemes = [item.strip() for item in v]
+
         if errors:
             raise HTTPException(
                 status_code=400,
@@ -116,4 +127,5 @@ async def settings_put(request: Request):
             "show_accent_compare": existing.show_accent_compare,
             "practice_mode": existing.practice_mode,
             "review_strength": existing.review_strength,
+            "focus_phonemes": existing.focus_phonemes,
         }
