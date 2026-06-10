@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+source "$root/tools/agents/_lib.sh"
+
+contract=$'## Draft Execution Contract\n\nOwner role: ghost\nCompletion handoff: to:ghost\n\n## Final Execution Contract\n\nOwner role: implementer\nReview role: none\nAcceptance role: architect\nCompletion handoff: to:reviewer\n'
+latest="$(extract_latest_contract_block "$contract")"
+
+[[ "$(contract_header "$latest")" == "Final Execution Contract" ]]
+[[ "$(extract_contract_value "Owner role:" "$latest")" == "implementer" ]]
+[[ "$(contract_role_value_state "implementer")" == "ok" ]]
+[[ "$(contract_role_value_state "none")" == "none" ]]
+[[ "$(contract_role_value_state "ghost")" == "unknown role" ]]
+[[ "$(contract_role_value_state "bad-role")" == "malformed" ]]
+[[ "$(contract_role_value_state "MISSING")" == "missing" ]]
+[[ "$(contract_handoff_value_state "to:reviewer")" == "ok" ]]
+[[ "$(contract_handoff_value_state "to:ghost")" == "unknown role" ]]
+[[ "$(contract_handoff_value_state "batch checkpoint")" == "ok" ]]
+[[ "$(contract_handoff_value_state "close after evidence")" == "ok" ]]
+[[ "$(contract_handoff_value_state "hold")" == "ok" ]]
+[[ "$(contract_handoff_value_state "none")" == "none" ]]
+[[ "$(contract_handoff_value_state "to:")" == "malformed" ]]
+[[ "$(contract_handoff_value_state "somewhere")" == "unknown value" ]]
+[[ "$(contract_handoff_value_state "MISSING")" == "missing" ]]
+
+report="$(contract_role_field_report "$latest")"
+grep -Fq "Owner role: implementer [ok]" <<< "$report"
+grep -Fq "Review role: none [none]" <<< "$report"
+grep -Fq "Acceptance role: architect [ok]" <<< "$report"
+grep -Fq "Completion handoff: to:reviewer [ok]" <<< "$report"
+
+missing_report="$(contract_role_field_report "")"
+grep -Fq "Owner role: MISSING [missing]" <<< "$missing_report"
+grep -Fq "Completion handoff: MISSING [missing]" <<< "$missing_report"
+
+printf 'contract role field checks passed\n'
