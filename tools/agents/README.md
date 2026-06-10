@@ -16,16 +16,25 @@ jq
 ```bash
 tools/agents/agent-inbox architect
 tools/agents/agent-inbox implementer
+tools/agents/agent-inbox reviewer
+tools/agents/agent-role-config
 tools/agents/agent-ready-queue
 tools/agents/agent-audit
 ```
 
-`agent-inbox` reads `needs:*` labels only. It deliberately avoids Project v2
+Role routing is configured by `tools/agents/role-routing.conf`, with a built-in
+fallback in `_lib.sh` so helpers still work if the config file is absent. The
+config is shell-readable and defines roles, each role's inbox label, and the
+primary next-action labels. Use `tools/agents/agent-role-config` to print the
+active config compactly. Future projects can adapt the role set by changing
+that one config file instead of editing every helper script.
+
+`agent-inbox` reads primary next-action labels only. It deliberately avoids Project v2
 queries because labels are faster and more reliable for agent pickup. It uses
 GitHub's REST API rather than `gh issue list` because the latter can hit
 GraphQL/TLS timeouts in our current network setup. `agent-inbox all` fetches
-open issues once and groups labels locally, instead of making one network call
-per label.
+open issues once and groups the configured primary labels locally, instead of
+making one network call per label.
 
 `agent-ready-queue` extracts `Execution Contract` lines so an Implementer can
 see which ready issues are immediately startable and which are waiting on
@@ -42,7 +51,7 @@ then reads comments only for the queued issues.
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
 
-- open issues with multiple `needs:*` labels
+- open issues with multiple primary next-action labels
 - open task issues with no next-action label, annotated as `pickup confirmed`
   or `unrouted`
 - closed issues that still carry next-action labels
@@ -68,13 +77,15 @@ reliable than `gh pr view` in this project.
 ```bash
 tools/agents/agent-label 15 set-next needs:implementer
 tools/agents/agent-label 15 set-next needs:architect
+tools/agents/agent-label 15 set-next needs:reviewer
 tools/agents/agent-label 15 remove needs:implementer
 ```
 
 Use `agent-label` for role routing when GraphQL-backed `gh issue edit` is slow
-or flaky. `set-next` removes the other primary next-action labels before adding
-the requested label. It reads current labels first, so it avoids unnecessary
-delete/add calls when the issue is already in the requested route.
+or flaky. `set-next` accepts only configured primary next-action labels, removes
+the other configured primary labels before adding the requested label, and fails
+closed on unknown labels. It reads current labels first, so it avoids
+unnecessary delete/add calls when the issue is already in the requested route.
 
 ## Project Status
 
