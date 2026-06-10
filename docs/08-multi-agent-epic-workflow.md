@@ -418,6 +418,35 @@ The readiness comment should state whether downstream Epics may move from `Backl
 
 Prefer labels for agent pickup because they are fast, portable, and supported by `gh issue list`. GitHub Project v2 fields are still useful as the visual board, but Project item updates require Project item IDs, field IDs, and option IDs, which makes automation slower and more brittle.
 
+The project-local helpers are part of a lightweight multi-agent scheduler, not
+only GitHub access accelerators. They are designed for a local environment where
+GitHub operations can be slow and flaky, while still preserving the scheduling
+semantics needed by independent agent sessions:
+
+```text
+labels route the next actor
+comments preserve the handoff context
+Execution Contracts remove workflow guesswork
+ready queues and dependency gates reduce handoff frequency
+audits detect scheduler drift without rewriting state
+Project status mirrors the board after routing state is updated
+```
+
+Daily agent work should optimize for:
+
+```text
+few network round trips
+short durable handoff comments
+explicit branch/dependency/review contracts
+batch checkpoints for related low-risk child issues
+local context extraction before broad GitHub scanning
+```
+
+Do not turn every child issue into a mandatory cross-session handoff when an
+Epic contract allows a queue or batch checkpoint. A handoff is required when the
+next action changes role, a dependency gate blocks progress, review finds a
+blocker, a shared contract changes, or user/Architect authority is needed.
+
 Tiny IPA has project-local helpers under `tools/agents/`:
 
 ```bash

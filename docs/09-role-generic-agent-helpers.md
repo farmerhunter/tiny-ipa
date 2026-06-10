@@ -10,6 +10,59 @@ fast REST-based reads, `needs:*` labels, and local audit scripts can make a
 GitHub Project feel like a lightweight agent scheduler. The next step is to make
 that scheduler role-generic before adding more write automation.
 
+## Design Constraints and Principles
+
+The helper model is a lightweight multi-agent scheduler built on GitHub under
+severe local access constraints. It should not be reduced to a GitHub latency
+optimizer, but slow and flaky GitHub access is a primary architectural
+constraint that shapes every helper surface.
+
+The design optimizes these goals together:
+
+```text
+low GitHub round trips
+low handoff frequency
+low agent process ambiguity
+low token cost for context reconstruction
+durable workflow state across independent agent sessions
+```
+
+GitHub remains the scheduling substrate, but the helpers should use the lowest
+cost reliable surfaces for ordinary agent work:
+
+```text
+issues        = work items
+labels        = fast routing and inbox state
+comments      = durable handoff memory and compact context
+PRs           = review and integration surface
+Project v2    = human board mirror, not the source of truth
+```
+
+This leads to these operating principles:
+
+1. Build a lightweight scheduler on GitHub, not a standalone scheduler.
+2. Treat slow and unreliable GitHub access as a high-priority constraint, not
+   the only goal.
+3. Use labels as fast routing state and comments as durable context.
+4. Keep Project status as a visual mirror, updated after labels and comments.
+5. Make workflow contracts explicit so agents do not infer branch, dependency,
+   review, or handoff rules.
+6. Minimize handoff frequency through ready queues, dependency gates, and batch
+   checkpoints.
+7. When handoff is necessary, make it short, durable, and visible from the
+   surfaces the next agent is likely to scan.
+8. Prefer read-only audits and dry-runs before write automation.
+9. Make role routing generic, while keeping decision authority and acceptance
+   explicit.
+10. Optimize round trips, token reconstruction cost, and process certainty as a
+    single design problem.
+
+Because there is no persistent scheduler session coordinating agents, the
+helpers must preserve enough durable state for the next agent to continue
+without chat history. They should also avoid creating unnecessary handoff stops:
+related low-risk work should be released as dependency-gated queues or batch
+checkpoints when the Execution Contract allows it.
+
 ## Design Goal
 
 The helpers should treat role routing as data, not as hard-coded knowledge.
