@@ -7,12 +7,10 @@ build the full API response.
 from __future__ import annotations
 
 import hashlib
-import uuid
 from datetime import date, datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import List
 
-from app.db import get_db
-from app.models import DailySession, SessionItem, Settings, Word
+from app.models import DailySession, SessionItem
 from app.services.db_store import (
     create_session,
     create_session_item,
@@ -80,16 +78,21 @@ def build_today_response(
 
     # ---- create new session -------------------------------------------------
     seed = _seed_from_date(session_date)
-    words = select_daily_words(conn, daily_word_count, accent, seed=seed)
+    words = select_daily_words(
+        conn,
+        daily_word_count,
+        accent,
+        seed=seed,
+        user_id=user_id,
+        review_strength=settings.review_strength,
+        focus_phonemes=settings.focus_phonemes,
+    )
 
     if not words:
         return {
             "error": "CONTENT_NOT_READY",
             "detail": "No usable words found. Run import_words.py first.",
         }
-
-    # Build a distractor pool from all available word IPAs
-    all_ipas = _build_distractor_pool(conn, accent)
 
     session_id = f"{session_date}-{user_id}"
     session = DailySession(
@@ -111,7 +114,9 @@ def build_today_response(
             session_id=session_id,
             word_id=word.id,
             order_index=i,
-            target_phonemes=word.phoneme_tags_us if accent == "US" else (word.phoneme_tags_uk or []),
+            target_phonemes=(
+                word.phoneme_tags_us if accent == "US" else (word.phoneme_tags_uk or [])
+            ),
             question_type="choose_ipa",
             status="pending",
         )
