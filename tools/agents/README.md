@@ -21,6 +21,8 @@ tools/agents/agent-role-config
 tools/agents/agent-ready-queue
 tools/agents/agent-ready-queue --role reviewer
 tools/agents/agent-pickup 63 --role implementer
+tools/agents/agent-handoff 64 --from implementer
+tools/agents/agent-handoff 64 --from reviewer --to implementer
 tools/agents/agent-audit
 ```
 
@@ -61,6 +63,15 @@ Contract, checks role and handoff fields, checks dependency gates, and prints
 the scheduler changes plus a compact pickup comment template. The dry-run path
 does not mutate labels, post comments, or read Project v2. `--apply` is not
 implemented in the current prototype.
+
+`agent-handoff` is also dry-run first. It validates the caller's `--from` role
+against the configured primary next-action labels, extracts the latest effective
+Execution Contract, resolves `Completion handoff:` values such as `to:<role>`,
+`batch checkpoint`, `close after evidence`, and `hold`, and prints the planned
+label changes plus a compact completion/handoff comment template. Use
+`--to <role|none|batch>` to override the contract route for explicit handoffs.
+The dry-run path does not mutate labels, post comments, close issues, or read
+Project v2. `--apply` is not implemented in the current prototype.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
