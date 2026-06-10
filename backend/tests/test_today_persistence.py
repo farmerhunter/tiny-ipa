@@ -16,19 +16,18 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from import_words import import_words  # noqa: E402
+
+from app.db import get_connection  # noqa: E402
 from app.main import app  # noqa: E402
-from app.db import get_connection, get_db  # noqa: E402
+from app.models import DailySession, SessionItem  # noqa: E402
+from app.services.db_schema import init_db  # noqa: E402
 from app.services.db_store import (  # noqa: E402
-    count_words,
     create_session,
     create_session_item,
     get_session_for_date,
     get_session_items,
-    get_settings,
     get_word_by_id,
 )
-from app.services.db_schema import init_db, table_names  # noqa: E402
-from app.models import DailySession, SessionItem  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -159,6 +158,114 @@ class TestTodayPersistence:
         resp = client.get("/api/today")
         data = resp.json()
         assert len(data["items"]) <= 1
+
+    def test_fresh_today_uses_focus_phoneme_setting(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE settings
+            SET daily_word_count = 1, focus_phonemes = ?
+            WHERE user_id = 'default'
+            """,
+            (json.dumps(["/æ/"]),),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/today")
+        data = resp.json()
+
+        assert [item["word_id"] for item in data["items"]] == ["cat"]
+
+    def test_existing_today_session_is_stable_after_settings_change(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE settings
+            SET daily_word_count = 1, focus_phonemes = ?
+            WHERE user_id = 'default'
+            """,
+            (json.dumps(["/æ/"]),),
+        )
+        conn.commit()
+        conn.close()
+
+        first = client.get("/api/today").json()
+        assert [item["word_id"] for item in first["items"]] == ["cat"]
+
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE settings
+            SET daily_word_count = 3, focus_phonemes = ?
+            WHERE user_id = 'default'
+            """,
+            (json.dumps(["/ʃ/"]),),
+        )
+        conn.commit()
+        conn.close()
+
+        second = client.get("/api/today").json()
+
+        assert second["session_id"] == first["session_id"]
+        assert [item["session_item_id"] for item in second["items"]] == [
+            item["session_item_id"] for item in first["items"]
+        ]
+        assert [item["word_id"] for item in second["items"]] == ["cat"]
+
+    def test_weak_phoneme_stats_influence_fresh_today_session(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute("UPDATE settings SET daily_word_count = 1 WHERE user_id = 'default'")
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO phoneme_stats (
+                user_id, primary_accent, phoneme_id, attempt_count, correct_count,
+                last_attempt_at, last_wrong_at, mastery_status
+            ) VALUES (
+                'default', 'US', '/æ/', 6, 1,
+                '2026-06-09T00:00:00Z', '2026-06-09T00:00:00Z', 'weak'
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/today")
+        data = resp.json()
+
+        assert [item["word_id"] for item in data["items"]] == ["cat"]
+
+    def test_recent_words_are_suppressed_for_fresh_today_session(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute("UPDATE settings SET daily_word_count = 1 WHERE user_id = 'default'")
+        session = DailySession(
+            id="2026-06-09-default",
+            user_id="default",
+            session_date="2026-06-09",
+            primary_accent="US",
+            status="completed",
+            created_at="2026-06-09T00:00:00Z",
+        )
+        create_session(conn, session)
+        create_session_item(
+            conn,
+            SessionItem(
+                id="2026-06-09-default_item_001",
+                session_id=session.id,
+                word_id="cat",
+                order_index=0,
+                target_phonemes=["/k/", "/æ/", "/t/"],
+                question_type="choose_ipa",
+                status="complete",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/today")
+        data = resp.json()
+
+        assert "cat" not in [item["word_id"] for item in data["items"]]
 
     def test_content_not_ready_without_import(self, tmp_path):
         """Without running import first, /api/today returns CONTENT_NOT_READY."""
