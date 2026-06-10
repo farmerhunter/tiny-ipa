@@ -67,7 +67,7 @@ pickup_is_active() {
     /Pickup confirmed/ {
       active = 1
     }
-    /completion handoff|Completion handoff|Routing: moved this issue back|Architect sync after PR merge/ {
+    /completion handoff|Completion handoff|handoff complete|Handoff complete|Routing: moved this issue back|Architect sync after PR merge/ {
       active = 0
     }
     END {
