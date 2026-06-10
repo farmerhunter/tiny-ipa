@@ -20,6 +20,7 @@ tools/agents/agent-inbox reviewer
 tools/agents/agent-role-config
 tools/agents/agent-ready-queue
 tools/agents/agent-ready-queue --role reviewer
+tools/agents/agent-pickup 63 --role implementer
 tools/agents/agent-audit
 ```
 
@@ -53,6 +54,13 @@ fields (`Owner role`, `Review role`, `Acceptance role`, and `Completion
 handoff`) when present, using the same line-oriented contract parsing helpers
 as other scripts. It fetches the open issue list once, filters configured role
 labels locally, and then reads comments only for the queued issues.
+
+`agent-pickup` is dry-run first. It verifies that the issue carries the
+configured `needs:<role>` label, extracts the latest effective Execution
+Contract, checks role and handoff fields, checks dependency gates, and prints
+the scheduler changes plus a compact pickup comment template. The dry-run path
+does not mutate labels, post comments, or read Project v2. `--apply` is not
+implemented in the current prototype.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
