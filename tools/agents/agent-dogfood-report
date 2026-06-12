@@ -104,7 +104,23 @@ printf '%s\n\n' '## Dogfood report'
 print_section 'Helper commands used:' "${helpers[@]}"
 print_section 'Verification:' "${verification[@]}"
 print_section 'Durable GitHub state:' "${durable[@]}"
-print_section 'Direct-thread dispatch:' "${dispatch[@]}"
-print_section 'Fallback / manual steps:' "${fallback[@]}"
-print_section 'Manual steps reduced:' "${manual_steps[@]}"
-print_section 'Residual risks:' "${risks[@]}"
+if (( ${#dispatch[@]} == 0 )); then
+  print_section 'Direct-thread dispatch:'
+else
+  print_section 'Direct-thread dispatch:' "${dispatch[@]}"
+fi
+if (( ${#fallback[@]} == 0 )); then
+  print_section 'Fallback / manual steps:'
+else
+  print_section 'Fallback / manual steps:' "${fallback[@]}"
+fi
+if (( ${#manual_steps[@]} == 0 )); then
+  print_section 'Manual steps reduced:'
+else
+  print_section 'Manual steps reduced:' "${manual_steps[@]}"
+fi
+if (( ${#risks[@]} == 0 )); then
+  print_section 'Residual risks:'
+else
+  print_section 'Residual risks:' "${risks[@]}"
+fi
