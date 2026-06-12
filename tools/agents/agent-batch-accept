@@ -193,9 +193,11 @@ fi
 
 open_prs_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls" -f state=open -f per_page=100)"
 known_issues="$epic"$'\n'
-for issue in "${issues[@]}"; do
-  known_issues="${known_issues}${issue}"$'\n'
-done
+if (( ${#issues[@]} > 0 )); then
+  for issue in "${issues[@]}"; do
+    known_issues="${known_issues}${issue}"$'\n'
+  done
+fi
 
 printf '#%s %s\n' "$epic" "$epic_title"
 printf 'Mode: dry-run\n'
@@ -242,18 +244,22 @@ fi
 
 printf '\nPull requests:\n'
 printed_prs=()
-for issue in "${issues[@]}"; do
-  matched_pr="$(find_pr_for_issue "$issue" "$open_prs_json")"
-  [[ -n "$matched_pr" ]] || continue
-  if ! agent_contains_value "$matched_pr" "${printed_prs[@]}"; then
-    printed_prs+=("$matched_pr")
-  fi
-done
-for pr in "${prs[@]}"; do
-  if ! agent_contains_value "$pr" "${printed_prs[@]}"; then
-    printed_prs+=("$pr")
-  fi
-done
+if (( ${#issues[@]} > 0 )); then
+  for issue in "${issues[@]}"; do
+    matched_pr="$(find_pr_for_issue "$issue" "$open_prs_json")"
+    [[ -n "$matched_pr" ]] || continue
+    if (( ${#printed_prs[@]} == 0 )) || ! agent_contains_value "$matched_pr" "${printed_prs[@]}"; then
+      printed_prs+=("$matched_pr")
+    fi
+  done
+fi
+if (( ${#prs[@]} > 0 )); then
+  for pr in "${prs[@]}"; do
+    if (( ${#printed_prs[@]} == 0 )) || ! agent_contains_value "$pr" "${printed_prs[@]}"; then
+      printed_prs+=("$pr")
+    fi
+  done
+fi
 
 if (( ${#printed_prs[@]} == 0 )); then
   printf '%s\n' '- none detected or supplied'
