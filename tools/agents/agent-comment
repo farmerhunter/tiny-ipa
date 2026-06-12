@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-comment <issue|pr> <number> --body-file <path> [--dry-run|--apply]
+
+Previews or posts an issue/PR conversation comment using REST API paths.
+Dry-run is the default. --apply is required to write the comment.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -lt 1 ]]; then
+  usage
+  exit 0
+fi
+
+target_type="${1:-}"
+target_number="${2:-}"
+shift 2 || {
+  usage >&2
+  exit 2
+}
+
+body_file=""
+apply=0
+
+case "$target_type" in
+  issue|pr)
+    ;;
+  *)
+    printf 'Unknown target type: %s\n' "$target_type" >&2
+    printf '%s\n' 'Use issue or pr.' >&2
+    exit 2
+    ;;
+esac
+
+require_number "$target_number" "Target number"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --body-file)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--body-file requires a path' >&2
+        exit 2
+      fi
+      body_file="$2"
+      shift 2
+      ;;
+    --dry-run)
+      apply=0
+      shift
+      ;;
+    --apply)
+      apply=1
+      shift
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ -z "$body_file" ]]; then
+  printf '%s\n' '--body-file is required' >&2
+  exit 2
+fi
+if [[ ! -f "$body_file" ]]; then
+  printf 'Body file not found: %s\n' "$body_file" >&2
+  exit 2
+fi
+if ! grep -q '[^[:space:]]' "$body_file"; then
+  printf 'Body file is empty: %s\n' "$body_file" >&2
+  exit 2
+fi
+
+body="$(< "$body_file")"
+body_lines="$(wc -l < "$body_file" | tr -d ' ')"
+body_bytes="$(wc -c < "$body_file" | tr -d ' ')"
+
+target_json=""
+case "$target_type" in
+  issue)
+    target_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$target_number")"
+    if jq -e 'has("pull_request")' >/dev/null <<< "$target_json"; then
+      printf 'Target #%s is a pull request; use target type pr\n' "$target_number" >&2
+      exit 2
+    fi
+    ;;
+  pr)
+    target_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/pulls/$target_number")"
+    ;;
+esac
+
+title="$(jq -r '.title' <<< "$target_json")"
+url="$(jq -r '.html_url' <<< "$target_json")"
+
+printf '#%s %s\n' "$target_number" "$title"
+if [[ "$apply" -eq 1 ]]; then
+  printf 'Mode: apply\n'
+else
+  printf 'Mode: dry-run\n'
+fi
+printf 'Target: %s\n' "$target_type"
+printf 'URL: %s\n' "$url"
+printf 'Body file: %s (%s lines, %s bytes)\n' "$body_file" "$body_lines" "$body_bytes"
+
+if [[ "$apply" -eq 0 ]]; then
+  printf '\nComment preview:\n'
+  printf '%s\n' '---'
+  printf '%s\n' "$body"
+  printf '%s\n' '---'
+  printf '\nNo GitHub comment was posted. Re-run with --apply to post.\n'
+  exit 0
+fi
+
+comment_json="$("$gh_retry" gh api -X POST "$(repo_api_path "$repo")/issues/$target_number/comments" \
+  -f body="$body")"
+comment_url="$(jq -r '.html_url' <<< "$comment_json")"
+
+printf 'Posted comment: %s\n' "$comment_url"

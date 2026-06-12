@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-batch-accept" "$fixture_root/tools/agents/agent-batch-accept"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+issue_json() {
+  local number="$1"
+  local title="$2"
+  local body="$3"
+  local labels="$4"
+
+  jq -n \
+    --argjson number "$number" \
+    --arg title "$title" \
+    --arg body "$body" \
+    --arg labels "$labels" \
+    '{
+      number: $number,
+      title: $title,
+      state: "open",
+      html_url: ("https://example.test/issues/" + ($number | tostring)),
+      body: $body,
+      labels: ($labels | split(",") | map(select(length > 0) | {name: .}))
+    }'
+}
+
+contract() {
+  local handoff="${1:-batch checkpoint}"
+  printf '## Execution Contract\n\nOwner role: implementer\nReview role: reviewer\nAcceptance role: architect\nBranch strategy: epic integration branch\nBase branch: `epic/83-helper-dogfood-follow-up`\nTarget PR base: `epic/83-helper-dogfood-follow-up`\nDepends on: none\nCompletion handoff: %s\n' "$handoff"
+}
+
+case "$*" in
+  *"/issues/83"*)
+    issue_json 83 "Epic" $'## Epic Execution Contract\n\nIntegration branch: `epic/83-helper-dogfood-follow-up`\nChild PR target: `epic/83-helper-dogfood-follow-up`\n' "type:epic"
+    ;;
+  *"/issues/86/comments"*|*"/issues/87/comments"*)
+    printf '[]\n'
+    ;;
+  *"/issues/86"*)
+    issue_json 86 "Comment helper" "$(contract)" "type:task"
+    ;;
+  *"/issues/87"*)
+    issue_json 87 "Batch helper" "$(contract)" "type:task"
+    ;;
+  *"/pulls"*"state=open"*)
+    jq -n '[{
+      number: 101,
+      title: "[#86] Add agent-comment",
+      body: "Closes #86",
+      state: "open",
+      draft: false,
+      html_url: "https://example.test/pull/101",
+      base: {ref: "epic/83-helper-dogfood-follow-up"},
+      head: {ref: "agent/86-comment", sha: "abc123"}
+    }]'
+    ;;
+  *"/pulls/101/files"*)
+    jq -n '[{status:"added",filename:"tools/agents/agent-comment",additions:120,deletions:0}]'
+    ;;
+  *"/commits/abc123/status"*)
+    jq -n '{state:"success",total_count:1}'
+    ;;
+  *"/pulls/101"*)
+    jq -n '{
+      number: 101,
+      title: "[#86] Add agent-comment",
+      body: "Closes #86",
+      state: "open",
+      draft: false,
+      html_url: "https://example.test/pull/101",
+      base: {ref: "epic/83-helper-dogfood-follow-up"},
+      head: {ref: "agent/86-comment", sha: "abc123"}
+    }'
+    ;;
+  *)
+    printf 'unexpected fake gh call: %s\n' "$*" >&2
+    exit 21
+    ;;
+esac
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+batch_output="$("$fixture_root/tools/agents/agent-batch-accept" --epic 83 --issue 86 --issue 87)"
+grep -Fq "Mode: dry-run" <<< "$batch_output"
+grep -Fq "Integration branch: epic/83-helper-dogfood-follow-up" <<< "$batch_output"
+grep -Fq "Final main integration: separate Architect/user-gated decision" <<< "$batch_output"
+grep -Fq "Issue #86 Comment helper" <<< "$batch_output"
+grep -Fq "open PR candidate: #101" <<< "$batch_output"
+grep -Fq "Issue #87 Batch helper" <<< "$batch_output"
+grep -Fq "open PR candidate: none detected" <<< "$batch_output"
+grep -Fq "PR #101 [#86] Add agent-comment" <<< "$batch_output"
+grep -Fq "base: epic/83-helper-dogfood-follow-up; head: agent/86-comment" <<< "$batch_output"
+grep -Fq "linked issues: #86" <<< "$batch_output"
+grep -Fq "added tools/agents/agent-comment +120/-0" <<< "$batch_output"
+grep -Fq "check/status hint: success (1 contexts)" <<< "$batch_output"
+grep -Fq "merge accepted child PRs into the Epic integration branch only" <<< "$batch_output"
+grep -Fq "Batch acceptance checkpoint" <<< "$batch_output"
+
+pr_output="$("$fixture_root/tools/agents/agent-batch-accept" --epic 83 --pr 101)"
+grep -Fq "Pull requests:" <<< "$pr_output"
+grep -Fq "PR #101 [#86] Add agent-comment" <<< "$pr_output"
+
+if "$fixture_root/tools/agents/agent-batch-accept" --epic 83 --issue 86 --apply >/dev/null 2>&1; then
+  printf 'apply unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-batch-accept" --epic 83 >/dev/null 2>&1; then
+  printf 'empty batch unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-batch-accept" --epic x --issue 86 >/dev/null 2>&1; then
+  printf 'non-numeric epic unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+printf 'batch-accept fixture checks passed\n'

@@ -23,6 +23,8 @@ tools/agents/agent-ready-queue --role reviewer
 tools/agents/agent-pickup 63 --role implementer
 tools/agents/agent-handoff 64 --from implementer
 tools/agents/agent-handoff 64 --from reviewer --to implementer
+tools/agents/agent-comment issue 86 --body-file /tmp/comment.md
+tools/agents/agent-batch-accept --epic 83 --issue 86 --issue 87
 tools/agents/agent-audit
 ```
 
@@ -72,6 +74,21 @@ label changes plus a compact completion/handoff comment template. Use
 `--to <role|none|batch>` to override the contract route for explicit handoffs.
 The dry-run path does not mutate labels, post comments, close issues, or read
 Project v2. `--apply` is not implemented in the current prototype.
+
+`agent-comment` is a REST-first durable comment helper. It supports explicit
+`issue` and `pr` targets by number, requires `--body-file` input, previews by
+default, and posts only with `--apply`. It uses the REST issue-comments endpoint
+for both issue and PR conversation comments, avoiding GraphQL-backed
+`gh issue comment` / `gh pr comment` ordinary paths. It fails closed on unknown
+target types, missing or empty body files, target/type mismatches, and failed
+REST writes.
+
+`agent-batch-accept` is dry-run only. It takes an Epic plus child issues or PRs
+and prints an Architect batch acceptance plan: integration branch, child issue
+state, PR base/head hints, linked issues, changed files, REST status hints when
+available, merge/close/label/Project plans, release or hold notes, and a durable
+batch checkpoint comment template. It never merges PRs, closes issues, mutates
+labels, updates Project v2, or integrates into `main`.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
