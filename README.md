@@ -8,10 +8,8 @@ Tiny IPA / 小音标 is a small, self-hostable IPA practice app for children and
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8010
+uv sync --extra dev --locked
+uv run uvicorn app.main:app --reload --port 8010
 ```
 
 ### Frontend
@@ -28,11 +26,16 @@ The Vite dev server proxies `/api` to `http://localhost:8010` by default. Open `
 
 ```bash
 # Backend
-cd backend && source .venv/bin/activate && pytest
+cd backend && uv run pytest
 
 # Frontend type check
 cd frontend && npx tsc --noEmit
 ```
+
+Backend dependencies are resolved through the project-local `backend/uv.lock` and
+`backend/.venv`. Use global tools such as `uv`, `node`, and `npm` to launch the
+project commands, but do not rely on globally installed Python or Node project
+libraries as verification evidence.
 
 ## Documentation
 
