@@ -1,0 +1,254 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-release-queue --epic <issue> --role <role> --issue <issue>...
+
+Dry-runs dependency-gated release of selected issues into a configured role
+inbox. It does not mutate labels, comments, Project v2, issues, PRs, or main.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+epic=""
+role=""
+issues=()
+apply=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --epic)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--epic requires an issue number' >&2
+        exit 2
+      fi
+      epic="$2"
+      require_number "$epic" "Epic issue"
+      shift 2
+      ;;
+    --role)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--role requires a role name' >&2
+        exit 2
+      fi
+      role="$2"
+      shift 2
+      ;;
+    --issue)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--issue requires an issue number' >&2
+        exit 2
+      fi
+      require_number "$2" "Child issue"
+      issues+=("$2")
+      shift 2
+      ;;
+    --dry-run)
+      apply=0
+      shift
+      ;;
+    --apply)
+      apply=1
+      shift
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ -z "$epic" ]]; then
+  printf '%s\n' '--epic is required' >&2
+  exit 2
+fi
+if [[ -z "$role" ]]; then
+  printf '%s\n' '--role is required' >&2
+  exit 2
+fi
+if (( ${#issues[@]} == 0 )); then
+  printf '%s\n' 'At least one --issue is required' >&2
+  exit 2
+fi
+if [[ "$apply" -eq 1 ]]; then
+  printf '%s\n' '--apply is not implemented; agent-release-queue is dry-run only' >&2
+  exit 2
+fi
+
+role_label="$(agent_role_label_for_role "$role")"
+
+strip_ticks() {
+  sed -E 's/^`//; s/`$//'
+}
+
+extract_first_value() {
+  local prefix="$1"
+  local text="$2"
+
+  awk -v prefix="$prefix" '
+    index($0, prefix) == 1 {
+      sub(prefix "[[:space:]]*", "")
+      print
+      found = 1
+      exit
+    }
+    END {
+      if (!found) print ""
+    }
+  ' <<< "$text"
+}
+
+current_primary_labels() {
+  local labels="$1"
+  local next_label
+
+  while IFS= read -r next_label; do
+    [[ -z "$next_label" ]] && continue
+    if grep -Fxq "$next_label" <<< "$labels"; then
+      printf '%s\n' "$next_label"
+    fi
+  done < <(agent_primary_next_labels)
+}
+
+dependency_gate() {
+  local depends="$1"
+  local token issue_ref issue_state pr_ref pr_json pr_state merged base
+  local issue_dep_text
+  local holds=()
+
+  if [[ "$depends" == "MISSING" || -z "$depends" ]]; then
+    printf '%s\n' 'hold: missing Depends on'
+    return 1
+  fi
+  if [[ "$depends" == *"none"* ]]; then
+    printf '%s\n' 'startable'
+    return 0
+  fi
+
+  issue_dep_text="$(sed -E 's/PR #[0-9]+//g' <<< "$depends")"
+  while IFS= read -r issue_ref; do
+    [[ -z "$issue_ref" ]] && continue
+    issue_state="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue_ref" --jq '.state')"
+    if [[ "$issue_state" != "closed" ]]; then
+      holds+=("#$issue_ref open")
+    fi
+  done < <(grep -Eo '#[0-9]+' <<< "$issue_dep_text" | tr -d '#' | sort -nu || true)
+
+  while IFS= read -r token; do
+    [[ -z "$token" ]] && continue
+    pr_ref="${token#PR #}"
+    pr_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/pulls/$pr_ref")"
+    pr_state="$(jq -r '.state' <<< "$pr_json")"
+    merged="$(jq -r '.merged' <<< "$pr_json")"
+    base="$(jq -r '.base.ref' <<< "$pr_json")"
+    if [[ "$pr_state" != "closed" || "$merged" != "true" ]]; then
+      holds+=("PR #$pr_ref not merged")
+    elif [[ -n "$integration_branch" && "$base" != "$integration_branch" ]]; then
+      holds+=("PR #$pr_ref merged to $base, expected $integration_branch")
+    fi
+  done < <(grep -Eo 'PR #[0-9]+' <<< "$depends" | sort -u || true)
+
+  if (( ${#holds[@]} > 0 )); then
+    printf 'hold: %s\n' "$(printf '%s\n' "${holds[@]}" | agent_join_lines)"
+    return 1
+  fi
+
+  printf '%s\n' 'startable'
+}
+
+epic_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$epic")"
+epic_title="$(jq -r '.title' <<< "$epic_json")"
+epic_url="$(jq -r '.html_url' <<< "$epic_json")"
+epic_body="$(jq -r '.body // ""' <<< "$epic_json")"
+integration_branch="$(extract_first_value "Integration branch:" "$epic_body" | strip_ticks)"
+if [[ -z "$integration_branch" ]]; then
+  integration_branch="$(extract_first_value "Child PR target:" "$epic_body" | strip_ticks)"
+fi
+
+printf '#%s %s\n' "$epic" "$epic_title"
+printf 'Mode: dry-run\n'
+printf 'Release role: %s (%s)\n' "$role" "$role_label"
+printf 'Epic URL: %s\n' "$epic_url"
+printf 'Integration branch: %s\n' "${integration_branch:-not detected; verify manually}"
+printf 'Final main integration: separate Architect/user-gated decision\n'
+
+printf '\nRelease candidates:\n'
+for issue in "${issues[@]}"; do
+  issue_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$issue")"
+  title="$(jq -r '.title' <<< "$issue_json")"
+  state="$(jq -r '.state' <<< "$issue_json")"
+  url="$(jq -r '.html_url' <<< "$issue_json")"
+  labels="$(jq -r '[.labels[].name] | join("\n")' <<< "$issue_json")"
+  label_text="$(jq -r '[.labels[].name] | join(", ")' <<< "$issue_json")"
+  body="$(jq -r '.body // ""' <<< "$issue_json")"
+  comments="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/issues/$issue/comments" \
+    -f per_page="$comments_limit" \
+    --jq '[.[].body] | join("\n")')"
+  contract="$(extract_latest_contract_block "$body"$'\n'"$comments")"
+  target_base="$(extract_contract_value "Target PR base:" "$contract" | strip_ticks)"
+  depends="$(extract_contract_value "Depends on:" "$contract")"
+  gate="$(dependency_gate "$depends")" || true
+  current_primary="$(current_primary_labels "$labels")"
+
+  printf '%s\n' "- Issue #$issue $title"
+  printf '  state: %s\n' "$state"
+  printf '  url: %s\n' "$url"
+  printf '  labels: %s\n' "$label_text"
+  printf '  target PR base: %s\n' "$target_base"
+  printf '  depends on: %s\n' "$depends"
+  printf '  gate: %s\n' "$gate"
+  printf '  planned scheduler changes:\n'
+  if [[ "$gate" == startable ]]; then
+    if [[ -n "$current_primary" ]]; then
+      while IFS= read -r next_label; do
+        [[ -z "$next_label" ]] && continue
+        [[ "$next_label" == "$role_label" ]] && continue
+        printf '    - remove %s\n' "$next_label"
+      done <<< "$current_primary"
+    else
+      printf '%s\n' '    - no current primary next-action label to remove'
+    fi
+    if grep -Fxq "$role_label" <<< "$labels"; then
+      printf '    - keep %s\n' "$role_label"
+    else
+      printf '    - add %s\n' "$role_label"
+    fi
+    printf '%s\n' '    - post release comment'
+  else
+    printf '%s\n' '    - no label changes while held'
+    printf '%s\n' '    - post hold note if release is deferred'
+  fi
+  printf '%s\n' '    - Project v2 sync is secondary and not part of this dry-run'
+done
+
+printf '\nRelease comment template:\n'
+printf '%s\n' '## Architect release'
+printf '\n'
+printf 'Released to: %s (%s)\n' "$role" "$role_label"
+printf 'Epic: #%s\n' "$epic"
+printf '\n'
+printf 'Issues:\n'
+for issue in "${issues[@]}"; do
+  printf '%s\n' "- #$issue"
+done
+printf '\n'
+printf 'Dependency gate:\n'
+printf '%s\n' '- <startable or hold reason>'
+printf '\n'
+printf 'Residual risks:\n'
+printf '%s\n' '- <known limits or none>'
+
+printf '\nDogfood note:\n'
+printf '%s\n' '- This helper would consolidate release comments, next-action label planning, dependency holds, and Project sync decisions into one dry-run report.'

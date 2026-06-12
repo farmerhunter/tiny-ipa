@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-release-queue" "$fixture_root/tools/agents/agent-release-queue"
+ln -s "$root/tools/agents/role-routing.conf" "$fixture_root/tools/agents/role-routing.conf"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+issue_json() {
+  local number="$1"
+  local title="$2"
+  local state="$3"
+  local body="$4"
+  local labels="$5"
+
+  jq -n \
+    --argjson number "$number" \
+    --arg title "$title" \
+    --arg state "$state" \
+    --arg body "$body" \
+    --arg labels "$labels" \
+    '{
+      number: $number,
+      title: $title,
+      state: $state,
+      html_url: ("https://example.test/issues/" + ($number | tostring)),
+      body: $body,
+      labels: ($labels | split(",") | map(select(length > 0) | {name: .}))
+    }'
+}
+
+contract() {
+  local depends="$1"
+  printf '## Execution Contract\n\nOwner role: implementer\nReview role: reviewer\nAcceptance role: architect\nBranch strategy: epic integration branch\nBase branch: `epic/83-helper-dogfood-follow-up`\nTarget PR base: `epic/83-helper-dogfood-follow-up`\nDepends on: %s\nCompletion handoff: batch checkpoint\n' "$depends"
+}
+
+case "$*" in
+  *"/issues/83"*)
+    issue_json 83 "Epic" open $'Integration branch: `epic/83-helper-dogfood-follow-up`\n' "type:epic"
+    ;;
+  *"/issues/86"*"--jq .state"*|*"/issues/87"*"--jq .state"*)
+    printf 'closed\n'
+    ;;
+  *"/issues/88"*"--jq .state"*)
+    printf 'open\n'
+    ;;
+  *"/issues/89/comments"*|*"/issues/90/comments"*|*"/issues/91/comments"*)
+    printf '[]\n'
+    ;;
+  *"/issues/89"*)
+    issue_json 89 "Release helper" open "$(contract "#86, #87, PR #88 merged into Epic branch")" "type:task"
+    ;;
+  *"/issues/90"*)
+    issue_json 90 "Already routed" open "$(contract none)" "type:task,needs:implementer"
+    ;;
+  *"/issues/91"*)
+    issue_json 91 "Blocked helper" open "$(contract "#88")" "type:task"
+    ;;
+  *"/pulls/88"*)
+    jq -n '{number:88,state:"closed",merged:true,base:{ref:"epic/83-helper-dogfood-follow-up"}}'
+    ;;
+  *)
+    printf 'unexpected fake gh call: %s\n' "$*" >&2
+    exit 21
+    ;;
+esac
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+release_output="$("$fixture_root/tools/agents/agent-release-queue" --epic 83 --role implementer --issue 89 --issue 90)"
+grep -Fq "Mode: dry-run" <<< "$release_output"
+grep -Fq "Release role: implementer (needs:implementer)" <<< "$release_output"
+grep -Fq "Issue #89 Release helper" <<< "$release_output"
+grep -Fq "gate: startable" <<< "$release_output"
+grep -Fq "add needs:implementer" <<< "$release_output"
+grep -Fq "Issue #90 Already routed" <<< "$release_output"
+grep -Fq "keep needs:implementer" <<< "$release_output"
+grep -Fq "Project v2 sync is secondary" <<< "$release_output"
+grep -Fq "Release comment template:" <<< "$release_output"
+
+blocked_output="$("$fixture_root/tools/agents/agent-release-queue" --epic 83 --role implementer --issue 91)"
+grep -Fq "Issue #91 Blocked helper" <<< "$blocked_output"
+grep -Fq "gate: hold: #88 open" <<< "$blocked_output"
+grep -Fq "no label changes while held" <<< "$blocked_output"
+
+if "$fixture_root/tools/agents/agent-release-queue" --epic 83 --role ghost --issue 89 >/dev/null 2>&1; then
+  printf 'unknown role unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-release-queue" --epic 83 --role implementer --issue 89 --apply >/dev/null 2>&1; then
+  printf 'apply unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-release-queue" --epic 83 --role implementer >/dev/null 2>&1; then
+  printf 'empty release unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+printf 'release-queue fixture checks passed\n'
