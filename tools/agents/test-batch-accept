@@ -57,7 +57,7 @@ case "$*" in
     jq -n '[{
       number: 101,
       title: "[#86] Add agent-comment",
-      body: "Closes #86",
+      body: "Refs #83 and closes #86. Follow-up from PR #101.",
       state: "open",
       draft: false,
       html_url: "https://example.test/pull/101",
@@ -75,7 +75,7 @@ case "$*" in
     jq -n '{
       number: 101,
       title: "[#86] Add agent-comment",
-      body: "Closes #86",
+      body: "Refs #83 and closes #86. Follow-up from PR #101.",
       state: "open",
       draft: false,
       html_url: "https://example.test/pull/101",
@@ -101,7 +101,8 @@ grep -Fq "Issue #87 Batch helper" <<< "$batch_output"
 grep -Fq "open PR candidate: none detected" <<< "$batch_output"
 grep -Fq "PR #101 [#86] Add agent-comment" <<< "$batch_output"
 grep -Fq "base: epic/83-helper-dogfood-follow-up; head: agent/86-comment" <<< "$batch_output"
-grep -Fq "linked issues: #86" <<< "$batch_output"
+grep -Fq "linked issues: #83, #86" <<< "$batch_output"
+! grep -Fq "linked issues: #83, #86, #101" <<< "$batch_output"
 grep -Fq "added tools/agents/agent-comment +120/-0" <<< "$batch_output"
 grep -Fq "check/status hint: success (1 contexts)" <<< "$batch_output"
 grep -Fq "merge accepted child PRs into the Epic integration branch only" <<< "$batch_output"

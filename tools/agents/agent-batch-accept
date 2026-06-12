@@ -110,6 +110,19 @@ pr_issue_refs() {
   grep -Eo '#[0-9]+' <<< "$text" | tr -d '#' | sort -nu || true
 }
 
+known_issue_refs() {
+  local text="$1"
+  local known="$2"
+  local ref
+
+  while IFS= read -r ref; do
+    [[ -z "$ref" ]] && continue
+    if grep -Fxq "$ref" <<< "$known"; then
+      printf '%s\n' "$ref"
+    fi
+  done < <(pr_issue_refs "$text")
+}
+
 find_pr_for_issue() {
   local issue="$1"
   local prs_json="$2"
@@ -129,6 +142,7 @@ find_pr_for_issue() {
 print_pr_summary() {
   local pr="$1"
   local integration_branch="$2"
+  local known_issues="$3"
   local pr_json files_json status_json
   local title state draft url base head linked_issues status total_contexts
 
@@ -139,7 +153,7 @@ print_pr_summary() {
   url="$(jq -r '.html_url' <<< "$pr_json")"
   base="$(jq -r '.base.ref' <<< "$pr_json")"
   head="$(jq -r '.head.ref' <<< "$pr_json")"
-  linked_issues="$(pr_issue_refs "$(jq -r '(.title // "") + "\n" + (.body // "")' <<< "$pr_json")" | sed 's/^/#/' | agent_join_lines)"
+  linked_issues="$(known_issue_refs "$(jq -r '(.title // "") + "\n" + (.body // "")' <<< "$pr_json")" "$known_issues" | sed 's/^/#/' | agent_join_lines)"
   [[ -n "$linked_issues" ]] || linked_issues="none detected"
 
   printf '%s\n' "- PR #$pr $title"
@@ -178,6 +192,10 @@ if [[ -z "$integration_branch" ]]; then
 fi
 
 open_prs_json="$("$gh_retry" gh api -X GET "$(repo_api_path "$repo")/pulls" -f state=open -f per_page=100)"
+known_issues="$epic"$'\n'
+for issue in "${issues[@]}"; do
+  known_issues="${known_issues}${issue}"$'\n'
+done
 
 printf '#%s %s\n' "$epic" "$epic_title"
 printf 'Mode: dry-run\n'
@@ -241,7 +259,7 @@ if (( ${#printed_prs[@]} == 0 )); then
   printf '%s\n' '- none detected or supplied'
 else
   for pr in "${printed_prs[@]}"; do
-    print_pr_summary "$pr" "$integration_branch"
+    print_pr_summary "$pr" "$integration_branch" "$known_issues"
   done
 fi
 
