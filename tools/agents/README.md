@@ -18,6 +18,7 @@ tools/agents/agent-inbox architect
 tools/agents/agent-inbox implementer
 tools/agents/agent-inbox reviewer
 tools/agents/agent-role-config
+tools/agents/agent-permission-smoke
 tools/agents/agent-ready-queue
 tools/agents/agent-ready-queue --role reviewer
 tools/agents/agent-pickup 63 --role implementer
@@ -36,6 +37,12 @@ config is shell-readable and defines roles, each role's inbox label, and the
 primary next-action labels. Use `tools/agents/agent-role-config` to print the
 active config compactly. Future projects can adapt the role set by changing
 that one config file instead of editing every helper script.
+
+`agent-permission-smoke` is the first check for delegated or resumed agent
+turns. It verifies non-mutating GitHub API reads, remote Git reads, and local
+Git metadata writes. If it fails, do not begin branch/PR work from that turn;
+report the permission downgrade and wait for a user turn with full GitHub
+network access and local Git metadata write permission.
 
 `agent-inbox` reads primary next-action labels only. It deliberately avoids Project v2
 queries because labels are faster and more reliable for agent pickup. It uses
