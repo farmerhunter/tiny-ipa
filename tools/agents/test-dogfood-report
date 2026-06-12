@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+report="$("$root/tools/agents/agent-dogfood-report" \
+  --helper "agent-inbox implementer: #89/#90" \
+  --verification "tools/agents/test-release-queue: passed" \
+  --durable "PR #91" \
+  --dispatch "source thread ping only" \
+  --fallback "none" \
+  --manual-step "release comments and labels planned together" \
+  --risk "Project sync remains manual")"
+
+grep -Fq "## Dogfood report" <<< "$report"
+grep -Fq "Helper commands used:" <<< "$report"
+grep -Fq "agent-inbox implementer: #89/#90" <<< "$report"
+grep -Fq "Verification:" <<< "$report"
+grep -Fq "Durable GitHub state:" <<< "$report"
+grep -Fq "Direct-thread dispatch:" <<< "$report"
+grep -Fq "Fallback / manual steps:" <<< "$report"
+grep -Fq "Manual steps reduced:" <<< "$report"
+grep -Fq "Residual risks:" <<< "$report"
+grep -Fq "Project sync remains manual" <<< "$report"
+
+minimal="$("$root/tools/agents/agent-dogfood-report" \
+  --helper "agent-audit: clean" \
+  --verification "bash -n: passed" \
+  --durable "issue #90")"
+grep -Fq "Direct-thread dispatch:" <<< "$minimal"
+grep -Fq -- "- none" <<< "$minimal"
+grep -Fq "Residual risks:" <<< "$minimal"
+
+if "$root/tools/agents/agent-dogfood-report" --helper "x" --durable "issue #90" >/dev/null 2>&1; then
+  printf 'missing verification unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$root/tools/agents/agent-dogfood-report" --verification "x" --durable "issue #90" >/dev/null 2>&1; then
+  printf 'missing helper unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$root/tools/agents/agent-dogfood-report" --helper "x" --verification "x" >/dev/null 2>&1; then
+  printf 'missing durable state unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+printf 'dogfood-report fixture checks passed\n'

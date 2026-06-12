@@ -25,6 +25,8 @@ tools/agents/agent-handoff 64 --from implementer
 tools/agents/agent-handoff 64 --from reviewer --to implementer
 tools/agents/agent-comment issue 86 --body-file /tmp/comment.md
 tools/agents/agent-batch-accept --epic 83 --issue 86 --issue 87
+tools/agents/agent-release-queue --epic 83 --role implementer --issue 89 --issue 90
+tools/agents/agent-dogfood-report --helper "agent-audit: clean" --verification "tests passed" --durable "PR #91"
 tools/agents/agent-audit
 ```
 
@@ -89,6 +91,18 @@ state, PR base/head hints, linked issues, changed files, REST status hints when
 available, merge/close/label/Project plans, release or hold notes, and a durable
 batch checkpoint comment template. It never merges PRs, closes issues, mutates
 labels, updates Project v2, or integrates into `main`.
+
+`agent-release-queue` is dry-run only. It takes an Epic, a target role, and one
+or more child issues, checks dependency gates from the latest effective
+Execution Contract, and prints planned next-action label changes, release
+comments, hold reasons, and Project sync decisions. It can check closed issue
+dependencies and merged PR dependencies, but it never mutates labels, comments,
+Project v2, issues, PRs, or `main`.
+
+`agent-dogfood-report` is explicit-input only. It formats compact handoff
+sections for helper commands used, verification, durable GitHub state,
+direct-thread dispatch, fallback/manual work, manual steps reduced, and residual
+risks. It deliberately does not parse arbitrary terminal logs or infer success.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
