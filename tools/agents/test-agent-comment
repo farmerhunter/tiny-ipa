@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-comment" "$fixture_root/tools/agents/agent-comment"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  *"POST"*"issues/1/comments"*)
+    jq -n '{html_url:"https://example.test/issues/1#comment"}'
+    ;;
+  *"POST"*"issues/2/comments"*)
+    jq -n '{html_url:"https://example.test/pull/2#comment"}'
+    ;;
+  *"POST"*"issues/3/comments"*)
+    printf 'write failed\n' >&2
+    exit 22
+    ;;
+  *"/issues/1"*)
+    jq -n '{number:1,title:"Issue one",html_url:"https://example.test/issues/1"}'
+    ;;
+  *"/issues/2"*)
+    jq -n '{number:2,title:"PR issue shell",html_url:"https://example.test/issues/2",pull_request:{url:"https://api.example.test/pulls/2"}}'
+    ;;
+  *"/issues/3"*)
+    jq -n '{number:3,title:"Write failure",html_url:"https://example.test/issues/3"}'
+    ;;
+  *"/pulls/2"*)
+    jq -n '{number:2,title:"Pull two",html_url:"https://example.test/pull/2"}'
+    ;;
+  *)
+    printf 'unexpected fake gh call: %s\n' "$*" >&2
+    exit 21
+    ;;
+esac
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+body_file="$tmp_dir/comment.md"
+empty_file="$tmp_dir/empty.md"
+missing_file="$tmp_dir/missing.md"
+printf 'hello from fixture\nsecond line\n' > "$body_file"
+printf '   \n' > "$empty_file"
+
+issue_dry="$("$fixture_root/tools/agents/agent-comment" issue 1 --body-file "$body_file")"
+grep -Fq "Mode: dry-run" <<< "$issue_dry"
+grep -Fq "Target: issue" <<< "$issue_dry"
+grep -Fq "hello from fixture" <<< "$issue_dry"
+grep -Fq "No GitHub comment was posted" <<< "$issue_dry"
+
+pr_dry="$("$fixture_root/tools/agents/agent-comment" pr 2 --body-file "$body_file" --dry-run)"
+grep -Fq "Target: pr" <<< "$pr_dry"
+grep -Fq "Pull two" <<< "$pr_dry"
+
+issue_apply="$("$fixture_root/tools/agents/agent-comment" issue 1 --body-file "$body_file" --apply)"
+grep -Fq "Mode: apply" <<< "$issue_apply"
+grep -Fq "Posted comment: https://example.test/issues/1#comment" <<< "$issue_apply"
+
+if "$fixture_root/tools/agents/agent-comment" discussion 1 --body-file "$body_file" >/dev/null 2>&1; then
+  printf 'unknown target unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-comment" issue 1 --body-file "$missing_file" >/dev/null 2>&1; then
+  printf 'missing body file unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-comment" issue 1 --body-file "$empty_file" >/dev/null 2>&1; then
+  printf 'empty body file unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-comment" issue 2 --body-file "$body_file" >/dev/null 2>&1; then
+  printf 'issue target for PR unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-comment" issue 3 --body-file "$body_file" --apply >/dev/null 2>&1; then
+  printf 'failed REST write unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+printf 'agent-comment fixture checks passed\n'
