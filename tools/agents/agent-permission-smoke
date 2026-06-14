@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-permission-smoke
+
+Checks whether the current agent turn can perform the basic non-mutating
+permissions needed before issue pickup:
+
+- read the GitHub API through gh
+- read the remote Git repository
+- write temporary Git metadata in this local checkout
+
+It does not mutate GitHub, create branches, push, or change Project state.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+if [[ $# -gt 0 ]]; then
+  usage >&2
+  exit 2
+fi
+
+failures=0
+
+check() {
+  local label="$1"
+  shift
+
+  if "$@" >/tmp/agent-permission-smoke.out 2>/tmp/agent-permission-smoke.err; then
+    printf 'ok: %s\n' "$label"
+  else
+    printf 'fail: %s\n' "$label" >&2
+    sed 's/^/  /' /tmp/agent-permission-smoke.err >&2 || true
+    failures=$((failures + 1))
+  fi
+}
+
+check "GitHub API read via gh" gh api "repos/$repo" --jq .full_name
+check "remote Git read" git ls-remote --heads origin HEAD
+
+git_dir="$(git -C "$root" rev-parse --git-dir)"
+case "$git_dir" in
+  /*) ;;
+  *) git_dir="$root/$git_dir" ;;
+esac
+
+probe="$git_dir/codex-permission-smoke.$$"
+if { : > "$probe"; } 2>/tmp/agent-permission-smoke.err; then
+  rm -f "$probe"
+  printf 'ok: local Git metadata write\n'
+else
+  printf 'fail: local Git metadata write\n' >&2
+  sed 's/^/  /' /tmp/agent-permission-smoke.err >&2 || true
+  failures=$((failures + 1))
+fi
+
+rm -f /tmp/agent-permission-smoke.out /tmp/agent-permission-smoke.err
+
+if (( failures > 0 )); then
+  cat >&2 <<'MESSAGE'
+
+Permission smoke failed. Do not start branch/PR workflow from this turn.
+Report the permission downgrade and wait for a user turn with full GitHub
+network access and local Git metadata write permission.
+MESSAGE
+  exit 1
+fi
+
+printf 'permission smoke passed\n'

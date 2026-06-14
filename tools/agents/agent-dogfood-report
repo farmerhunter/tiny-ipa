@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-dogfood-report \
+    --helper <text> --verification <text> --durable <text> \
+    [--dispatch <text>] [--fallback <text>] [--manual-step <text>] [--risk <text>]
+
+Generates a compact explicit-input dogfood report. It does not parse arbitrary
+logs, read GitHub, or mutate state.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+helpers=()
+verification=()
+durable=()
+dispatch=()
+fallback=()
+manual_steps=()
+risks=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --helper)
+      [[ -n "${2:-}" ]] || { printf '%s\n' '--helper requires text' >&2; exit 2; }
+      helpers+=("$2")
+      shift 2
+      ;;
+    --verification)
+      [[ -n "${2:-}" ]] || { printf '%s\n' '--verification requires text' >&2; exit 2; }
+      verification+=("$2")
+      shift 2
+      ;;
+    --durable)
+      [[ -n "${2:-}" ]] || { printf '%s\n' '--durable requires text' >&2; exit 2; }
+      durable+=("$2")
+      shift 2
+      ;;
+    --dispatch)
+      [[ -n "${2:-}" ]] || { printf '%s\n' '--dispatch requires text' >&2; exit 2; }
+      dispatch+=("$2")
+      shift 2
+      ;;
+    --fallback)
+      [[ -n "${2:-}" ]] || { printf '%s\n' '--fallback requires text' >&2; exit 2; }
+      fallback+=("$2")
+      shift 2
+      ;;
+    --manual-step)
+      [[ -n "${2:-}" ]] || { printf '%s\n' '--manual-step requires text' >&2; exit 2; }
+      manual_steps+=("$2")
+      shift 2
+      ;;
+    --risk)
+      [[ -n "${2:-}" ]] || { printf '%s\n' '--risk requires text' >&2; exit 2; }
+      risks+=("$2")
+      shift 2
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if (( ${#helpers[@]} == 0 )); then
+  printf '%s\n' 'At least one --helper entry is required' >&2
+  exit 2
+fi
+if (( ${#verification[@]} == 0 )); then
+  printf '%s\n' 'At least one --verification entry is required' >&2
+  exit 2
+fi
+if (( ${#durable[@]} == 0 )); then
+  printf '%s\n' 'At least one --durable entry is required' >&2
+  exit 2
+fi
+
+print_section() {
+  local title="$1"
+  shift
+  local items=("$@")
+  local item
+
+  printf '%s\n' "$title"
+  if (( ${#items[@]} == 0 )); then
+    printf '%s\n' '- none'
+  else
+    for item in "${items[@]}"; do
+      printf '%s\n' "- $item"
+    done
+  fi
+  printf '\n'
+}
+
+printf '%s\n\n' '## Dogfood report'
+print_section 'Helper commands used:' "${helpers[@]}"
+print_section 'Verification:' "${verification[@]}"
+print_section 'Durable GitHub state:' "${durable[@]}"
+if (( ${#dispatch[@]} == 0 )); then
+  print_section 'Direct-thread dispatch:'
+else
+  print_section 'Direct-thread dispatch:' "${dispatch[@]}"
+fi
+if (( ${#fallback[@]} == 0 )); then
+  print_section 'Fallback / manual steps:'
+else
+  print_section 'Fallback / manual steps:' "${fallback[@]}"
+fi
+if (( ${#manual_steps[@]} == 0 )); then
+  print_section 'Manual steps reduced:'
+else
+  print_section 'Manual steps reduced:' "${manual_steps[@]}"
+fi
+if (( ${#risks[@]} == 0 )); then
+  print_section 'Residual risks:'
+else
+  print_section 'Residual risks:' "${risks[@]}"
+fi

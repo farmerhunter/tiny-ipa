@@ -24,6 +24,9 @@ adding new role-routing automation.
 Use `needs:*` labels as the cross-agent handoff inbox. Project status remains the visual board, but labels are the reliable CLI lookup mechanism.
 
 ```bash
+# Delegated/resumed agent turn permission check
+tools/agents/agent-permission-smoke
+
 # Architect: planning, review, merge, readiness
 tools/agents/agent-inbox architect
 
@@ -49,6 +52,13 @@ When handing work to another role, update the label and add a short issue or PR 
 The raw `gh issue list` commands still work, but agents should prefer the local helpers above. They use retry defaults, avoid Project v2 queries during ordinary pickup, and keep the command surface consistent across Codex, Claude Code, DeepSeek, and similar environments.
 
 The helpers prefer GitHub REST API reads for inbox and issue context because `gh issue list/view` can use GraphQL and has been the most common source of TLS timeouts during M3.
+
+Run `tools/agents/agent-permission-smoke` before GitHub-backed pickup when work
+arrives through cross-thread dispatch or a resumed agent turn. If GitHub API,
+remote Git, or local Git metadata writes are restricted, stop before creating a
+branch or mutating durable state. Report the permission downgrade in the thread
+and wait for a user turn with full GitHub network access and local Git metadata
+write permission.
 
 Do not put `needs:implementer` on an Epic. Implementers pick up child issues, not Epic containers. If an Epic-level concern requires execution, create a child task such as integration QA, cross-issue gap fixing, or final manual QA evidence.
 
@@ -83,16 +93,22 @@ Example: `agent/2-scaffold-fastapi-react-skeleton`
 
 ### Before starting an issue
 
-1. Read the docs referenced in the issue body.
-2. Check the parent Epic for dependencies and readiness notes.
-3. Confirm the child issue is in `Ready`.
-4. Read the issue's `Execution Contract`.
-5. Confirm every `Depends on` condition is satisfied.
-6. Move the child issue to `In progress`.
-7. Comment with `Pickup confirmed`, including branch strategy, working branch, PR base, and verification plan.
-8. Create the issue branch from the contract's base branch.
+1. Run `tools/agents/agent-permission-smoke` for delegated or resumed turns.
+2. Read the docs referenced in the issue body.
+3. Check the parent Epic for dependencies and readiness notes.
+4. Confirm the child issue is in `Ready`.
+5. Read the issue's `Execution Contract`.
+6. Confirm every `Depends on` condition is satisfied.
+7. Move the child issue to `In progress`.
+8. Comment with `Pickup confirmed`, including branch strategy, working branch, PR base, and verification plan.
+9. Create the issue branch from the contract's base branch.
 
 Do not start implementation if the `Execution Contract` is missing or the PR base is ambiguous. Move the issue to `needs:architect` and ask for the missing branch strategy.
+
+Do not start implementation if `agent-permission-smoke` fails. A cross-thread
+dispatch ping may arrive under a restricted sandbox profile; in that case the
+agent should report the downgrade instead of triggering approval prompts across
+every GitHub or Git metadata operation.
 
 Do not start implementation for a dependent issue whose `Depends on` condition is not satisfied yet. Leave the issue in `Ready` and optionally add:
 

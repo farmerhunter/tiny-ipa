@@ -450,6 +450,7 @@ blocker, a shared contract changes, or user/Architect authority is needed.
 Tiny IPA has project-local helpers under `tools/agents/`:
 
 ```bash
+tools/agents/agent-permission-smoke
 tools/agents/agent-inbox architect
 tools/agents/agent-inbox implementer
 tools/agents/agent-ready-queue
@@ -459,6 +460,21 @@ tools/agents/agent-project-status <issue-number> "In Review"
 ```
 
 Use these helpers first in daily agent work. They standardize retries, avoid unnecessary Project v2 reads, and cache Project item IDs in `.agent-cache/` when a Project status update is needed.
+
+Delegated thread permission gate:
+
+```text
+Before doing GitHub writes, Git metadata writes, branch creation, or PR work,
+run `tools/agents/agent-permission-smoke`. If this delegated/resumed turn starts
+under restricted network or local Git metadata permissions, do not proceed with
+branch/PR workflow. Report the permission downgrade and wait for a user turn
+with full GitHub network access and local Git metadata write permission.
+```
+
+Architect dispatch prompts should include that gate whenever they use direct
+thread dispatch as an acceleration ping. The ping remains non-authoritative:
+the durable issue, PR, labels, comments, and Execution Contract still control
+what work may start.
 
 Inbox, issue-context, PR-context, and label-routing helpers should prefer GitHub REST API reads/writes over `gh issue list/view/edit` and `gh pr view`, because those commands can use GraphQL and have repeatedly hit TLS timeouts in this project. Project v2 remains separate and low-frequency.
 
