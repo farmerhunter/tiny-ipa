@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${GH_REPO:-farmerhunter/tiny-ipa}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  tools/agents/agent-dispatch-note --issue <issue> --to <role|label> [--from <role|label>] [--reason <text>]
+  tools/agents/agent-dispatch-note --pr <pr> --to <role|label> [--from <role|label>] [--reason <text>]
+  tools/agents/agent-dispatch-note --batch --epic <issue> --to <role|label> [--child <issue>...] [--from <role|label>] [--reason <text>]
+
+Generates a bounded dispatch prompt for direct-thread acceleration. This helper only
+prints the durable-boundary note and does not call thread APIs.
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+target_type=""
+target_ref=""
+epic=""
+to_target=""
+from_target=""
+reason="handoff to next role"
+children=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --issue)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--issue requires an issue number' >&2
+        exit 2
+      fi
+      if [[ "$target_type" == "pr" || "$target_type" == "batch" ]]; then
+        printf '%s\n' 'Use --issue alone, or use --batch with --child for multiple durable references' >&2
+        exit 2
+      fi
+      target_type="issue"
+      target_ref="$2"
+      require_number "$target_ref" "Issue"
+      shift 2
+      ;;
+    --pr)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--pr requires a pull request number' >&2
+        exit 2
+      fi
+      if [[ "$target_type" == "issue" || "$target_type" == "batch" ]]; then
+        printf '%s\n' 'Use --pr alone, or use --batch with --child for multiple durable references' >&2
+        exit 2
+      fi
+      target_type="pr"
+      target_ref="$2"
+      require_number "$target_ref" "Pull request"
+      shift 2
+      ;;
+    --batch)
+      if [[ -n "$target_type" && "$target_type" != "batch" ]]; then
+        printf '%s\n' 'Do not mix --batch with --issue or --pr' >&2
+        exit 2
+      fi
+      target_type="batch"
+      shift
+      ;;
+    --epic)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--epic requires an issue number' >&2
+        exit 2
+      fi
+      epic="$2"
+      require_number "$epic" "Epic"
+      shift 2
+      ;;
+    --child)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--child requires an issue number' >&2
+        exit 2
+      fi
+      children+=("$2")
+      require_number "$2" "Child issue"
+      shift 2
+      ;;
+    --to)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--to requires a role or label' >&2
+        exit 2
+      fi
+      to_target="$2"
+      shift 2
+      ;;
+    --from)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--from requires a role or label' >&2
+        exit 2
+      fi
+      from_target="$2"
+      shift 2
+      ;;
+    --reason)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--reason requires text' >&2
+        exit 2
+      fi
+      reason="$2"
+      shift 2
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ -z "$target_type" ]]; then
+  printf '%s\n' 'One of --issue, --pr, or --batch is required' >&2
+  exit 2
+fi
+
+if [[ -z "$to_target" ]]; then
+  printf '%s\n' '--to is required' >&2
+  exit 2
+fi
+
+to_label="$(agent_label_for_inbox_target "$to_target")" || exit 2
+if [[ -n "$from_target" ]]; then
+  from_label="$(agent_label_for_inbox_target "$from_target")" || exit 2
+fi
+
+format_dispatch_payload() {
+  local from_display="$1"
+  local to_display="$2"
+  local subject_type="$3"
+  local subject_ref="$4"
+  local subject_title="$5"
+  local subject_url="$6"
+  local summary="$7"
+  local durable_text="$8"
+  shift 8
+  local context_lines=("$@")
+
+  cat <<EOF
+## Direct-thread dispatch (acceleration note only)
+
+Do not use this as the durable source of truth.
+Use durable GitHub issue/PR/Project state for state transitions.
+
+Bounded dispatch:
+- Subject: $subject_type #$subject_ref
+- Durable artifact: $subject_url
+- Subject title: $subject_title
+- From: $from_display
+- To: $to_display
+- Reason: $reason
+- Expected result: $summary
+
+Copy/paste thread note:
+\`\`\`
+Dispatching boundedly for durable artifact: $durable_text
+- From: $from_display
+- To: $to_display
+- Reason: $reason
+EOF
+if (( ${#context_lines[@]} > 0 )); then
+  printf '%s\n' "- Context:"
+  printf '  %s\n' "${context_lines[@]/#/ - }"
+fi
+cat <<'EOF'
+- Durable confirm:
+  open this artifact in GitHub and process to the target role's queue
+- Non-goal:
+  this note is only for acceleration, not for durable state
+\`\`\`
+
+EOF
+}
+
+context_lines=()
+
+case "$target_type" in
+  issue)
+    issue_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$target_ref")"
+    title="$(jq -r '.title' <<< "$issue_json")"
+    url="$(jq -r '.html_url' <<< "$issue_json")"
+    state="$(jq -r '.state' <<< "$issue_json")"
+    context_lines=(
+      "Title: $title"
+      "State: $state"
+      "Link: $url"
+    )
+    format_dispatch_payload "${from_label:-${from_target:-<not set>}}" "$to_label" "issue" "$target_ref" "$title" "$url" "release next-step to $to_label" "Issue #$target_ref" "${context_lines[@]}"
+    ;;
+  pr)
+    pr_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/pulls/$target_ref")"
+    title="$(jq -r '.title' <<< "$pr_json")"
+    url="$(jq -r '.html_url' <<< "$pr_json")"
+    state="$(jq -r '.state' <<< "$pr_json")"
+    draft="$(jq -r '.draft' <<< "$pr_json")"
+    context_lines=(
+      "Title: $title"
+      "State: $state"
+      "Draft: $draft"
+      "Link: $url"
+    )
+    format_dispatch_payload "${from_label:-${from_target:-<not set>}}" "$to_label" "PR" "$target_ref" "$title" "$url" "handoff PR work to $to_label" "PR #$target_ref" "${context_lines[@]}"
+    ;;
+  batch)
+    if [[ -z "$epic" ]]; then
+      printf '%s\n' '--epic is required when using --batch' >&2
+      exit 2
+    fi
+    if (( ${#children[@]} == 0 )); then
+      printf '%s\n' '--batch requires at least one --child' >&2
+      exit 2
+    fi
+    epic_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$epic")"
+    epic_title="$(jq -r '.title' <<< "$epic_json")"
+    epic_url="$(jq -r '.html_url' <<< "$epic_json")"
+    context_lines=(
+      "Epic: #$epic $epic_title"
+      "Epic URL: $epic_url"
+    )
+    child_refs=()
+    for child in "${children[@]}"; do
+      child_json="$("$gh_retry" gh api "$(repo_api_path "$repo")/issues/$child")"
+      child_title="$(jq -r '.title' <<< "$child_json")"
+      child_state="$(jq -r '.state' <<< "$child_json")"
+      child_url="$(jq -r '.html_url' <<< "$child_json")"
+      child_refs+=("#$child")
+      context_lines+=("Child: #$child $child_title ($child_state) -> $child_url")
+    done
+    context_lines+=( "Child set: $(printf '%s ' "${child_refs[@]}")")
+    format_dispatch_payload "${from_label:-${from_target:-<not set>}}" "$to_label" "batch checkpoint" "$epic" "$epic_title" "$epic_url" "advance the batch to next role in one bounded handoff" "Epic checkpoint #$epic" "${context_lines[@]}"
+    ;;
+esac
