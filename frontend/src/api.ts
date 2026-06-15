@@ -5,6 +5,31 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
+/**
+ * Normalises FastAPI structured errors into a user-friendly string.
+ * Handles { detail: string | { error, detail } } and bare string bodies,
+ * falling back to `Request failed (HTTP <status>)` on parse failure.
+ */
+async function normalizeApiError(res: Response): Promise<string> {
+  let message = `Request failed (HTTP ${res.status})`;
+  try {
+    const body = await res.json();
+    // FastAPI wraps HTTPException detail at top-level "detail"
+    const inner = body.detail ?? body;
+    if (typeof inner === "object" && inner !== null) {
+      // Prefer {error, detail} shape → "ERROR_CODE: detail"
+      const code = inner.error ?? "";
+      const text = inner.detail ?? JSON.stringify(inner);
+      message = code ? `${code}: ${text}` : String(text);
+    } else if (typeof inner === "string") {
+      message = inner;
+    }
+  } catch {
+    // Fall through with the default message.
+  }
+  return message;
+}
+
 // ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
@@ -126,24 +151,7 @@ export async function submitAttempt(
     }),
   });
   if (!res.ok) {
-    // Normalise FastAPI structured errors into a user-friendly string.
-    let message = `Request failed (HTTP ${res.status})`;
-    try {
-      const body = await res.json();
-      // FastAPI wraps HTTPException detail at top-level "detail"
-      const inner = body.detail ?? body;
-      if (typeof inner === "object" && inner !== null) {
-        // Prefer {error, detail} shape → "ERROR_CODE: detail"
-        const code = inner.error ?? "";
-        const text = inner.detail ?? JSON.stringify(inner);
-        message = code ? `${code}: ${text}` : String(text);
-      } else if (typeof inner === "string") {
-        message = inner;
-      }
-    } catch {
-      // Fall through with the default message.
-    }
-    throw new Error(message);
+    throw new Error(await normalizeApiError(res));
   }
   return res.json();
 }
@@ -179,21 +187,7 @@ export async function saveSettings(
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    let message = `Request failed (HTTP ${res.status})`;
-    try {
-      const body = await res.json();
-      const inner = body.detail ?? body;
-      if (typeof inner === "object" && inner !== null) {
-        const code = inner.error ?? "";
-        const text = inner.detail ?? JSON.stringify(inner);
-        message = code ? `${code}: ${text}` : String(text);
-      } else if (typeof inner === "string") {
-        message = inner;
-      }
-    } catch {
-      // Fall through with the default message.
-    }
-    throw new Error(message);
+    throw new Error(await normalizeApiError(res));
   }
   return res.json();
 }
