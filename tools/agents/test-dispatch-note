@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-dispatch-note" "$fixture_root/tools/agents/agent-dispatch-note"
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  *"/issues/101"*)
+    jq -n '{title:"Issue note",state:"open",html_url:"https://example.test/issues/101"}'
+    ;;
+  *"/pulls/202"*)
+    jq -n '{number:202,title:"PR note",state:"open",draft:false,html_url:"https://example.test/pull/202"}'
+    ;;
+  *"/issues/203"*)
+    jq -n '{title:"Batch epic",state:"open",html_url:"https://example.test/issues/203"}'
+    ;;
+  *"/issues/11"*)
+    jq -n '{title:"Child one",state:"closed",html_url:"https://example.test/issues/11"}'
+    ;;
+  *"/issues/22"*)
+    jq -n '{title:"Child two",state:"open",html_url:"https://example.test/issues/22"}'
+    ;;
+  *)
+    printf 'unexpected fake gh call: %s\n' "$*" >&2
+    exit 21
+    ;;
+esac
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+issue_output="$("$fixture_root/tools/agents/agent-dispatch-note" --issue 101 --from architect --to reviewer)"
+grep -Fq "Bounded dispatch:" <<< "$issue_output"
+grep -Fq "Subject: issue #101" <<< "$issue_output"
+grep -Fq "From: needs:architect" <<< "$issue_output"
+grep -Fq "To: needs:reviewer" <<< "$issue_output"
+grep -Fq -- "- Context:" <<< "$issue_output"
+grep -Fq "Title: Issue note" <<< "$issue_output"
+grep -Fq "Expected result: release next-step to needs:reviewer" <<< "$issue_output"
+grep -Fq "Dispatching boundedly for durable artifact: Issue #101" <<< "$issue_output"
+
+pr_output="$("$fixture_root/tools/agents/agent-dispatch-note" --pr 202 --from implementer --to reviewer)"
+grep -Fq "Subject: PR #202" <<< "$pr_output"
+grep -Fq "From: needs:implementer" <<< "$pr_output"
+grep -Fq "Expected result: handoff PR work to needs:reviewer" <<< "$pr_output"
+
+batch_output="$("$fixture_root/tools/agents/agent-dispatch-note" --batch --epic 203 --to architect --child 11 --child 22)"
+grep -Fq "Subject: batch checkpoint #203" <<< "$batch_output"
+grep -Fq "To: needs:architect" <<< "$batch_output"
+grep -Fq "Epic: #203 Batch epic" <<< "$batch_output"
+grep -Fq "Child: #11 Child one" <<< "$batch_output"
+grep -Fq "Child: #22 Child two" <<< "$batch_output"
+grep -Fq "Child set: #11 #22" <<< "$batch_output"
+
+if "$fixture_root/tools/agents/agent-dispatch-note" --batch --epic 203 --to reviewer >/dev/null 2>&1; then
+  printf 'batch without child unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-dispatch-note" --issue 101 --to unknown-role >/dev/null 2>&1; then
+  printf 'unknown target unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-dispatch-note" --issue 101 >/dev/null 2>&1; then
+  printf '--to missing unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+printf 'agent-dispatch-note fixture checks passed\n'

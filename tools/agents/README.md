@@ -28,6 +28,8 @@ tools/agents/agent-comment issue 86 --body-file /tmp/comment.md
 tools/agents/agent-batch-accept --epic 83 --issue 86 --issue 87
 tools/agents/agent-release-queue --epic 83 --role implementer --issue 89 --issue 90
 tools/agents/agent-dogfood-report --helper "agent-audit: clean" --verification "tests passed" --durable "PR #91"
+tools/agents/agent-dispatch-note --issue 89 --from implementer --to reviewer
+tools/agents/agent-dispatch-note --batch --epic 83 --to architect --child 89 --child 90 --from implementer
 tools/agents/agent-audit
 ```
 
@@ -110,6 +112,11 @@ Project v2, issues, PRs, or `main`.
 sections for helper commands used, verification, durable GitHub state,
 direct-thread dispatch, fallback/manual work, manual steps reduced, and residual
 risks. It deliberately does not parse arbitrary terminal logs or infer success.
+
+`agent-dispatch-note` is explicit-input only. It prints a bounded dispatch note
+for direct-thread acceleration only. It resolves roles/labels through role routing,
+fetches durable context (subject title/state/link) from GitHub REST, and emits a
+copy/paste thread note that must not be used as the source of truth.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
