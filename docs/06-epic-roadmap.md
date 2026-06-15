@@ -8,13 +8,14 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | --- | --- | --- |
 | M0 Feasibility and Architecture Skeleton | #20 | Done |
 | M1 Static Practice Loop | #21 | Done |
-| M2 SQLite Persistence and Server-side Grading | #22 | Backlog |
-| M3 Core 100 Audio and Static MP3 Playback | #23 | Backlog |
-| M4 Progress and Settings | #24 | Backlog |
-| M5 Phoneme-Driven Scheduling | #25 | Backlog |
-| M6 Core 300 Content and Coverage | #26 | Backlog |
+| M2 SQLite Persistence and Server-side Grading | #22 | Done |
+| M3 Core 100 Audio and Static MP3 Playback | #23 | Done |
+| M4 Progress and Settings | #24 | Done |
+| M5 Phoneme-Driven Scheduling | #25 | Done |
+| M6 Core 300 Content and Coverage | #26 | In progress |
 | M7 VPS Deployment and Backup | #27 | Backlog |
 | M8 UK Accent Compare and Specialty Practice | #28 | Backlog |
+| M9 UX Research and Practice Experience Optimization | #102 | Backlog |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -153,22 +154,71 @@ short-term repetition is controlled
 
 Goal: cover a full stage of IPA learning with enough high-quality content.
 
-Expected child issue areas:
+Child issues (current execution sequence):
 
 ```text
-Core 300 candidate/core set
-coverage report
-minimal_pair_group expansion
-meaning_zh first pass
-targeted gap review
+#97 [P0] Refresh Core 300 candidate and coverage gap report
+#98 [P1] Curate runtime Core 300 content set
+#99 [P1] Add Core 300 validation thresholds and reports
+#100 [P1] Verify Core 300 import, scheduling, and practice UX safety
+#101 [P2] Run M6 content QA and readiness review
 ```
 
 Acceptance:
 
 ```text
-major US phonemes meet coverage goals
-difficult learner contrasts have enough examples
-sources, licenses, and rejection reasons remain traceable
+major US phonemes meet coverage goals by threshold and contrast coverage list
+difficult learner contrasts have enough examples and explicit risk tags
+sources, licenses, and rejection reasons remain auditable
+runtime import/importer, scheduling, and UI safety checks all pass for core 300
+epic-level readiness is approved by explicit review and residual-risk note
+```
+
+Execution contract (latest in #26 body):
+
+```text
+Branch strategy: epic integration branch
+Integration branch: epic/26-core-300-content
+Base branch: epic/26-core-300-content
+Target PR base: epic/26-core-300-content
+Final PR target: main
+Owner role: architect for planning and acceptance
+Review role: reviewer
+Acceptance role: architect
+Completion handoff: batch checkpoint
+```
+
+Phase plan:
+
+```text
+1) Candidate + coverage baseline (#97)
+   - Refresh candidate generation inputs and coverage gap report.
+   - Output a reviewable coverage snapshot for M6 planning.
+
+2) Runtime set curation (#98)
+   - Promote a curated 300-word runtime file and preserve traceability.
+   - Validate required content fields and preserve UK metadata where available.
+
+3) Validation hardening (#99)
+   - Add thresholds and reporting around phoneme coverage, contrast gaps, and metadata quality.
+   - Keep missing UK metadata/audio as warnings, not blockers.
+
+4) Runtime safety verification (#100)
+   - Verify import, scheduling, `/api/today` stability, and disabled-word behavior.
+   - Verify larger set does not regress learner-facing UX safety.
+
+5) M6 readiness gate (#101)
+   - Record a durable review/readiness note on #26.
+   - Confirm blockers cleared, residual risk documented, and go/no-go decision recorded.
+```
+
+Dependency model:
+
+```text
+#97 -> #98
+#97 -> #99
+#98 -> #100
+#97+#98+#99 -> #101
 ```
 
 ## M7：VPS Deployment and Backup
