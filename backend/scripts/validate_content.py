@@ -11,10 +11,9 @@ and produces a content report with coverage counts and rejection reasons.
 import argparse
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Set
-
 
 REQUIRED_FIELDS = [
     "word_id",
@@ -59,6 +58,32 @@ KNOWN_CONTENT_STATUSES = {
     "disabled",
 }
 KNOWN_REVIEW_STATUSES = {"draft", "auto_checked", "reviewed", "disabled"}
+KNOWN_DIFFICULTY_TAGS = {
+    "broad_a",
+    "ch",
+    "cup_vowel",
+    "diphthong",
+    "j",
+    "l",
+    "long_i",
+    "long_u",
+    "ng",
+    "open_o",
+    "r",
+    "r_schwa",
+    "r_stressed",
+    "schwa",
+    "sh",
+    "short_a",
+    "short_e",
+    "short_i",
+    "short_u",
+    "th_voiced",
+    "th_voiceless",
+    "v",
+    "w",
+    "zh",
+}
 
 
 def load_json(path: Path) -> dict:
@@ -66,14 +91,41 @@ def load_json(path: Path) -> dict:
         return json.load(fh)
 
 
-def load_phoneme_set(phonemes_path: Path) -> Set[str]:
-    """Load known phoneme symbols from phonemes.json."""
+def load_phoneme_inventory(phonemes_path: Path) -> Dict[str, dict]:
+    """Load known phoneme entries keyed by symbol from phonemes.json."""
     data = load_json(phonemes_path)
-    symbols = set()
+    inventory = {}
     for category in ("vowels", "consonants"):
         for entry in data.get(category, []):
-            symbols.add(entry["symbol"])
-    return symbols
+            inventory[entry["symbol"]] = entry
+    return inventory
+
+
+def load_phoneme_set(phonemes_path: Path) -> Set[str]:
+    """Load known phoneme symbols from phonemes.json."""
+    return set(load_phoneme_inventory(phonemes_path))
+
+
+def load_coverage_targets(config_path: Path) -> Dict[str, int]:
+    """Load US phoneme coverage thresholds from selection_config.json."""
+    if not config_path.exists():
+        return {}
+    data = load_json(config_path)
+    targets = data.get("phoneme_coverage_targets_us", {})
+    if not isinstance(targets, dict):
+        raise ValueError("Expected phoneme_coverage_targets_us to be an object")
+    return {str(phoneme): int(minimum) for phoneme, minimum in targets.items()}
+
+
+def load_blocklisted_words(blocklist_path: Path) -> Set[str]:
+    """Load blocked word strings from blocklists.json."""
+    if not blocklist_path.exists():
+        return set()
+    data = load_json(blocklist_path)
+    words = data.get("words", [])
+    if not isinstance(words, list):
+        raise ValueError("Expected blocklists.json 'words' to be an array")
+    return {str(word).strip().lower() for word in words if str(word).strip()}
 
 
 def load_words(words_path: Path) -> List[dict]:
@@ -92,9 +144,15 @@ def validate_words(
     words: List[dict],
     known_phonemes: Set[str],
     primary_accent: str = "US",
+    coverage_targets_us: Optional[Dict[str, int]] = None,
+    priority_phonemes: Optional[Set[str]] = None,
+    blocklisted_words: Optional[Set[str]] = None,
 ) -> dict:
     """Validate a list of word entries and return a content report."""
-    accent_key = primary_accent.lower()
+    del primary_accent
+    coverage_targets_us = coverage_targets_us or {}
+    priority_phonemes = priority_phonemes or set()
+    blocklisted_words = blocklisted_words or set()
 
     report: dict = {
         "total_words": len(words),
@@ -109,6 +167,11 @@ def validate_words(
         "unsupported_ipa_symbols": [],
         "missing_meaning_zh": 0,
         "missing_audio_us": 0,
+        "unknown_difficulty_tags": [],
+        "blocked_words": [],
+        "coverage_targets_us": dict(coverage_targets_us),
+        "coverage_failures_us": [],
+        "priority_phoneme_coverage_us": {},
         "invalid_level": [],
         "invalid_content_status": [],
         "invalid_review_status": [],
@@ -139,19 +202,30 @@ def validate_words(
         # Optional accent-specific fields
         if "ipa_uk" not in w or w["ipa_uk"] is None or w["ipa_uk"] == "":
             report["missing_ipa_uk"] += 1
+            report["warnings"].append(f"{word_id}: missing optional field 'ipa_uk'")
         if (
             "phoneme_tags_uk" not in w
             or w["phoneme_tags_uk"] is None
             or w["phoneme_tags_uk"] == ""
         ):
             report["missing_phoneme_tags_uk"] += 1
+            report["warnings"].append(
+                f"{word_id}: missing optional field 'phoneme_tags_uk'"
+            )
 
         # Optional fields
         if "meaning_zh" not in w or not w.get("meaning_zh"):
             report["missing_meaning_zh"] += 1
+            report["errors"].append(f"{word_id}: missing required Core 300 field 'meaning_zh'")
 
         if not w.get("audio_us"):
             report["missing_audio_us"] += 1
+            report["warnings"].append(f"{word_id}: missing optional field 'audio_us'")
+
+        if str(w.get("word", "")).strip().lower() in blocklisted_words:
+            entry = f"{word_id}: blocked word '{w.get('word')}'"
+            report["blocked_words"].append(entry)
+            report["errors"].append(entry)
 
         # Validate phoneme_tags_us against known phonemes
         phoneme_tags_us = w.get("phoneme_tags_us", [])
@@ -162,6 +236,9 @@ def validate_words(
                     entry = f"{word_id}: unknown phoneme tag '{tag}'"
                     if entry not in report["unknown_phoneme_tags_us"]:
                         report["unknown_phoneme_tags_us"].append(entry)
+                    report["errors"].append(entry)
+        elif phoneme_tags_us:
+            report["errors"].append(f"{word_id}: phoneme_tags_us must be an array")
 
         # Validate phoneme_tags_uk (warn if missing, validate if present)
         phoneme_tags_uk = w.get("phoneme_tags_uk", [])
@@ -172,26 +249,41 @@ def validate_words(
                     entry = f"{word_id}: unknown phoneme tag '{tag}' (UK)"
                     if entry not in report["unknown_phoneme_tags_uk"]:
                         report["unknown_phoneme_tags_uk"].append(entry)
+                    report["warnings"].append(entry)
+        elif phoneme_tags_uk:
+            report["warnings"].append(f"{word_id}: phoneme_tags_uk must be an array")
+
+        difficulty_tags = w.get("difficulty_tags", [])
+        if isinstance(difficulty_tags, list):
+            for tag in difficulty_tags:
+                if tag not in KNOWN_DIFFICULTY_TAGS:
+                    entry = f"{word_id}: unknown difficulty tag '{tag}'"
+                    report["unknown_difficulty_tags"].append(entry)
+                    report["errors"].append(entry)
+        elif difficulty_tags:
+            report["errors"].append(f"{word_id}: difficulty_tags must be an array")
 
         # Validate level
         level = w.get("level")
         if level and level not in KNOWN_LEVELS:
-            report["invalid_level"].append(f"{word_id}: unknown level '{level}'")
+            entry = f"{word_id}: unknown level '{level}'"
+            report["invalid_level"].append(entry)
+            report["errors"].append(entry)
 
         # Validate content_status
         content_status = w.get("content_status")
         if content_status and content_status not in KNOWN_CONTENT_STATUSES:
-            report["invalid_content_status"].append(
-                f"{word_id}: unknown content_status '{content_status}'"
-            )
+            entry = f"{word_id}: unknown content_status '{content_status}'"
+            report["invalid_content_status"].append(entry)
+            report["errors"].append(entry)
 
         # Validate review_status fields
         for rs_field in ("review_status_us", "review_status_uk"):
             rs_val = w.get(rs_field)
             if rs_val and rs_val not in KNOWN_REVIEW_STATUSES:
-                report["invalid_review_status"].append(
-                    f"{word_id}: unknown {rs_field} '{rs_val}'"
-                )
+                entry = f"{word_id}: unknown {rs_field} '{rs_val}'"
+                report["invalid_review_status"].append(entry)
+                report["errors"].append(entry)
 
         # Track source and license metadata
         source_ipa_us = w.get("source_ipa_us", "unknown")
@@ -211,10 +303,21 @@ def validate_words(
     report["source_ipa_uk_summary"] = dict(report["source_ipa_uk_summary"])
 
     # Build phoneme coverage
-    total_us = len(words)
     for phoneme in known_phonemes:
         count = report["words_per_phoneme_us"].get(phoneme, 0)
         report["phoneme_coverage_us"][phoneme] = count
+    for phoneme, minimum in sorted(coverage_targets_us.items()):
+        count = report["phoneme_coverage_us"].get(phoneme, 0)
+        if count < minimum:
+            failure = {"phoneme": phoneme, "count": count, "minimum": minimum}
+            report["coverage_failures_us"].append(failure)
+            report["errors"].append(
+                f"coverage: {phoneme} has {count} word(s), minimum {minimum}"
+            )
+    for phoneme in sorted(priority_phonemes):
+        report["priority_phoneme_coverage_us"][phoneme] = report[
+            "phoneme_coverage_us"
+        ].get(phoneme, 0)
 
     report["phoneme_coverage_uk"] = {}
     for phoneme in known_phonemes:
@@ -323,6 +426,14 @@ def print_report(report: dict, known_phonemes: Set[str]) -> None:
         print("  (none)")
 
     print()
+    print("--- Unknown difficulty tags ---")
+    if report["unknown_difficulty_tags"]:
+        for entry in report["unknown_difficulty_tags"]:
+            print(f"  {entry}")
+    else:
+        print("  (none)")
+
+    print()
     print("--- Status validation ---")
     if report["invalid_level"]:
         for entry in report["invalid_level"]:
@@ -354,6 +465,27 @@ def print_report(report: dict, known_phonemes: Set[str]) -> None:
             print(f"  {phoneme}: {count}")
     else:
         print("  (none)")
+
+    print()
+    print("--- Core 300 coverage thresholds (US) ---")
+    if not report["coverage_targets_us"]:
+        print("  (none configured)")
+    elif report["coverage_failures_us"]:
+        for failure in report["coverage_failures_us"]:
+            print(
+                f"  {failure['phoneme']}: {failure['count']} "
+                f"(minimum {failure['minimum']})"
+            )
+    else:
+        print("  (all configured thresholds met)")
+
+    print()
+    print("--- Priority phoneme coverage (US) ---")
+    if report["priority_phoneme_coverage_us"]:
+        for phoneme, count in report["priority_phoneme_coverage_us"].items():
+            print(f"  {phoneme}: {count}")
+    else:
+        print("  (none configured)")
 
     # Audio validation section
     audio = report.get("audio_validation")
@@ -397,10 +529,18 @@ def print_report(report: dict, known_phonemes: Set[str]) -> None:
             print(f"  {err}")
         print()
 
-    if error_count == 0:
+    if warning_count > 0:
+        print("--- Sample warnings (first 10) ---")
+        for warning in report["warnings"][:10]:
+            print(f"  {warning}")
+        print()
+
+    if error_count == 0 and warning_count == 0:
         print("Result: PASS - no validation errors.")
+    elif error_count == 0:
+        print(f"Result: PASS_WITH_WARNINGS - {warning_count} warning(s).")
     else:
-        print(f"Result: FAIL - {error_count} validation error(s).")
+        print(f"Result: FAIL - {error_count} validation error(s), {warning_count} warning(s).")
 
 
 def main():
@@ -421,6 +561,22 @@ def main():
         "--check-audio-files",
         default=None,
         help="Optional audio directory to verify audio_us/audio_uk files exist and are non-empty.",
+    )
+    parser.add_argument(
+        "--coverage-config",
+        default=None,
+        help=(
+            "Path to selection_config.json for Core 300 coverage thresholds "
+            "(default: content/selection_config.json if present)."
+        ),
+    )
+    parser.add_argument(
+        "--blocklist",
+        default=None,
+        help=(
+            "Path to blocklists.json for unsafe/blocked word checks "
+            "(default: content/blocklists.json if present)."
+        ),
     )
     parser.add_argument(
         "--json",
@@ -446,27 +602,56 @@ def main():
         print(f"Error: phonemes file not found: {phonemes_path}", file=sys.stderr)
         sys.exit(1)
 
+    script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parent.parent
+    if args.coverage_config:
+        coverage_config_path = Path(args.coverage_config)
+    elif words_path.name == "core_300_words.json":
+        coverage_config_path = repo_root / "content" / "selection_config.json"
+    else:
+        coverage_config_path = None
+    blocklist_path = (
+        Path(args.blocklist)
+        if args.blocklist
+        else repo_root / "content" / "blocklists.json"
+    )
+
     words = load_words(words_path)
-    known_phonemes = load_phoneme_set(phonemes_path)
-    report = validate_words(words, known_phonemes, args.accent)
+    phoneme_inventory = load_phoneme_inventory(phonemes_path)
+    known_phonemes = set(phoneme_inventory)
+    priority_phonemes = {
+        symbol for symbol, entry in phoneme_inventory.items() if entry.get("priority") == 1
+    }
+    report = validate_words(
+        words,
+        known_phonemes,
+        args.accent,
+        coverage_targets_us=(
+            load_coverage_targets(coverage_config_path) if coverage_config_path else {}
+        ),
+        priority_phonemes=priority_phonemes,
+        blocklisted_words=load_blocklisted_words(blocklist_path),
+    )
 
     # ---- audio file check (opt-in) -------------------------------------------
     if args.check_audio_files:
         audio_dir = Path(args.check_audio_files)
         audio_report = _check_audio_files(words, audio_dir, args.accent.lower())
         report["audio_validation"] = audio_report
-        # All audio issues become errors in strict mode
+        # Missing static audio is visible but non-blocking for M6 content validation.
         for entry in audio_report["missing_files"]:
-            report["errors"].append(
-                f"{entry['word_id']}: audio file missing — {entry['path']}"
+            report["warnings"].append(
+                f"{entry['word_id']}: audio file missing - {entry['path']}"
             )
         for entry in audio_report["empty_files"]:
-            report["errors"].append(
-                f"{entry['word_id']}: audio file too small ({entry['size']} bytes) — {entry['path']}"
+            report["warnings"].append(
+                f"{entry['word_id']}: audio file too small "
+                f"({entry['size']} bytes) - {entry['path']}"
             )
         for entry in audio_report["invalid_prefix"]:
             report["errors"].append(
-                f"{entry['word_id']}: invalid audio path prefix — {entry['path']} (expected {entry['expected_prefix']})"
+                f"{entry['word_id']}: invalid audio path prefix - "
+                f"{entry['path']} (expected {entry['expected_prefix']})"
             )
 
     if args.json:
