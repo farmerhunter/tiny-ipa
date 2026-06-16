@@ -10,10 +10,13 @@ from fastapi import APIRouter, HTTPException, Request
 from app.db import get_db
 from app.models import Attempt
 from app.services.db_store import (
+    all_session_items_attempted,
     create_attempt,
     get_session_by_id,
     get_session_items,
     get_word_by_id,
+    mark_session_completed,
+    mark_session_item_complete,
 )
 from app.services.grading import determine_correct_answer, grade_attempt
 from app.services.progress import update_phoneme_stats
@@ -42,7 +45,8 @@ async def attempt(request: Request):
 
     if not session_item_id:
         raise HTTPException(
-            status_code=400, detail={"error": "INVALID_ATTEMPT", "detail": "Missing session_item_id"}
+            status_code=400,
+            detail={"error": "INVALID_ATTEMPT", "detail": "Missing session_item_id"},
         )
 
     with get_db() as conn:
@@ -110,6 +114,7 @@ async def attempt(request: Request):
             target_phoneme=item.target_phonemes[0] if item.target_phonemes else None,
         )
         create_attempt(conn, attempt_row)
+        mark_session_item_complete(conn, session_item_id)
 
         # Update phoneme stats.
         updated_phonemes = update_phoneme_stats(
@@ -123,6 +128,9 @@ async def attempt(request: Request):
 
         # Determine next_action.
         next_action = "next_item"
+        if all_session_items_attempted(conn, session_id):
+            mark_session_completed(conn, session_id, timestamp)
+            next_action = "group_complete"
 
         return {
             "is_correct": is_correct,

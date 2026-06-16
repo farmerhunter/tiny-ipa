@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Mastery status
@@ -218,14 +218,20 @@ def build_progress_response(
 
     # ---- today ---------------------------------------------------------------
     today_str = date.today().isoformat()
-    today_row = conn.execute(
+    today_rows = conn.execute(
         """
         SELECT status FROM daily_sessions
         WHERE user_id = ? AND session_date = ?
         """,
         (user_id, today_str),
-    ).fetchone()
-    today_status = today_row["status"] if today_row else "none"
+    ).fetchall()
+    statuses = {row["status"] for row in today_rows}
+    if "in_progress" in statuses:
+        today_status = "in_progress"
+    elif "completed" in statuses:
+        today_status = "completed"
+    else:
+        today_status = "none"
     today_completed = today_status == "completed"
 
     # ---- streak --------------------------------------------------------------

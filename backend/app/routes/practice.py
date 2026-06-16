@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from app.db import get_db
-from app.services.sessions import build_today_response
+from app.services.sessions import build_recent_mistake_review_response, build_today_response
 
 router = APIRouter()
 
@@ -17,3 +17,10 @@ def today():
     """
     with get_db() as conn:
         return build_today_response(conn)
+
+
+@router.post("/review/recent-mistakes")
+def recent_mistake_review():
+    """Create or resume a review group from recent wrong answers."""
+    with get_db() as conn:
+        return build_recent_mistake_review_response(conn)
