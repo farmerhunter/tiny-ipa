@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
+from sys import path as _python_path
 from typing import List, Optional
 
 import pytest
@@ -13,6 +15,15 @@ from app.models import DailySession, SessionItem
 from app.services.db_schema import init_db
 from app.services.db_store import create_session, create_session_item
 from app.services.scheduler import select_daily_words
+
+_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+if str(_SCRIPTS) not in _python_path:
+    _python_path.insert(0, str(_SCRIPTS))
+
+from import_words import import_words  # noqa: E402
+
+CORE_300_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "core_300_words.json"
+PHONEMES_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "phonemes.json"
 
 
 @pytest.fixture(name="conn")
@@ -212,3 +223,59 @@ def test_selection_is_deterministic_for_same_seed(conn):
 
     assert _ids(first) == _ids(second)
     assert _ids(first) != _ids(different_seed)
+
+
+def test_core_300_scheduling_remains_stable(tmp_path: Path):
+    db_path = str(tmp_path / "core300.sqlite")
+    import_words(
+        source_path=CORE_300_PATH,
+        phonemes_path=PHONEMES_PATH,
+        db_path=db_path,
+    )
+
+    conn = get_connection(db_path)
+    rows = conn.execute(
+        "SELECT id, phoneme_tags_us FROM words WHERE content_status != 'disabled'"
+    ).fetchall()
+    focus_word = None
+    for row in rows:
+        tags = row["phoneme_tags_us"]
+        if tags:
+            parsed = json.loads(tags)
+            if "/ʌ/" in parsed:
+                focus_word = row["id"]
+                break
+
+    if focus_word is None:
+        conn.close()
+        pytest.skip("No /ʌ/ word available in current core_300 fixture")
+
+    selected = select_daily_words(
+        conn,
+        daily_word_count=10,
+        accent="US",
+        seed=777,
+        focus_phonemes=["/ʌ/"],
+    )
+    selected_ids = [w.id for w in selected]
+
+    assert len(selected_ids) == 10
+    assert focus_word in selected_ids
+
+    conn.execute(
+        "UPDATE words SET content_status = 'disabled' WHERE id = ?",
+        (selected_ids[0],),
+    )
+    conn.commit()
+
+    selected_after = select_daily_words(
+        conn,
+        daily_word_count=10,
+        accent="US",
+        seed=777,
+        focus_phonemes=["/ʌ/"],
+    )
+    conn.close()
+
+    assert len(selected_after) <= 10
+    assert selected_ids[0] not in [w.id for w in selected_after]
