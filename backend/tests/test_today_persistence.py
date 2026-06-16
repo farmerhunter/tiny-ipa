@@ -105,6 +105,11 @@ class TestTodayPersistence:
         data = resp.json()
         assert "error" not in data, data
         assert data["status"] == "in_progress"
+        assert data["group_id"] == data["session_id"]
+        assert data["group_index"] == 1
+        assert data["group_type"] == "normal"
+        assert data["word_count"] == len(data["items"])
+        assert data["source_session_item_ids"] == []
         assert data["date"] == date.today().isoformat()
         assert data["primary_accent"] == "US"
         assert data["daily_word_count"] == 10
@@ -136,6 +141,44 @@ class TestTodayPersistence:
         ).fetchone()
         conn.close()
         assert items["cnt"] == 1
+
+    def test_completed_group_allows_next_same_day_group(self, client, seeded_db):
+        first = client.get("/api/today").json()
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE daily_sessions
+            SET status = 'completed', completed_at = '2026-06-16T00:00:00Z'
+            WHERE id = ?
+            """,
+            (first["session_id"],),
+        )
+        conn.commit()
+        conn.close()
+
+        second = client.get("/api/today").json()
+
+        assert second["session_id"] != first["session_id"]
+        assert second["group_index"] == 2
+        assert second["group_type"] == "normal"
+
+        conn = get_connection(seeded_db)
+        today = date.today().isoformat()
+        sessions = conn.execute(
+            """
+            SELECT id, group_index, group_type, status
+            FROM daily_sessions
+            WHERE user_id = 'default' AND session_date = ?
+            ORDER BY group_index
+            """,
+            (today,),
+        ).fetchall()
+        conn.close()
+
+        assert [(row["group_index"], row["group_type"]) for row in sessions] == [
+            (1, "normal"),
+            (2, "normal"),
+        ]
 
     def test_items_have_required_fields(self, client, seeded_db):
         resp = client.get("/api/today")
@@ -183,6 +226,85 @@ class TestTodayPersistence:
         resp = client.get("/api/today")
         data = resp.json()
         assert len(data["items"]) <= 1
+
+    def test_single_item_attempt_completes_group_and_next_today_creates_group(
+        self, client, seeded_db
+    ):
+        conn = get_connection(seeded_db)
+        conn.execute("UPDATE settings SET daily_word_count = 1 WHERE user_id = 'default'")
+        conn.commit()
+        conn.close()
+
+        first = client.get("/api/today").json()
+        item = first["items"][0]
+        attempt = client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": item["display_ipa"],
+        }).json()
+
+        assert attempt["next_action"] == "group_complete"
+
+        second = client.get("/api/today").json()
+        assert second["session_id"] != first["session_id"]
+        assert second["group_index"] == 2
+
+    def test_recent_mistake_review_empty_queue_is_stable(self, client):
+        resp = client.post("/api/review/recent-mistakes")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["group_type"] == "mistake_review"
+        assert data["status"] == "empty"
+        assert data["items"] == []
+        assert data["source_count"] == 0
+
+    def test_recent_mistake_review_group_reuses_attempt_path(self, client, seeded_db):
+        today = client.get("/api/today").json()
+        missed = today["items"][0]
+        miss_resp = client.post("/api/attempt", json={
+            "session_item_id": missed["session_item_id"],
+            "selected_answer": "/wrong/",
+        })
+        assert miss_resp.status_code == 200
+        assert miss_resp.json()["is_correct"] is False
+
+        review_resp = client.post("/api/review/recent-mistakes")
+        assert review_resp.status_code == 200
+        review = review_resp.json()
+
+        assert review["group_type"] == "mistake_review"
+        assert review["group_index"] == 2
+        assert review["source_session_item_ids"] == [missed["session_item_id"]]
+        assert review["items"][0]["word_id"] == missed["word_id"]
+
+        second_review = client.post("/api/review/recent-mistakes").json()
+        assert second_review["session_id"] == review["session_id"]
+
+        review_item = review["items"][0]
+        retry = client.post("/api/attempt", json={
+            "session_item_id": review_item["session_item_id"],
+            "selected_answer": review_item["display_ipa"],
+        })
+        assert retry.status_code == 200
+        assert retry.json()["is_correct"] is True
+
+        conn = get_connection(seeded_db)
+        attempts = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM attempts WHERE word_id = ?",
+            (missed["word_id"],),
+        ).fetchone()
+        stats = conn.execute(
+            """
+            SELECT attempt_count
+            FROM phoneme_stats
+            WHERE user_id = 'default' AND primary_accent = 'US'
+            ORDER BY attempt_count DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        conn.close()
+
+        assert attempts["cnt"] == 2
+        assert stats["attempt_count"] == 2
 
     def test_fresh_today_uses_focus_phoneme_setting(self, client, seeded_db):
         conn = get_connection(seeded_db)

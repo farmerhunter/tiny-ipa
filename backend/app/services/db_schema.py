@@ -71,7 +71,10 @@ TABLES_DDL: List[str] = [
         primary_accent  TEXT    NOT NULL,
         status          TEXT    NOT NULL,
         created_at      TEXT    NOT NULL,
-        completed_at    TEXT
+        completed_at    TEXT,
+        group_index     INTEGER NOT NULL DEFAULT 1,
+        group_type      TEXT    NOT NULL DEFAULT 'normal',
+        source_session_item_ids TEXT NOT NULL DEFAULT '[]'
     )
     """,
     # ------------------------------------------------------------------
@@ -137,6 +140,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     for ddl in TABLES_DDL:
         conn.execute(ddl)
     ensure_settings_schema(conn)
+    ensure_daily_sessions_schema(conn)
 
 
 def ensure_settings_schema(conn: sqlite3.Connection) -> None:
@@ -154,6 +158,33 @@ def ensure_settings_schema(conn: sqlite3.Connection) -> None:
     if "focus_phonemes" not in columns:
         conn.execute(
             "ALTER TABLE settings ADD COLUMN focus_phonemes TEXT NOT NULL DEFAULT '[]'"
+        )
+
+
+def ensure_daily_sessions_schema(conn: sqlite3.Connection) -> None:
+    """Apply compatibility patches for existing daily_sessions tables."""
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_sessions'"
+    ).fetchone()
+    if table is None:
+        return
+
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(daily_sessions)").fetchall()
+    }
+    if "group_index" not in columns:
+        conn.execute(
+            "ALTER TABLE daily_sessions ADD COLUMN group_index INTEGER NOT NULL DEFAULT 1"
+        )
+    if "group_type" not in columns:
+        conn.execute(
+            "ALTER TABLE daily_sessions ADD COLUMN group_type TEXT NOT NULL DEFAULT 'normal'"
+        )
+    if "source_session_item_ids" not in columns:
+        conn.execute(
+            "ALTER TABLE daily_sessions ADD COLUMN source_session_item_ids "
+            "TEXT NOT NULL DEFAULT '[]'"
         )
 
 
