@@ -60,6 +60,16 @@ export default function SettingsPage({ onBack }: Props) {
     void update({ focus_phonemes });
   };
 
+  const removeFocusPhoneme = (phoneme: string) => {
+    void update({
+      focus_phonemes: settings.focus_phonemes.filter((item) => item !== phoneme),
+    });
+  };
+
+  const clearFocusPhonemes = () => {
+    void update({ focus_phonemes: [] });
+  };
+
   return (
     <main className="practice-container">
       <div className="page-header">
@@ -74,7 +84,7 @@ export default function SettingsPage({ onBack }: Props) {
         {/* ---- MVP-supported controls ---- */}
 
         <label className="setting-row">
-          <span>Words per day</span>
+          <span>Words per group</span>
           <input type="number" min={1} max={50} value={settings.daily_word_count}
             onChange={e => update({ daily_word_count: Number(e.target.value) })} />
         </label>
@@ -96,7 +106,7 @@ export default function SettingsPage({ onBack }: Props) {
         </label>
 
         <label className="setting-row setting-row-stacked">
-          <span>Focus phonemes</span>
+          <span>Manual focus entry</span>
           <input
             className="focus-input"
             type="text"
@@ -113,10 +123,27 @@ export default function SettingsPage({ onBack }: Props) {
         </label>
 
         {settings.focus_phonemes.length > 0 && (
-          <div className="phoneme-chip-list">
-            {settings.focus_phonemes.map((phoneme) => (
-              <span className="phoneme-chip" key={phoneme}>{phoneme}</span>
-            ))}
+          <div className="settings-focus-panel">
+            <span className="focus-panel-label">Next group focus</span>
+            <div className="phoneme-chip-list">
+              {settings.focus_phonemes.map((phoneme) => (
+                <button
+                  className="phoneme-chip removable"
+                  key={phoneme}
+                  onClick={() => removeFocusPhoneme(phoneme)}
+                  type="button"
+                >
+                  {phoneme} ×
+                </button>
+              ))}
+            </div>
+            <button
+              className="secondary-action-btn compact"
+              onClick={clearFocusPhonemes}
+              type="button"
+            >
+              Clear focus
+            </button>
           </div>
         )}
 

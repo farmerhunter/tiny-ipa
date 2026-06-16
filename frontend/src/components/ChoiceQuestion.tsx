@@ -50,7 +50,7 @@ export function ChoiceQuestion({ item, onResult }: Props) {
         isCorrect: result.is_correct,
         correctAnswer: result.correct_answer,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // submitAttempt normalises errors into Error with .message
       const message = err instanceof Error ? err.message : String(err);
       setError(message);

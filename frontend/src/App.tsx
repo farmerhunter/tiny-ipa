@@ -8,6 +8,7 @@ function App() {
   const [backendReady, setBackendReady] = useState<boolean>(false);
   const [checking, setChecking] = useState(true);
   const [page, setPage] = useState<"today" | "progress" | "settings">("today");
+  const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
 
   useEffect(() => {
     fetchHealth()
@@ -47,10 +48,18 @@ function App() {
           onClick={() => setPage("settings")}>Settings</button>
       </nav>
       {page === "progress"
-        ? <ProgressPage onBack={() => setPage("today")} />
+        ? <ProgressPage
+            onBack={() => setPage("today")}
+            focusPhonemes={focusPhonemes}
+            onFocusChange={setFocusPhonemes}
+          />
         : page === "settings"
         ? <SettingsPage onBack={() => setPage("today")} />
-        : <TodayPractice />
+        : <TodayPractice
+            focusPhonemes={focusPhonemes}
+            onFocusChange={setFocusPhonemes}
+            onOpenProgress={() => setPage("progress")}
+          />
       }
     </div>
   );
