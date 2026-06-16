@@ -9,6 +9,7 @@ Tiny IPA / 小音标 is a small, self-hostable IPA practice app for children and
 ```bash
 cd backend
 uv sync --extra dev --locked
+uv run python scripts/import_words.py --source ../content/core_300_words.json
 uv run uvicorn app.main:app --reload --port 8010
 ```
 

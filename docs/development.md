@@ -243,16 +243,15 @@ Implementer fixes should be pushed to the existing issue branch, not a new branc
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8010
+uv sync --extra dev --locked
+uv run python scripts/import_words.py --source ../content/core_300_words.json
+uv run uvicorn app.main:app --reload --port 8010
 ```
 
 Run tests:
 
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ### Frontend
@@ -280,15 +279,15 @@ pnpm run build
 ### Content scripts
 
 ```bash
-cd backend && source .venv/bin/activate
+cd backend
 
 # Content auto-selection (requires ipa-dict data)
-pip install -e ".[content]"
-python scripts/select_candidates.py --top-n 5000 \
+uv sync --extra content
+uv run python scripts/select_candidates.py --top-n 5000 \
   --ipa-dict-dir ../content/sources/ipa-dict
 
 # Content validation
-python scripts/validate_content.py ../backend/tests/fixtures/content_sample.json
+uv run python scripts/validate_content.py ../backend/tests/fixtures/content_sample.json
 ```
 
 ## CI
