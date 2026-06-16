@@ -16,8 +16,8 @@ uv run uvicorn app.main:app --reload --port 8010
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 The Vite dev server proxies `/api` to `http://localhost:8010` by default. Open `http://localhost:5173` in a browser.
@@ -29,11 +29,11 @@ The Vite dev server proxies `/api` to `http://localhost:8010` by default. Open `
 cd backend && uv run pytest
 
 # Frontend type check
-cd frontend && npx tsc --noEmit
+cd frontend && pnpm exec tsc --noEmit
 ```
 
 Backend dependencies are resolved through the project-local `backend/uv.lock` and
-`backend/.venv`. Use global tools such as `uv`, `node`, and `npm` to launch the
+`backend/.venv`. Use global tools such as `uv`, `node`, and `pnpm` to launch the
 project commands, but do not rely on globally installed Python or Node project
 libraries as verification evidence.
 

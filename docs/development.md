@@ -237,7 +237,7 @@ Implementer fixes should be pushed to the existing issue branch, not a new branc
 
 - Python >= 3.9 (>= 3.11 recommended)
 - Node.js >= 18
-- npm
+- pnpm
 
 ### Backend
 
@@ -259,8 +259,8 @@ pytest tests/ -v
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 The Vite dev server runs on `http://localhost:5173` and proxies `/api` to `localhost:8010`.
@@ -268,13 +268,13 @@ The Vite dev server runs on `http://localhost:5173` and proxies `/api` to `local
 Type check:
 
 ```bash
-npx tsc --noEmit
+pnpm exec tsc --noEmit
 ```
 
 Production build:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 ### Content scripts
