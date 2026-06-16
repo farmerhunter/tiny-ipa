@@ -148,7 +148,22 @@ export default function TodayPractice({
   }
 
   // Error state
-  if (error || !session || session.error) {
+  if (!session) {
+    return (
+      <main className="practice-container">
+        <div className="practice-error">
+          <h2>Practice unavailable</h2>
+          <p>{error || "Unknown error"}</p>
+          <p className="hint">
+            Make sure you've run <code>import_words.py</code> and the backend
+            is running.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!finished && (error || session.error)) {
     return (
       <main className="practice-container">
         <div className="practice-error">
@@ -168,7 +183,6 @@ export default function TodayPractice({
     const correctCount = results.filter((r) => r.isCorrect).length;
     const total = results.length;
     const wrongResults = results.filter((r) => !r.isCorrect);
-    const hasMistakes = wrongResults.length > 0;
     return (
       <main className="practice-container">
         <div className="practice-summary">
@@ -212,7 +226,7 @@ export default function TodayPractice({
             <button
               className="secondary-action-btn"
               onClick={handleMistakeReview}
-              disabled={!hasMistakes || actionLoading !== null}
+              disabled={actionLoading !== null}
             >
               {actionLoading === "review" ? "Loading…" : "Review mistakes"}
             </button>
