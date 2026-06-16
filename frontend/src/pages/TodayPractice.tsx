@@ -33,6 +33,13 @@ function groupLabel(session: TodayResponse): string {
   return `Group ${session.group_index ?? 1}`;
 }
 
+function buildFocusHint(targetPhonemes: string[]): string {
+  if (targetPhonemes.length === 0) {
+    return "Focus on the IPA difference, then listen again.";
+  }
+  return `Focus on ${targetPhonemes.join(" ")} before choosing.`;
+}
+
 export default function TodayPractice({
   focusPhonemes,
   onFocusChange,
@@ -204,7 +211,10 @@ export default function TodayPractice({
                       </span>
                     </span>
                     <span className="summary-phonemes">
-                      {r.targetPhonemes.join(" ")}
+                      Target sound: {r.targetPhonemes.join(" ") || "IPA contrast"}
+                    </span>
+                    <span className="summary-hint">
+                      {buildFocusHint(r.targetPhonemes)}
                     </span>
                   </li>
                 ))}

@@ -234,6 +234,35 @@ button {
   border: 1px solid #ef9a9a;
 }
 
+.missed-answer-explanation {
+  display: grid;
+  gap: 8px;
+}
+
+.missed-answer-explanation p {
+  margin: 0;
+}
+
+.explanation-grid {
+  align-items: center;
+  display: grid;
+  gap: 6px 10px;
+  grid-template-columns: minmax(84px, max-content) minmax(0, 1fr);
+  text-align: left;
+}
+
+.explanation-grid span {
+  color: #555;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.focus-hint,
+.summary-hint {
+  color: #555;
+  font-size: 0.85rem;
+}
+
 /* ---------------------------------------------------------------------------
  * Summary
  * --------------------------------------------------------------------------- */
@@ -301,6 +330,10 @@ button {
   color: #174ea6;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.summary-hint {
+  display: block;
 }
 
 .summary-actions {
