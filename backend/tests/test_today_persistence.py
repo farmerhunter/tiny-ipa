@@ -329,11 +329,14 @@ class TestCore300TodayReadiness:
         import app.db as db_mod
 
         conn = get_connection(db_mod.DEFAULT_DB_PATH)
-        core_300_client.get("/api/today")
+        first_resp = core_300_client.get("/api/today")
+        assert first_resp.status_code == 200
+        first_data = first_resp.json()
+        session_id = first_data["session_id"]
 
         first_id = conn.execute(
             "SELECT word_id FROM session_items WHERE session_id = ? ORDER BY order_index LIMIT 1",
-            (f"{date.today().isoformat()}-default",),
+            (session_id,),
         ).fetchone()
         assert first_id is not None
 
@@ -347,11 +350,11 @@ class TestCore300TodayReadiness:
         # existing row to emulate next-day scheduling semantics.
         conn.execute(
             "DELETE FROM session_items WHERE session_id = ?",
-            (f"{date.today().isoformat()}-default",),
+            (session_id,),
         )
         conn.execute(
             "DELETE FROM daily_sessions WHERE id = ?",
-            (f"{date.today().isoformat()}-default",),
+            (session_id,),
         )
         conn.commit()
         conn.close()
