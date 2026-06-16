@@ -69,11 +69,17 @@ export interface TodayItem {
 
 export interface TodayResponse {
   session_id: string;
+  group_id?: string;
+  group_index?: number;
+  group_type?: string;
   date: string;
   primary_accent: string;
   daily_word_count: number;
+  word_count?: number;
   status: string;
+  source_session_item_ids?: string[];
   items: TodayItem[];
+  source_count?: number;
   error?: string;
   detail?: string;
 }
@@ -82,6 +88,16 @@ export async function fetchToday(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/today`);
   if (!res.ok) {
     throw new Error(`GET /api/today failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function startRecentMistakeReview(): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/review/recent-mistakes`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
   }
   return res.json();
 }
