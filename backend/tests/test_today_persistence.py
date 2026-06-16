@@ -36,6 +36,7 @@ from app.services.db_store import (  # noqa: E402
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CONTENT_SAMPLE = FIXTURES / "content_sample.json"
 PHONEMES_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "phonemes.json"
+CORE_300_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "core_300_words.json"
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +64,30 @@ def seeded_db_fixture(tmp_path: Path) -> str:
 
 @pytest.fixture(name="client")
 def client_fixture(seeded_db: str) -> TestClient:
+    return TestClient(app)
+
+
+@pytest.fixture(name="seeded_db_core_300")
+def seeded_db_core_300_fixture(tmp_path: Path) -> str:
+    """Create a database pre-loaded with the full Core 300 runtime content."""
+    db_path = str(tmp_path / "core300.sqlite")
+    import_words(
+        source_path=CORE_300_PATH,
+        phonemes_path=PHONEMES_PATH,
+        db_path=db_path,
+    )
+
+    # Monkey-patch the default DB path so the TestClient uses this DB.
+    import app.db as db_mod
+
+    orig = db_mod.DEFAULT_DB_PATH
+    db_mod.DEFAULT_DB_PATH = db_path
+    yield db_path
+    db_mod.DEFAULT_DB_PATH = orig
+
+
+@pytest.fixture(name="core_300_client")
+def core_300_client_fixture(seeded_db_core_300: str) -> TestClient:
     return TestClient(app)
 
 
@@ -286,6 +311,89 @@ class TestTodayPersistence:
             assert data["error"] == "CONTENT_NOT_READY"
         finally:
             db_mod.DEFAULT_DB_PATH = orig
+
+
+class TestCore300TodayReadiness:
+    """Regression coverage for the full Core 300 runtime content path."""
+
+    def test_core_300_today_keeps_daily_count_to_settings(self, core_300_client):
+        resp = core_300_client.get("/api/today")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "error" not in data, data
+        assert data["daily_word_count"] == 10
+        assert len(data["items"]) == 10
+
+    def test_core_300_disabled_words_are_not_scheduled(self, core_300_client):
+        # Disable one of the scheduled candidates and confirm it's filtered.
+        import app.db as db_mod
+
+        conn = get_connection(db_mod.DEFAULT_DB_PATH)
+        first_resp = core_300_client.get("/api/today")
+        assert first_resp.status_code == 200
+        first_data = first_resp.json()
+        session_id = first_data["session_id"]
+
+        first_id = conn.execute(
+            "SELECT word_id FROM session_items WHERE session_id = ? ORDER BY order_index LIMIT 1",
+            (session_id,),
+        ).fetchone()
+        assert first_id is not None
+
+        conn.execute(
+            "UPDATE words SET content_status = 'disabled' WHERE id = ?",
+            (first_id[0],),
+        )
+        conn.commit()
+
+        # Existing session should still be stable; create a fresh one by deleting the
+        # existing row to emulate next-day scheduling semantics.
+        conn.execute(
+            "DELETE FROM session_items WHERE session_id = ?",
+            (session_id,),
+        )
+        conn.execute(
+            "DELETE FROM daily_sessions WHERE id = ?",
+            (session_id,),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = core_300_client.get("/api/today")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "error" not in data, data
+        assert first_id[0] not in {item["word_id"] for item in data["items"]}
+
+    def test_core_300_focus_phonemes_continue_to_work(self, core_300_client):
+        import app.db as db_mod
+
+        conn = get_connection(db_mod.DEFAULT_DB_PATH)
+        focus_id = conn.execute(
+            """
+            SELECT id
+            FROM words
+            WHERE content_status != 'disabled'
+              AND phoneme_tags_us LIKE '%/ʌ/%'
+            LIMIT 1
+            """,
+        ).fetchone()
+        if focus_id is None:
+            conn.close()
+            pytest.skip("No /ʌ/ word available in current core_300 fixture")
+
+        conn.execute(
+            "UPDATE settings SET focus_phonemes = ? WHERE user_id = 'default'",
+            (json.dumps(["/ʌ/"]),),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = core_300_client.get("/api/today")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "error" not in data, data
+        assert focus_id[0] in {item["word_id"] for item in data["items"]}
 
 
 # ---------------------------------------------------------------------------

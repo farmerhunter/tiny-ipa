@@ -145,6 +145,15 @@ PHONEME_NORMALIZE = {
 }
 
 
+def _get_package_version(package_name: str) -> str:
+    """Get installed package version, or 'unknown'."""
+    try:
+        import importlib.metadata
+        return importlib.metadata.version(package_name)
+    except Exception:
+        return "unknown"
+
+
 def parse_ipa_to_phonemes(ipa_str: str):
     """
     Parse a raw IPA string (e.g. \"/ʃɪp/\") into a list of phoneme tags
@@ -334,7 +343,8 @@ FUNCTION_WORDS = {
 def apply_hard_filters(word: str, freq_zipf: float, ipa_us: list, ipa_uk: list,
                        config: dict) -> tuple:
     """
-    Apply hard rejection filters. Returns (reject_reason: str | None, ipa_us_variants, ipa_uk_variants).
+    Apply hard rejection filters.
+    Returns (reject_reason: str | None, ipa_us_variants, ipa_uk_variants).
     """
     filters = config.get("hard_filters", {})
 
@@ -381,7 +391,6 @@ def apply_hard_filters(word: str, freq_zipf: float, ipa_us: list, ipa_uk: list,
         return "low_frequency", ipa_us, ipa_uk
 
     # Unknown IPA symbols in US
-    unsupported_ipa_symbols = config.get("unsupported_ipa_symbols", set())
     for ipa in ipa_us[:max_variants]:
         phonemes, unknown = parse_ipa_to_phonemes(ipa)
         if unknown:
@@ -419,7 +428,8 @@ def score_candidate(word: str, freq_zipf: float, phoneme_tags_us: list,
     cov_score = cov_score * scoring.get("phoneme_coverage_score_weight", 0.40) * 100
 
     # Spelling simplicity (shorter = better for beginners)
-    spell_score = max(0, 1 - (len(word) - 3) / 10) * scoring.get("spelling_simplicity_score_weight", 0.10) * 100
+    spell_w = scoring.get("spelling_simplicity_score_weight", 0.10)
+    spell_score = max(0, 1 - (len(word) - 3) / 10) * spell_w * 100
 
     # Accent stability (same IPA in US and UK = bonus)
     accent_stab = 0
@@ -446,7 +456,6 @@ def greedy_select(candidates: list, target_size: int, config: dict) -> list:
     targets = config.get("phoneme_coverage_targets_us", {})
     greedy_cfg = config.get("greedy_selection", {})
     max_rhyme = greedy_cfg.get("max_same_rhyme_group", 3)
-    max_diff = greedy_cfg.get("max_same_difficulty_tag", 5)
 
     selected = []
     phoneme_counts = defaultdict(int)
@@ -549,8 +558,8 @@ def main():
     print("\n[2/6] Loading IPA dictionary data...")
     if not os.path.isdir(ipa_dir):
         print(f"  ERROR: IPA dict directory not found: {ipa_dir}")
-        print(f"  Download en_US.txt and en_UK.txt from:")
-        print(f"    https://github.com/open-dict-data/ipa-dict/tree/master/data")
+        print("  Download en_US.txt and en_UK.txt from:")
+        print("    https://github.com/open-dict-data/ipa-dict/tree/master/data")
         print(f"  Place them in: {ipa_dir}")
         sys.exit(1)
 
@@ -640,7 +649,7 @@ def main():
     print(f"  Joined with UK IPA:      {joined_uk}")
     print(f"  Dual accent available:   {dual_accent}")
     print(f"  After hard filters:      {len(candidates)}")
-    print(f"  Rejection reasons:")
+    print("  Rejection reasons:")
     for reason, count in rejection_reasons.most_common():
         print(f"    {reason}: {count}")
     print(f"  Unknown IPA symbols:     {len(unknown_ipa_symbols)}")
@@ -665,10 +674,13 @@ def main():
     candidates.sort(key=lambda c: c["candidate_score"], reverse=True)
 
     if candidates:
-        print(f"  Score range: {candidates[-1]['candidate_score']:.1f} – {candidates[0]['candidate_score']:.1f}")
+        lo = candidates[-1]['candidate_score']
+        hi = candidates[0]['candidate_score']
+        print(f"  Score range: {lo:.1f} – {hi:.1f}")
     else:
         print("  No candidates to score — all words were filtered out.")
-        print("  Consider relaxing hard filters in selection_config.json (e.g. lower min_frequency_zipf).")
+        print("  Consider relaxing hard filters in selection_config.json")
+        print("  (e.g. lower min_frequency_zipf).")
         sys.exit(1)
 
     # Step 5: Greedy select Core 100 and Core 300
@@ -713,10 +725,44 @@ def main():
                 phoneme_cov_uk[tag] += 1
 
     top_missing = []
+    low_coverage_phonemes = []
     for phoneme, target in sorted(targets.items(), key=lambda x: -x[1]):
         actual = phoneme_cov_300.get(phoneme, 0)
         if actual < target:
-            top_missing.append({"phoneme": phoneme, "target": target, "actual": actual, "gap": target - actual})
+            entry = {"phoneme": phoneme, "target": target, "actual": actual, "gap": target - actual}
+            top_missing.append(entry)
+            low_coverage_phonemes.append(entry)
+
+    # Load difficult contrasts from phonemes.json if available
+    difficult_contrasts = []
+    difficult_contrast_coverage = []
+    phonemes_json_path = repo_root / "content" / "phonemes.json"
+    if phonemes_json_path.exists():
+        with open(phonemes_json_path, "r", encoding="utf-8") as fh:
+            phonemes_data = json.load(fh)
+        difficult_contrasts = phonemes_data.get("difficult_contrasts", [])
+
+    # Analyze difficult contrast coverage in Core 300
+    for contrast in difficult_contrasts:
+        pair = contrast.get("pair", [])
+        if len(pair) != 2:
+            continue
+        p1, p2 = pair[0], pair[1]
+        w1 = [c["word"] for c in core_300 if p1 in c["phoneme_tags_us"]]
+        w2 = [c["word"] for c in core_300 if p2 in c["phoneme_tags_us"]]
+        wb = [c["word"] for c in core_300
+              if p1 in c["phoneme_tags_us"] and p2 in c["phoneme_tags_us"]]
+        difficult_contrast_coverage.append({
+            "pair": pair,
+            "description_zh": contrast.get("description_zh", ""),
+            "words_with_first": w1[:5],
+            "count_first": len(w1),
+            "words_with_second": w2[:5],
+            "count_second": len(w2),
+            "words_with_both": wb[:5],
+            "count_both": len(wb),
+            "coverage_status": "full" if (len(w1) > 0 and len(w2) > 0) else "partial",
+        })
 
     # Build report
     sample_selected = [c["word"] for c in candidates if c["content_status"] == "auto_selected"][:10]
@@ -734,7 +780,48 @@ def main():
         "/ʒ/": "genuinely rare phoneme; only ~24 words in Core 300 have it",
     }
 
+    # Build generator command and environment info
+    generator_command = (
+        f"python3 scripts/select_candidates.py "
+        f"--top-n {args.top_n} "
+        f"--ipa-dict-dir {ipa_dir} "
+        f"--selection-config {config_path} "
+        f"--output-dir {output_dir}"
+    )
+
+    # Candidate gaps: words that could fill low-coverage phonemes
+    candidate_gaps = []
+    for gap in low_coverage_phonemes:
+        phoneme = gap["phoneme"]
+        # Find candidates (not in core_300) that contain this phoneme
+        core_300_ids = {x["word_id"] for x in core_300}
+        fillers = [
+            {"word": c["word"], "ipa_us": c["ipa_us"],
+             "frequency_zipf": c["frequency_zipf"]}
+            for c in candidates
+            if phoneme in c["phoneme_tags_us"] and c["word_id"] not in core_300_ids
+        ]
+        fillers.sort(key=lambda x: -x["frequency_zipf"])
+        candidate_gaps.append({
+            "phoneme": phoneme,
+            "gap": gap["gap"],
+            "suggested_fillers": fillers[:5],
+        })
+
     report = {
+        "report_title": "Core 300 Candidate and Coverage Gap Report",
+        "report_date": "2026-06-15",
+        "generator_command": generator_command,
+        "environment": {
+            "python_version": (
+                f"{sys.version_info.major}."
+                f"{sys.version_info.minor}."
+                f"{sys.version_info.micro}"
+            ),
+            "wordfreq_version": _get_package_version("wordfreq"),
+            "ipa_dict_source": "open-dict-data/ipa-dict (GitHub)",
+            "frequency_source": "wordfreq (MIT/Apache-2.0)",
+        },
         "input_word_count": len(freq_words),
         "joined_us_count": joined_us,
         "joined_uk_count": joined_uk,
@@ -748,15 +835,21 @@ def main():
         "uk_tagged_in_core_300": uk_tagged_words,
         "unknown_ipa_symbols": sorted(list(unknown_ipa_symbols)),
         "top_missing_phonemes": top_missing[:10],
+        "low_coverage_phonemes": low_coverage_phonemes,
+        "candidate_gaps": candidate_gaps,
+        "difficult_contrast_coverage": difficult_contrast_coverage,
         "known_manual_gaps": known_manual_gaps,
         "license_summary": "open-data (wordfreq: MIT/Apache-2.0, ipa-dict: see repo license)",
         "sample_selected_words": sample_selected,
         "sample_rejected_words": sample_rejected,
+        "feasibility_us_primary_300": len(candidates) >= 300,
         "curation_note": (
-            "Core 300 candidates are auto-selected for phoneme coverage, not curated for classroom use. "
-            "M1 seed pack (Issue #5) requires human review: (1) remove remaining function words or "
-            "age-inappropriate words, (2) manually add words for /ʌ/, /ɚ/, /ʒ/ gaps, "
-            "(3) verify minimal-pair suitability, and (4) add Chinese short meanings."
+            "Core 300 candidates are auto-selected for phoneme coverage, "
+            "not curated for classroom use. M1 seed pack (Issue #5) requires "
+            "human review: (1) remove remaining function words or "
+            "age-inappropriate words, (2) manually add words for "
+            "/ʌ/, /ɚ/, /ʒ/ gaps, (3) verify minimal-pair suitability, "
+            "and (4) add Chinese short meanings."
         ),
     }
 
@@ -786,16 +879,21 @@ def main():
     if report["unknown_ipa_symbols"]:
         print(f"  Symbols: {', '.join(report['unknown_ipa_symbols'][:20])}")
     print(f"Core 300 UK-tagged:    {report['uk_tagged_in_core_300']}")
-    print(f"\nTop missing phonemes (Core 300 vs targets):")
+    print("\nTop missing phonemes (Core 300 vs targets):")
     for m in top_missing[:5]:
         print(f"  {m['phoneme']}: have {m['actual']}, need {m['target']} (gap: {m['gap']})")
     if top_missing:
-        print(f"\nKnown manual gaps (need human curation for M1 seed pack):")
+        print("\nKnown manual gaps (need human curation for M1 seed pack):")
         for phoneme, note in report["known_manual_gaps"].items():
             print(f"  {phoneme}: {note}")
+    print("\nDifficult contrast coverage (Core 300):")
+    for dc in difficult_contrast_coverage:
+        status = "OK" if dc["coverage_status"] == "full" else "GAP"
+        print(f"  [{status}] {dc['pair'][0]} vs {dc['pair'][1]}: "
+              f"{dc['count_first']}/{dc['count_second']} words (both: {dc['count_both']})")
     print(f"\nSample selected: {', '.join(sample_selected)}")
     print(f"Sample rejected: {', '.join(sample_rejected[:8])}")
-    print(f"\nCURATION NOTE:")
+    print("\nCURATION NOTE:")
     print(f"  {report['curation_note']}")
 
     # Feasibility answer
@@ -804,11 +902,21 @@ def main():
     print(f"{'=' * 60}")
     if report["selected_count"] >= 300:
         print("PASS: ≥300 candidates produced. Core 300 is feasible from these sources.")
+        print(f"  US-primary words available: {len(candidates)} (need 300)")
+        print("  Can support 300 usable US-primary words: YES")
     elif report["selected_count"] >= 150:
-        print("MARGINAL: 150-299 candidates. Core 300 may need supplemental sources or relaxed filters.")
+        print("MARGINAL: 150-299 candidates. Core 300 may need")
+        print("  supplemental sources or relaxed filters.")
+        print(f"  US-primary words available: {len(candidates)} (need 300)")
+        print("  Can support 300 usable US-primary words: MAYBE")
     else:
-        print("FAIL: <150 candidates. Auto-selection from wordfreq + ipa-dict alone is insufficient.")
+        print("FAIL: <150 candidates. Auto-selection from wordfreq +")
+        print("  ipa-dict alone is insufficient.")
+        print(f"  US-primary words available: {len(candidates)} (need 300)")
+        print("  Can support 300 usable US-primary words: NO")
         print("  Consider adding SUBTLEX-US, CEFR-J, or relaxing hard filters.")
+    print("\nGenerator command:")
+    print(f"  {generator_command}")
 
 
 if __name__ == "__main__":
