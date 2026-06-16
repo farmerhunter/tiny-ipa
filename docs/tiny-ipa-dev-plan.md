@@ -698,8 +698,8 @@ uvicorn app.main:app --host 127.0.0.1 --port 8010
 
 ```bash
 cd tiny-ipa/frontend
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 Nginx：

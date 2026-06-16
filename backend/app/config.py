@@ -6,8 +6,12 @@ editing this file.
 """
 
 import os
+from pathlib import Path
 
 
 CONTENT_VERSION = os.getenv("TINY_IPA_CONTENT_VERSION", "development")
-DB_PATH = os.getenv("TINY_IPA_DB_PATH", "")
-DB_READY = os.path.isfile(DB_PATH) if DB_PATH else False
+DB_PATH = os.getenv(
+    "TINY_IPA_DB_PATH",
+    str(Path(__file__).resolve().parent.parent / "tiny_ipa.sqlite"),
+)
+DB_READY = os.path.isfile(DB_PATH)

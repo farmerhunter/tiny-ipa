@@ -13,9 +13,11 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M4 Progress and Settings | #24 | Done |
 | M5 Phoneme-Driven Scheduling | #25 | Done |
 | M6 Core 300 Content and Coverage | #26 | In progress |
-| M7 VPS Deployment and Backup | #27 | Backlog |
-| M8 UK Accent Compare and Specialty Practice | #28 | Backlog |
-| M9 UX Research and Practice Experience Optimization | #102 | Backlog |
+| M7 Practice Loop and Review UX | #114 | Backlog |
+| M8 Level-based Content Expansion and Core 1000 Rebalance | #108 | Backlog |
+| M9 VPS Deployment and Backup | #27 | Backlog |
+| M10 UK Accent Compare and Specialty Practice | #28 | Backlog |
+| M11 UX Research and Practice Experience Optimization | #102 | Backlog |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -221,7 +223,61 @@ Dependency model:
 #97+#98+#99 -> #101
 ```
 
-## M7：VPS Deployment and Backup
+## M7：Practice Loop and Review UX
+
+Goal: turn the current daily quiz into a repeatable learning loop with multiple short practice groups, visible mistake follow-up, and user-understandable weak-phoneme practice.
+
+Expected child issue areas:
+
+```text
+practice group model and same-day multi-group flow
+continue with another 10-word group after completion
+recent mistake review queue
+wrong-word and weak-phoneme summary after each group
+lightweight answer explanation for missed items
+Progress page actions for weak phonemes
+focus_phonemes UX replacement with selectable chips/actions
+settings wording: words per group rather than words per day
+```
+
+Acceptance:
+
+```text
+learner can complete multiple 10-word groups in one day
+completed group summary shows wrong words and implicated phonemes
+learner can start a review group from recent mistakes
+weak phonemes can be selected from Progress without typing raw IPA text
+focus_phonemes behavior is visible in the next generated group
+existing phoneme_stats and scheduler weighting remain the source of review behavior
+```
+
+## M8：Level-based Content Expansion and Core 1000 Rebalance
+
+Goal: introduce learner level selection and rebalance the content pipeline so beginner practice stays simple while mid-level practice has a richer multi-syllable word pool.
+
+Expected child issue areas:
+
+```text
+level setting and API contract
+Entry level using the current Core 300 runtime set
+Mid level Core 1000 candidate generation and curation
+rebalance selection heuristics for higher two-syllable and multi-syllable ratio
+level-aware import and validation reports
+level-aware scheduling filters
+manual QA for Entry vs Mid practice difficulty
+```
+
+Acceptance:
+
+```text
+Entry level continues to use the current Core 300 content without regression
+Mid level uses a newly generated and reviewed Core 1000 candidate set
+Core 1000 improves two-syllable and multi-syllable coverage compared with Core 300
+level selection affects future practice generation and is visible to the learner
+validation reports separate Entry and Mid coverage/readiness
+```
+
+## M9：VPS Deployment and Backup
 
 Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 
@@ -246,7 +302,7 @@ service survives restart
 backup can restore learning data
 ```
 
-## M8：UK Accent Compare and Specialty Practice
+## M10：UK Accent Compare and Specialty Practice
 
 Goal: open optional UK comparison and specialty practice without changing core boundaries.
 
@@ -266,6 +322,28 @@ Acceptance:
 US and UK stats do not mix
 UK comparison appears only when enabled
 specialty practice reuses question/grading/progress boundaries
+```
+
+## M11：UX Research and Practice Experience Optimization
+
+Goal: improve the learning experience after the core practice loop, level model, deployment path, and specialty practice foundations are in place.
+
+Expected child issue areas:
+
+```text
+manual observation of learner practice sessions
+question wording and feedback comprehension
+audio playback ergonomics
+mobile layout and child-friendly interaction checks
+progress motivation and fatigue controls
+```
+
+Acceptance:
+
+```text
+UX findings are recorded as evidence, not ad hoc redesign impulses
+high-impact interaction fixes are split into scoped child issues
+practice experience changes preserve existing scheduling and progress boundaries
 ```
 
 ## Scope Control

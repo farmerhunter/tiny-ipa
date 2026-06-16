@@ -80,6 +80,9 @@ class DailySession:
     status: str
     created_at: str
     completed_at: Optional[str] = None
+    group_index: int = 1
+    group_type: str = "normal"
+    source_session_item_ids: List[str] = field(default_factory=list)
 
 
 @dataclass

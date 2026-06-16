@@ -192,7 +192,12 @@ class TestStreak:
         # Completed yesterday and two days ago
         for d in [yesterday, two_days_ago]:
             conn.execute(
-                "INSERT INTO daily_sessions VALUES (?, 'default', ?, 'US', 'completed', ?, NULL)",
+                """
+                INSERT INTO daily_sessions (
+                    id, user_id, session_date, primary_accent,
+                    status, created_at, completed_at
+                ) VALUES (?, 'default', ?, 'US', 'completed', ?, NULL)
+                """,
                 (f"{d.isoformat()}-default", d.isoformat(), f"{d.isoformat()}T10:00:00Z"),
             )
         conn.commit()
@@ -220,7 +225,12 @@ class TestStreak:
         # Completed 2 days ago and 4 days ago (gap at 3 days ago)
         for d in [two_days_ago, four_days_ago]:
             conn.execute(
-                "INSERT INTO daily_sessions VALUES (?, 'default', ?, 'US', 'completed', ?, NULL)",
+                """
+                INSERT INTO daily_sessions (
+                    id, user_id, session_date, primary_accent,
+                    status, created_at, completed_at
+                ) VALUES (?, 'default', ?, 'US', 'completed', ?, NULL)
+                """,
                 (f"{d.isoformat()}-default", d.isoformat(), f"{d.isoformat()}T10:00:00Z"),
             )
         conn.commit()

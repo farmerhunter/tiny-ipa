@@ -18,6 +18,13 @@ export interface ChoiceResult {
   correctAnswer: string;
 }
 
+function buildFocusHint(targetPhonemes: string[]): string {
+  if (targetPhonemes.length === 0) {
+    return "Focus on the IPA difference, then listen again.";
+  }
+  return `Focus on ${targetPhonemes.join(" ")} before choosing.`;
+}
+
 interface Props {
   item: TodayItem;
   onResult: (result: ChoiceResult) => void;
@@ -28,6 +35,7 @@ export function ChoiceQuestion({ item, onResult }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{
     isCorrect: boolean;
+    selectedAnswer: string;
     correctAnswer: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +50,7 @@ export function ChoiceQuestion({ item, onResult }: Props) {
       const result = await submitAttempt(item.session_item_id, choice);
       setFeedback({
         isCorrect: result.is_correct,
+        selectedAnswer: choice,
         correctAnswer: result.correct_answer,
       });
       onResult({
@@ -50,7 +59,7 @@ export function ChoiceQuestion({ item, onResult }: Props) {
         isCorrect: result.is_correct,
         correctAnswer: result.correct_answer,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // submitAttempt normalises errors into Error with .message
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
@@ -118,10 +127,18 @@ export function ChoiceQuestion({ item, onResult }: Props) {
           {feedback.isCorrect ? (
             <p>✅ Correct!</p>
           ) : (
-            <p>
-              ❌ Not quite — the correct answer is{" "}
-              <strong>{feedback.correctAnswer}</strong>
-            </p>
+            <div className="missed-answer-explanation">
+              <p>❌ Not quite.</p>
+              <div className="explanation-grid">
+                <span>You picked</span>
+                <code>{feedback.selectedAnswer}</code>
+                <span>Correct IPA</span>
+                <code>{feedback.correctAnswer}</code>
+                <span>Target sound</span>
+                <strong>{item.target_phonemes.join(" ") || "IPA contrast"}</strong>
+              </div>
+              <p className="focus-hint">{buildFocusHint(item.target_phonemes)}</p>
+            </div>
           )}
         </div>
       )}

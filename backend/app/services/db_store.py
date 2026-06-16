@@ -11,7 +11,7 @@ import sqlite3
 from typing import List, Optional
 
 from app.models import Attempt, DailySession, Phoneme, SessionItem, Settings, Word
-from app.services.db_schema import ensure_settings_schema
+from app.services.db_schema import ensure_daily_sessions_schema, ensure_settings_schema
 
 # ============================================================================
 # Serialisation helpers
@@ -254,6 +254,9 @@ def _session_from_row(row: sqlite3.Row) -> DailySession:
         status=row["status"],
         created_at=row["created_at"],
         completed_at=row["completed_at"],
+        group_index=row["group_index"],
+        group_type=row["group_type"],
+        source_session_item_ids=_parse_list(row["source_session_item_ids"]) or [],
     )
 
 
@@ -271,12 +274,15 @@ def _session_item_from_row(row: sqlite3.Row) -> SessionItem:
 
 def create_session(conn: sqlite3.Connection, session: DailySession) -> str:
     """Insert a new daily session row. Returns the session id."""
+    ensure_daily_sessions_schema(conn)
     conn.execute(
         """
         INSERT INTO daily_sessions (
-            id, user_id, session_date, primary_accent, status, created_at, completed_at
+            id, user_id, session_date, primary_accent, status, created_at, completed_at,
+            group_index, group_type, source_session_item_ids
         ) VALUES (
-            :id, :user_id, :session_date, :primary_accent, :status, :created_at, :completed_at
+            :id, :user_id, :session_date, :primary_accent, :status, :created_at,
+            :completed_at, :group_index, :group_type, :source_session_item_ids
         )
         """,
         {
@@ -287,25 +293,97 @@ def create_session(conn: sqlite3.Connection, session: DailySession) -> str:
             "status": session.status,
             "created_at": session.created_at,
             "completed_at": session.completed_at,
+            "group_index": session.group_index,
+            "group_type": session.group_type,
+            "source_session_item_ids": _to_json(session.source_session_item_ids),
         },
     )
     return session.id
+
+
+def get_active_session_for_date(
+    conn: sqlite3.Connection,
+    user_id: str,
+    session_date: str,
+    primary_accent: str,
+    group_type: str = "normal",
+) -> Optional[DailySession]:
+    """Return the active same-day group for the given type, if one exists."""
+    ensure_daily_sessions_schema(conn)
+    row = conn.execute(
+        """
+        SELECT * FROM daily_sessions
+        WHERE user_id = ?
+          AND session_date = ?
+          AND primary_accent = ?
+          AND group_type = ?
+          AND status = 'in_progress'
+        ORDER BY group_index DESC, created_at DESC
+        LIMIT 1
+        """,
+        (user_id, session_date, primary_accent, group_type),
+    ).fetchone()
+    if row is None:
+        return None
+    return _session_from_row(row)
 
 
 def get_session_for_date(
     conn: sqlite3.Connection, user_id: str, session_date: str, primary_accent: str
 ) -> Optional[DailySession]:
     """Return the daily session for the given user, date and accent, or None."""
+    ensure_daily_sessions_schema(conn)
     row = conn.execute(
         """
         SELECT * FROM daily_sessions
         WHERE user_id = ? AND session_date = ? AND primary_accent = ?
+        ORDER BY
+          CASE WHEN status = 'in_progress' AND group_type = 'normal' THEN 0 ELSE 1 END,
+          group_index DESC,
+          created_at DESC
+        LIMIT 1
         """,
         (user_id, session_date, primary_accent),
     ).fetchone()
     if row is None:
         return None
     return _session_from_row(row)
+
+
+def get_next_session_group_index(
+    conn: sqlite3.Connection,
+    user_id: str,
+    session_date: str,
+    primary_accent: str,
+) -> int:
+    """Return the next same-day practice group index for user/date/accent."""
+    ensure_daily_sessions_schema(conn)
+    row = conn.execute(
+        """
+        SELECT COALESCE(MAX(group_index), 0) AS max_group
+        FROM daily_sessions
+        WHERE user_id = ? AND session_date = ? AND primary_accent = ?
+        """,
+        (user_id, session_date, primary_accent),
+    ).fetchone()
+    return int(row["max_group"] if row else 0) + 1
+
+
+def mark_session_completed(
+    conn: sqlite3.Connection,
+    session_id: str,
+    completed_at: str,
+) -> None:
+    """Mark a practice group completed."""
+    ensure_daily_sessions_schema(conn)
+    conn.execute(
+        """
+        UPDATE daily_sessions
+        SET status = 'completed', completed_at = ?
+        WHERE id = ?
+        """,
+        (completed_at, session_id),
+    )
 
 
 def create_session_item(conn: sqlite3.Connection, item: SessionItem) -> str:
@@ -333,6 +411,7 @@ def create_session_item(conn: sqlite3.Connection, item: SessionItem) -> str:
 
 def get_session_by_id(conn: sqlite3.Connection, session_id: str) -> Optional[DailySession]:
     """Return a daily session by its primary key, or None."""
+    ensure_daily_sessions_schema(conn)
     row = conn.execute(
         "SELECT * FROM daily_sessions WHERE id = ?", (session_id,)
     ).fetchone()
@@ -350,6 +429,43 @@ def get_session_items(
         (session_id,),
     ).fetchall()
     return [_session_item_from_row(r) for r in rows]
+
+
+def get_recent_incorrect_attempt_sources(
+    conn: sqlite3.Connection,
+    *,
+    user_id: str,
+    primary_accent: str,
+    limit: int = 10,
+) -> List[dict]:
+    """Return recent wrong-answer words with their latest source session item."""
+    rows = conn.execute(
+        """
+        SELECT a.word_id, a.session_item_id, a.created_at AS last_wrong_at
+        FROM attempts a
+        JOIN words w ON w.id = a.word_id
+        WHERE a.user_id = ?
+          AND a.primary_accent = ?
+          AND a.is_correct = 0
+          AND w.content_status != 'disabled'
+        ORDER BY a.created_at DESC
+        """,
+        (user_id, primary_accent),
+    ).fetchall()
+    sources = []
+    seen_word_ids = set()
+    for row in rows:
+        if row["word_id"] in seen_word_ids:
+            continue
+        seen_word_ids.add(row["word_id"])
+        sources.append({
+            "word_id": row["word_id"],
+            "session_item_id": row["session_item_id"],
+            "last_wrong_at": row["last_wrong_at"],
+        })
+        if len(sources) >= limit:
+            break
+    return sources
 
 
 # ============================================================================
@@ -386,3 +502,29 @@ def create_attempt(conn: sqlite3.Connection, attempt: Attempt) -> str:
         },
     )
     return attempt.id
+
+
+def mark_session_item_complete(conn: sqlite3.Connection, session_item_id: str) -> None:
+    """Mark a session item complete after an attempt."""
+    conn.execute(
+        "UPDATE session_items SET status = 'complete' WHERE id = ?",
+        (session_item_id,),
+    )
+
+
+def all_session_items_attempted(conn: sqlite3.Connection, session_id: str) -> bool:
+    """Return True once every item in a session has at least one attempt."""
+    row = conn.execute(
+        """
+        SELECT
+          COUNT(*) AS total_items,
+          COUNT(DISTINCT a.session_item_id) AS attempted_items
+        FROM session_items si
+        LEFT JOIN attempts a ON a.session_item_id = si.id
+        WHERE si.session_id = ?
+        """,
+        (session_id,),
+    ).fetchone()
+    if row is None or row["total_items"] == 0:
+        return False
+    return row["attempted_items"] >= row["total_items"]

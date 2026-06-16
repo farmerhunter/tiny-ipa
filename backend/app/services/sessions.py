@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import hashlib
 from datetime import date, datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from app.models import DailySession, SessionItem
 from app.services.db_store import (
     create_session,
     create_session_item,
-    get_session_for_date,
+    get_active_session_for_date,
+    get_next_session_group_index,
+    get_recent_incorrect_attempt_sources,
     get_session_items,
     get_settings,
     get_word_by_id,
@@ -36,9 +38,8 @@ def _stable_hash(s: str) -> int:
     return int(hashlib.md5(s.encode()).hexdigest(), 16) & 0x7FFFFFFF
 
 
-def _seed_from_date(session_date: str) -> int:
-    """Deterministic seed so same-date calls get the same word ordering."""
-    return _stable_hash(session_date)
+def _seed_from_group(session_date: str, group_index: int, group_type: str) -> int:
+    return _stable_hash(f"{session_date}:{group_index}:{group_type}")
 
 
 def build_today_response(
@@ -65,7 +66,7 @@ def build_today_response(
     daily_word_count = settings.daily_word_count
 
     # ---- check for existing session -----------------------------------------
-    existing = get_session_for_date(conn, user_id, session_date, accent)
+    existing = get_active_session_for_date(conn, user_id, session_date, accent, "normal")
     if existing is not None:
         items = get_session_items(conn, existing.id)
         return _build_response(
@@ -77,7 +78,8 @@ def build_today_response(
         )
 
     # ---- create new session -------------------------------------------------
-    seed = _seed_from_date(session_date)
+    group_index = get_next_session_group_index(conn, user_id, session_date, accent)
+    seed = _seed_from_group(session_date, group_index, "normal")
     words = select_daily_words(
         conn,
         daily_word_count,
@@ -94,7 +96,120 @@ def build_today_response(
             "detail": "No usable words found. Run import_words.py first.",
         }
 
-    session_id = f"{session_date}-{user_id}"
+    session, items = _create_group_from_words(
+        conn,
+        words=words,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        group_index=group_index,
+        group_type="normal",
+    )
+
+    return _build_response(
+        session=session,
+        items=items,
+        daily_word_count=daily_word_count,
+        conn=conn,
+        accent=accent,
+    )
+
+
+def build_recent_mistake_review_response(
+    conn,
+    *,
+    user_id: str = "default",
+    accent: str = "US",
+    limit: int = 10,
+) -> dict:
+    """Create or resume a same-day review group from recent wrong attempts."""
+    session_date = _today_date_str()
+    settings = get_settings(conn, user_id)
+    if settings is None:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Settings not initialised. Run import_words.py first.",
+        }
+
+    existing = get_active_session_for_date(
+        conn, user_id, session_date, accent, "mistake_review"
+    )
+    if existing is not None:
+        items = get_session_items(conn, existing.id)
+        return _build_response(
+            session=existing,
+            items=items,
+            daily_word_count=settings.daily_word_count,
+            conn=conn,
+            accent=accent,
+        )
+
+    sources = get_recent_incorrect_attempt_sources(
+        conn,
+        user_id=user_id,
+        primary_accent=accent,
+        limit=min(max(limit, 1), settings.daily_word_count),
+    )
+    if not sources:
+        return {
+            "group_type": "mistake_review",
+            "status": "empty",
+            "items": [],
+            "source_count": 0,
+            "detail": "No recent incorrect attempts are available for review.",
+        }
+
+    words = []
+    source_item_ids = []
+    for source in sources:
+        word = get_word_by_id(conn, source["word_id"])
+        if word is not None:
+            words.append(word)
+            source_item_ids.append(source["session_item_id"])
+
+    if not words:
+        return {
+            "group_type": "mistake_review",
+            "status": "empty",
+            "items": [],
+            "source_count": 0,
+            "detail": "No reviewable words are available for recent mistakes.",
+        }
+
+    group_index = get_next_session_group_index(conn, user_id, session_date, accent)
+    session, items = _create_group_from_words(
+        conn,
+        words=words,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        group_index=group_index,
+        group_type="mistake_review",
+        source_session_item_ids=source_item_ids,
+    )
+    response = _build_response(
+        session=session,
+        items=items,
+        daily_word_count=settings.daily_word_count,
+        conn=conn,
+        accent=accent,
+    )
+    response["source_count"] = len(source_item_ids)
+    return response
+
+
+def _create_group_from_words(
+    conn,
+    *,
+    words,
+    user_id: str,
+    session_date: str,
+    accent: str,
+    group_index: int,
+    group_type: str,
+    source_session_item_ids: Optional[List[str]] = None,
+) -> tuple[DailySession, List[SessionItem]]:
+    session_id = f"{session_date}-{user_id}-g{group_index:03d}-{group_type}"
     session = DailySession(
         id=session_id,
         user_id=user_id,
@@ -103,6 +218,9 @@ def build_today_response(
         status="in_progress",
         created_at=_now_iso(),
         completed_at=None,
+        group_index=group_index,
+        group_type=group_type,
+        source_session_item_ids=source_session_item_ids or [],
     )
     create_session(conn, session)
 
@@ -122,14 +240,7 @@ def build_today_response(
         )
         create_session_item(conn, item)
         items.append(item)
-
-    return _build_response(
-        session=session,
-        items=items,
-        daily_word_count=daily_word_count,
-        conn=conn,
-        accent=accent,
-    )
+    return session, items
 
 
 def _build_distractor_pool(conn, accent: str) -> List[str]:
@@ -183,9 +294,14 @@ def _build_response(
 
     return {
         "session_id": session.id,
+        "group_id": session.id,
+        "group_index": session.group_index,
+        "group_type": session.group_type,
         "date": session.session_date,
         "primary_accent": session.primary_accent,
         "daily_word_count": daily_word_count,
+        "word_count": len(item_dicts),
         "status": session.status,
+        "source_session_item_ids": session.source_session_item_ids,
         "items": item_dicts,
     }
