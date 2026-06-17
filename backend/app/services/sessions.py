@@ -17,9 +17,12 @@ from app.services.db_store import (
     get_active_session_for_date,
     get_next_session_group_index,
     get_recent_incorrect_attempt_sources,
+    get_session_by_id,
+    get_session_incorrect_attempt_sources,
     get_session_items,
     get_settings,
     get_word_by_id,
+    upsert_settings,
 )
 from app.services.questions import generate_question
 from app.services.scheduler import select_daily_words
@@ -75,6 +78,10 @@ def build_today_response(
             daily_word_count=daily_word_count,
             conn=conn,
             accent=accent,
+            origin="normal_resume",
+            source_scope="normal_current",
+            focus_phonemes=settings.focus_phonemes,
+            action_label=f"Resume Group {existing.group_index}",
         )
 
     # ---- create new session -------------------------------------------------
@@ -112,7 +119,29 @@ def build_today_response(
         daily_word_count=daily_word_count,
         conn=conn,
         accent=accent,
+        origin="normal_start",
+        source_scope="normal_current",
+        focus_phonemes=settings.focus_phonemes,
+        action_label=f"Start Group {session.group_index}",
     )
+
+
+def build_next_normal_group_response(
+    conn,
+    *,
+    user_id: str = "default",
+    accent: str = "US",
+) -> dict:
+    """Resume the active normal group or create the next normal same-day group."""
+    response = build_today_response(conn, user_id=user_id, accent=accent)
+    if "error" in response:
+        return response
+    if response.get("origin") == "normal_start":
+        response["origin"] = "normal_next"
+    response["source_scope"] = "normal_next"
+    if response.get("origin") == "normal_next":
+        response["action_label"] = f"Start Group {response['group_index']}"
+    return response
 
 
 def build_recent_mistake_review_response(
@@ -132,7 +161,12 @@ def build_recent_mistake_review_response(
         }
 
     existing = get_active_session_for_date(
-        conn, user_id, session_date, accent, "mistake_review"
+        conn,
+        user_id,
+        session_date,
+        accent,
+        "mistake_review",
+        source_scope="recent_global",
     )
     if existing is not None:
         items = get_session_items(conn, existing.id)
@@ -142,6 +176,9 @@ def build_recent_mistake_review_response(
             daily_word_count=settings.daily_word_count,
             conn=conn,
             accent=accent,
+            origin="recent_review_resume",
+            source_scope="recent_global",
+            action_label=f"Resume Review Group {existing.group_index}",
         )
 
     sources = get_recent_incorrect_attempt_sources(
@@ -156,6 +193,8 @@ def build_recent_mistake_review_response(
             "status": "empty",
             "items": [],
             "source_count": 0,
+            "origin": "recent_review_empty",
+            "source_scope": "recent_global",
             "detail": "No recent incorrect attempts are available for review.",
         }
 
@@ -173,6 +212,8 @@ def build_recent_mistake_review_response(
             "status": "empty",
             "items": [],
             "source_count": 0,
+            "origin": "recent_review_empty",
+            "source_scope": "recent_global",
             "detail": "No reviewable words are available for recent mistakes.",
         }
 
@@ -186,6 +227,7 @@ def build_recent_mistake_review_response(
         group_index=group_index,
         group_type="mistake_review",
         source_session_item_ids=source_item_ids,
+        source_scope="recent_global",
     )
     response = _build_response(
         session=session,
@@ -193,8 +235,236 @@ def build_recent_mistake_review_response(
         daily_word_count=settings.daily_word_count,
         conn=conn,
         accent=accent,
+        origin="recent_review_start",
+        source_scope="recent_global",
+        action_label=f"Start Recent Review Group {session.group_index}",
     )
     response["source_count"] = len(source_item_ids)
+    return response
+
+
+def build_current_group_review_response(
+    conn,
+    *,
+    source_group_id: str,
+    user_id: str = "default",
+    accent: str = "US",
+    limit: int = 10,
+) -> dict:
+    """Create a review group from wrong answers in one source group."""
+    session_date = _today_date_str()
+    settings = get_settings(conn, user_id)
+    if settings is None:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Settings not initialised. Run import_words.py first.",
+        }
+
+    source_session = get_session_by_id(conn, source_group_id)
+    if source_session is None:
+        return {
+            "error": "GROUP_NOT_FOUND",
+            "detail": f"No practice group found for {source_group_id}.",
+        }
+
+    sources = get_session_incorrect_attempt_sources(
+        conn,
+        user_id=user_id,
+        primary_accent=accent,
+        session_id=source_group_id,
+        limit=min(max(limit, 1), settings.daily_word_count),
+    )
+    if not sources:
+        return {
+            "group_type": "mistake_review",
+            "status": "empty",
+            "items": [],
+            "source_count": 0,
+            "origin": "current_group_review_empty",
+            "source_scope": "current_group",
+            "source_group_id": source_group_id,
+            "detail": "No incorrect answers are available for this group.",
+        }
+
+    words = []
+    source_item_ids = []
+    for source in sources:
+        word = get_word_by_id(conn, source["word_id"])
+        if word is not None:
+            words.append(word)
+            source_item_ids.append(source["session_item_id"])
+
+    if not words:
+        return {
+            "group_type": "mistake_review",
+            "status": "empty",
+            "items": [],
+            "source_count": 0,
+            "origin": "current_group_review_empty",
+            "source_scope": "current_group",
+            "source_group_id": source_group_id,
+            "detail": "No reviewable words are available for this group.",
+        }
+
+    group_index = get_next_session_group_index(conn, user_id, session_date, accent)
+    existing = get_active_session_for_date(
+        conn,
+        user_id,
+        session_date,
+        accent,
+        "mistake_review",
+        source_scope="current_group",
+        source_group_id=source_group_id,
+    )
+    if existing is not None:
+        items = get_session_items(conn, existing.id)
+        response = _build_response(
+            session=existing,
+            items=items,
+            daily_word_count=settings.daily_word_count,
+            conn=conn,
+            accent=accent,
+            origin="current_group_review_resume",
+            source_scope="current_group",
+            source_group_id=source_group_id,
+            action_label=f"Resume Group {source_session.group_index} review",
+        )
+        response["source_count"] = len(existing.source_session_item_ids)
+        return response
+
+    session, items = _create_group_from_words(
+        conn,
+        words=words,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        group_index=group_index,
+        group_type="mistake_review",
+        source_session_item_ids=source_item_ids,
+        source_scope="current_group",
+        source_group_id=source_group_id,
+    )
+    response = _build_response(
+        session=session,
+        items=items,
+        daily_word_count=settings.daily_word_count,
+        conn=conn,
+        accent=accent,
+        origin="current_group_review_start",
+        source_scope="current_group",
+        source_group_id=source_group_id,
+        action_label=f"Review Group {source_session.group_index} misses",
+    )
+    response["source_count"] = len(source_item_ids)
+    return response
+
+
+def build_focused_group_response(
+    conn,
+    *,
+    focus_phonemes: List[str],
+    user_id: str = "default",
+    accent: str = "US",
+) -> dict:
+    """Save focus selection and create/resume a weak-focus practice group."""
+    session_date = _today_date_str()
+    settings = get_settings(conn, user_id)
+    if settings is None:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Settings not initialised. Run import_words.py first.",
+        }
+    settings.focus_phonemes = focus_phonemes
+    settings.updated_at = _now_iso()
+    upsert_settings(conn, settings)
+
+    existing = get_active_session_for_date(
+        conn,
+        user_id,
+        session_date,
+        accent,
+        "weak_focus",
+        source_scope="focus_selection",
+        focus_phonemes=focus_phonemes,
+    )
+    if existing is not None:
+        items = get_session_items(conn, existing.id)
+        return _build_response(
+            session=existing,
+            items=items,
+            daily_word_count=settings.daily_word_count,
+            conn=conn,
+            accent=accent,
+            origin="focus_resume",
+            source_scope="focus_selection",
+            focus_phonemes=focus_phonemes,
+            action_label=f"Resume Focus Group {existing.group_index}",
+        )
+
+    group_index = get_next_session_group_index(conn, user_id, session_date, accent)
+    seed = _seed_from_group(session_date, group_index, "weak_focus")
+    words = select_daily_words(
+        conn,
+        settings.daily_word_count,
+        accent,
+        seed=seed,
+        user_id=user_id,
+        review_strength=settings.review_strength,
+        focus_phonemes=focus_phonemes,
+    )
+    if not words:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "No usable words found. Run import_words.py first.",
+        }
+
+    session, items = _create_group_from_words(
+        conn,
+        words=words,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        group_index=group_index,
+        group_type="weak_focus",
+        source_scope="focus_selection",
+        focus_phonemes=focus_phonemes,
+    )
+    return _build_response(
+        session=session,
+        items=items,
+        daily_word_count=settings.daily_word_count,
+        conn=conn,
+        accent=accent,
+        origin="focus_start",
+        source_scope="focus_selection",
+        focus_phonemes=focus_phonemes,
+        action_label=f"Start Focus Group {session.group_index}",
+    )
+
+
+def build_clear_focus_response(
+    conn,
+    *,
+    user_id: str = "default",
+    accent: str = "US",
+) -> dict:
+    """Clear focus selection and return the current normal practice group."""
+    settings = get_settings(conn, user_id)
+    if settings is None:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Settings not initialised. Run import_words.py first.",
+        }
+    settings.focus_phonemes = []
+    settings.updated_at = _now_iso()
+    upsert_settings(conn, settings)
+
+    response = build_today_response(conn, user_id=user_id, accent=accent)
+    if "error" not in response:
+        response["origin"] = "focus_clear"
+        response["source_scope"] = "normal_current"
+        response["focus_phonemes"] = []
+        response["detail"] = "Focus selection cleared."
     return response
 
 
@@ -208,6 +478,9 @@ def _create_group_from_words(
     group_index: int,
     group_type: str,
     source_session_item_ids: Optional[List[str]] = None,
+    source_scope: Optional[str] = None,
+    source_group_id: Optional[str] = None,
+    focus_phonemes: Optional[List[str]] = None,
 ) -> tuple[DailySession, List[SessionItem]]:
     session_id = f"{session_date}-{user_id}-g{group_index:03d}-{group_type}"
     session = DailySession(
@@ -221,6 +494,9 @@ def _create_group_from_words(
         group_index=group_index,
         group_type=group_type,
         source_session_item_ids=source_session_item_ids or [],
+        source_scope=source_scope,
+        source_group_id=source_group_id,
+        focus_phonemes=focus_phonemes or [],
     )
     create_session(conn, session)
 
@@ -263,6 +539,11 @@ def _build_response(
     daily_word_count: int,
     conn,
     accent: str,
+    origin: Optional[str] = None,
+    source_scope: Optional[str] = None,
+    source_group_id: Optional[str] = None,
+    focus_phonemes: Optional[List[str]] = None,
+    action_label: Optional[str] = None,
 ) -> dict:
     """Assemble the /api/today JSON response from session + items."""
     distractor_pool = _build_distractor_pool(conn, accent)
@@ -292,7 +573,7 @@ def _build_response(
             }
         )
 
-    return {
+    response = {
         "session_id": session.id,
         "group_id": session.id,
         "group_index": session.group_index,
@@ -305,3 +586,21 @@ def _build_response(
         "source_session_item_ids": session.source_session_item_ids,
         "items": item_dicts,
     }
+    if origin is not None:
+        response["origin"] = origin
+    response_source_scope = source_scope if source_scope is not None else session.source_scope
+    response_source_group_id = (
+        source_group_id if source_group_id is not None else session.source_group_id
+    )
+    response_focus_phonemes = focus_phonemes
+    if response_focus_phonemes is None and session.focus_phonemes:
+        response_focus_phonemes = session.focus_phonemes
+    if response_source_scope is not None:
+        response["source_scope"] = response_source_scope
+    if response_source_group_id is not None:
+        response["source_group_id"] = response_source_group_id
+    if response_focus_phonemes is not None:
+        response["focus_phonemes"] = response_focus_phonemes
+    if action_label is not None:
+        response["action_label"] = action_label
+    return response

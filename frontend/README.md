@@ -2,6 +2,18 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## M7 Walkthrough
+
+Run the M7 v2 learner workflow harness from this directory:
+
+```bash
+pnpm test:e2e:m7
+```
+
+The harness uses `@playwright/test`, Chromium, a mobile viewport, and route-mocked disposable API data. It does not connect to the local backend or mutate `backend/tiny_ipa.sqlite`. Failure screenshots, traces, and videos are written under `test-results/m7-walkthrough`; the HTML report is written under `playwright-report/m7`.
+
+Some contract assertions are marked as expected failures until the later M7 v2 implementation issues add the scoped next-group, current-group review, recent-review, and focused-practice behavior. Tooling/bootstrap failures are still surfaced by the passing smoke and summary tests.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)

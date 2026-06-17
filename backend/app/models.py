@@ -83,6 +83,9 @@ class DailySession:
     group_index: int = 1
     group_type: str = "normal"
     source_session_item_ids: List[str] = field(default_factory=list)
+    source_scope: Optional[str] = None
+    source_group_id: Optional[str] = None
+    focus_phonemes: List[str] = field(default_factory=list)
 
 
 @dataclass

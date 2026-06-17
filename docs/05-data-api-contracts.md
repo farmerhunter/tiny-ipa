@@ -157,6 +157,90 @@ GET /api/health
 }
 ```
 
+## M7 v2 learner workflow contract
+
+M7 v2 defines the practice loop from the learner's point of view before adding
+more endpoints or UI buttons. The app should make the next action obvious:
+
+```text
+Start normal group
+-> answer all items
+-> read current group result
+-> choose next normal group, review current misses, review recent mistakes,
+   choose focus, or stop
+```
+
+The learner goal is to complete multiple short groups in one sitting, use wrong
+answers immediately, and optionally focus a weak sound without typing raw IPA.
+The backend may still use `session_items`, `attempts`, and `phoneme_stats` as
+the source of truth; the UI and API must expose enough group metadata to explain
+why the learner is seeing a group.
+
+### User-facing states
+
+| State | Meaning | Primary visible actions |
+| --- | --- | --- |
+| Entry/home | No active card is being answered. The app can resume an active group or start today's first normal group. | Start/resume practice, Progress, Settings |
+| Active normal group | Learner is answering a standard 10-word group. | Answer item, listen/replay where available |
+| Group completed | All items in the current group are answered. Current-group results remain visible while follow-up actions run. | Start next 10-word group, review misses from this group, review recent mistakes, choose focus, stop |
+| Current-group review | Learner is reviewing words missed in the just-finished group. | Answer review items, return to summary when done |
+| Recent-mistake review | Learner is reviewing recent missed words across earlier groups. | Answer review items, handle empty queue |
+| Choose focus | Learner selects a weak phoneme from Progress or another guided list. | Start focused group, clear focus, return |
+| Focused group | Learner practices words weighted toward selected phoneme(s). | Answer items, clear focus after completion |
+| Stopped/returning | Learner intentionally leaves practice. Returning should resume an active group or show a clear start action. | Resume group, start next group, Progress |
+| Empty review | No reviewable mistakes exist for the selected review scope. | Return to summary, start next group |
+| Error/retry | A backend or network action failed. The previous meaningful state stays visible. | Retry action, return, start next group if safe |
+
+### Action semantics
+
+| Action | Scope | Required behavior | Copy obligation |
+| --- | --- | --- | --- |
+| Start/resume practice | Active normal group or first normal group for today | Resume an unfinished normal group; otherwise create the first normal group. | Say whether the learner is resuming or starting. |
+| Start next 10-word group | Next normal group after a completed normal group | Create the next normal group if no active normal group exists; if one exists, resume it and say so. | Do not label this only as `Continue`; name it as next group/resume. |
+| Review misses from this group | Current completed group | Create a review group from the current group's wrong answers only. Empty state is non-error. | Label as current-group review, not global review. |
+| Review recent mistakes | Global recent history | Create a review group from recent wrong attempts across groups. Empty state is non-error. | Label as recent mistakes and keep it distinct from current-group misses. |
+| Focus weak phoneme | Selected phoneme(s) | Store or pass the selected focus and offer focused practice. M7 v2 primary behavior is to start a dedicated focused group from this action. | Explain which phoneme is selected and that the next group focuses on it. |
+| Start focused group | Selected focus | Create or resume a `weak_focus` group using scheduler focus weighting. | Name the group as focused and show focus chips. |
+| Clear focus | Current selected focus | Remove selected focus and return future practice to normal weighting. | Make return to normal practice explicit. |
+| Stop | Current known state | Leave practice without losing a resumable active group. | Prefer `Back to Progress` or `Return home` over generic `Stop` when possible. |
+| Settings | User preferences | Keep raw IPA focus input out of the primary learner path; if retained, mark it advanced/debug. | Words count is `words per group`, not words per day. |
+
+### State transition table
+
+| Current UI state | Domain state | User action | Command/query | Next domain state | Next UI state | User-facing copy | Failure/empty state |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Entry/home | No active group or unknown | Start practice | `GET /api/today` or future explicit start query | Active normal group | Active normal group | `Group 1`, `10 words` | Show setup/import error with retry |
+| Entry/home | Active normal group exists | Resume practice | `GET /api/today` | Same active normal group | Active normal group | `Resume Group N` | Keep entry/home actions visible |
+| Active normal group | Pending items remain | Submit answer | `POST /api/attempt` | Attempt recorded; next item pending | Active normal group | Feedback on current answer | Keep item visible with retry |
+| Active normal group | Last item answered | Submit answer | `POST /api/attempt` | Group completed | Group completed | Score, current misses, target sounds, next choices | Keep summary if follow-up load fails |
+| Group completed | Completed normal group with misses | Review this group | #136 current-group review action | Review group sourced from current group | Current-group review | `Review misses from Group N` | `No misses in this group` |
+| Group completed | Completed normal group | Review recent mistakes | `POST /api/review/recent-mistakes` or #136 replacement | Recent-mistake review group | Recent-mistake review | `Review recent mistakes` | `No recent mistakes ready` |
+| Group completed | Completed normal group | Start next group | #136 next-normal action | Next normal group or resumed intended active group | Active normal group | `Start Group N+1` or `Resume Group N+1` | Keep completion summary with retry |
+| Group completed or Progress | Weak phoneme selected | Start focused practice | #136 focus action | Active `weak_focus` group | Focused group | `Focused group: /.../` | Keep focus choice visible with retry |
+| Focused group completed | Focus remains selected | Clear focus | #136 clear-focus action or settings update | No active focus | Group completed or Progress | `Back to normal practice` | Show clear failure without losing summary |
+| Any review/focused group | Learner leaves practice | Stop/return | UI navigation only | Active group may remain resumable | Progress or home | `Return to Progress` / `Resume later` | N/A |
+| Any action state | Request fails | Retry | Same command/query | Prior domain state preserved | Prior meaningful UI state | Inline failure near action | Do not replace summary with generic unavailable state |
+
+### Walkthrough scenarios for M7 v2
+
+#135 must automate these scenarios with Playwright in a mobile viewport:
+
+1. Start a normal group, answer all items, and reach a completion summary that
+   names the group, score, current misses, and next actions.
+2. Start the next normal group from the summary and verify the UI shows a new or
+   explicitly resumed intended group, not an ambiguous repeat.
+3. Miss at least one answer, choose current-group review, and verify the review
+   items come from that completed group.
+4. Choose recent-mistake review and verify it is labeled separately from
+   current-group review, including the empty state.
+5. Select a weak phoneme without raw IPA typing, start a focused group, verify
+   focus visibility, then clear focus and return to normal practice.
+6. Trigger a follow-up action failure in a controlled fixture and verify the
+   completion summary remains visible with an inline retry/error message.
+
+The final M7 v2 readiness review (#139) must prove these walkthroughs pass
+against the M7 v2 integration branch, not only route-mocked fixtures.
+
 ### Today
 
 ```http
@@ -169,8 +253,16 @@ GET /api/today
 - `session_id` 仍是 attempt 提交使用的持久 session id；
 - `group_id` 是 `session_id` 的语义别名，供 UI 用 group 语言表达；
 - `group_index` 是同一 `user_id`/`date`/`primary_accent` 下的递增序号；
-- `group_type` 当前实现 `normal` 和 `mistake_review`；后续弱音素入口使用
-  `weak_focus`，但仍复用同一 session_items/attempts/phoneme_stats 路径；
+- `group_type` 当前实现 `normal`、`mistake_review` 和 `weak_focus`，均复用
+  同一 session_items/attempts/phoneme_stats 路径；
+- `origin` 说明 action reason，例如 `normal_start`、`normal_resume`、
+  `normal_next`、`current_group_review_start`、`recent_review_start`、
+  `focus_start`、`focus_clear`；
+- `source_scope` 说明数据来源范围，例如 `normal_current`、`normal_next`、
+  `current_group`、`recent_global`、`focus_selection`；
+- `source_group_id` 仅 current-group review 使用，指向被复习的 source group；
+- `focus_phonemes` 在 focus 影响选词或清除 focus 时返回；
+- `action_label` 是后端状态驱动的短文案提示，前端可按产品语气改写；
 - `daily_word_count` 保留为兼容字段，M7 UI 文案应理解为 words per group；
 - `word_count` 是本响应实际返回的 item 数；
 - `source_session_item_ids` 仅 review group 使用，用于追踪错题来源。
@@ -190,6 +282,9 @@ active normal group，则创建下一个 normal group。不同 group 共用
   "group_type": "normal",
   "date": "2026-06-06",
   "primary_accent": "US",
+  "origin": "normal_start",
+  "source_scope": "normal_current",
+  "action_label": "Start Group 1",
   "daily_word_count": 10,
   "word_count": 10,
   "status": "in_progress",
@@ -215,6 +310,32 @@ active normal group，则创建下一个 normal group。不同 group 共用
 
 推荐服务端判题，不在生产响应中返回 `answer`。
 
+### Next normal group
+
+```http
+POST /api/practice/next-normal
+```
+
+显式从完成摘要进入下一个 normal group。若当天已经有 active normal group，
+返回该 group 并标记 `origin = "normal_resume"`；否则创建递增
+`group_index` 的 normal group 并标记 `origin = "normal_next"`、
+`source_scope = "normal_next"`。该 endpoint 用于避免 UI 把“继续”误解为重复
+当前 group。
+
+### Current-group review
+
+```http
+POST /api/review/current-group
+Content-Type: application/json
+
+{"group_id": "2026-06-06-default-g001-normal"}
+```
+
+从指定 source group 中的 wrong attempts 创建 `mistake_review` group。它只使用
+该 group 的错题，返回 `source_scope = "current_group"`、
+`source_group_id = <group_id>` 和 `source_session_item_ids`。没有错题时返回
+stable empty response，不视为错误；未知 group id 返回 `GROUP_NOT_FOUND`。
+
 ### Recent mistake review group
 
 ```http
@@ -235,6 +356,8 @@ attempt 查询错词，去重后映射回 `words`/`session_items`，并创建
   "status": "empty",
   "items": [],
   "source_count": 0,
+  "origin": "recent_review_empty",
+  "source_scope": "recent_global",
   "detail": "No recent incorrect attempts are available for review."
 }
 ```
@@ -246,10 +369,14 @@ attempt 查询错词，去重后映射回 `words`/`session_items`，并创建
 ### Weak phoneme focused group
 
 M7 P1 的 Progress 入口可以创建 `group_type = "weak_focus"` 的 practice group。
-它应接收用户选择的 phoneme symbols/ids，并调用现有 scheduler focus weighting；
+`POST /api/practice/focus` 接收 `{"focus_phonemes": [...]}`，保存 focus selection
+并调用现有 scheduler focus weighting；
 不应新建复习统计表，也不应绕开 `phoneme_stats`。若当天已有 active
-`weak_focus` group，API 应恢复该 group；完成后下一次显式 action 才创建新
-focused group。
+`weak_focus` group 且 focus selection 相同，API 应恢复该 group；不同 focus
+selection 会创建新的 clearly scoped `weak_focus` group，避免把旧 focus group
+误报成新的 selection。完成后下一次显式 action 才创建新 focused group。
+`POST /api/practice/clear-focus` 清空 selection，并返回当前 normal practice
+state，标记 `origin = "focus_clear"`、`focus_phonemes = []`。
 
 ### M7 minimum smoke path
 
