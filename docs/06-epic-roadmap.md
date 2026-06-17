@@ -227,28 +227,33 @@ Dependency model:
 
 Goal: turn the current daily quiz into a repeatable learning loop with multiple short practice groups, visible mistake follow-up, and user-understandable weak-phoneme practice.
 
-Expected child issue areas:
+M7 v1 implemented the first backend and UI slices, but hands-on trial showed
+the product workflow was not complete. M7 v2 uses scenario-first delivery:
+the learner workflow contract and Playwright walkthrough gate must exist before
+additional API/UI implementation is released.
+
+Expected child issue areas for M7 v2:
 
 ```text
-practice group model and same-day multi-group flow
-continue with another 10-word group after completion
-recent mistake review queue
-wrong-word and weak-phoneme summary after each group
-lightweight answer explanation for missed items
-Progress page actions for weak phonemes
-focus_phonemes UX replacement with selectable chips/actions
-settings wording: words per group rather than words per day
+end-to-end learner workflow contract with state transition table
+Playwright mobile walkthrough harness for the accepted contract
+explicit next-group, current-group review, recent-review, and focus API semantics
+Today practice workflow UI rebuilt around scoped actions and clear copy
+Progress/Settings focus workflow without raw IPA typing in the primary path
+scenario readiness review with browser evidence
 ```
 
 Acceptance:
 
 ```text
+learner can understand the loop without external docs
 learner can complete multiple 10-word groups in one day
-completed group summary shows wrong words and implicated phonemes
-learner can start a review group from recent mistakes
+completed group summary distinguishes current-group misses from broader review suggestions
+learner can review current-group misses and recent/global mistakes as separate concepts
 weak phonemes can be selected from Progress without typing raw IPA text
-focus_phonemes behavior is visible in the next generated group
+focused practice entry and clear-focus behavior are visible and testable
 existing phoneme_stats and scheduler weighting remain the source of review behavior
+Playwright walkthrough passes in a mobile viewport before M7 v2 acceptance
 ```
 
 ## M8：Level-based Content Expansion and Core 1000 Rebalance
