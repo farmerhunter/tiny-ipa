@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${GH_REPO:-farmerhunter/tiny-ipa}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+gh_retry="$root/tools/agents/gh-retry"
+source "$root/tools/agents/_lib.sh"
+repo="$(agent_repo)"
+check_project=0
 
 usage() {
   cat <<'USAGE'
 Usage:
-  tools/agents/agent-permission-smoke
+  tools/agents/agent-permission-smoke [--project]
 
 Checks whether the current agent turn can perform the basic non-mutating
 permissions needed before issue pickup:
@@ -15,6 +18,7 @@ permissions needed before issue pickup:
 - read the GitHub API through gh
 - read the remote Git repository
 - write temporary Git metadata in this local checkout
+- optionally validate Project v2 helper config with --project
 
 It does not mutate GitHub, create branches, push, or change Project state.
 USAGE
@@ -24,10 +28,18 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
 fi
-if [[ $# -gt 0 ]]; then
-  usage >&2
-  exit 2
-fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --project)
+      check_project=1
+      shift
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
 
 failures=0
 
@@ -44,8 +56,12 @@ check() {
   fi
 }
 
-check "GitHub API read via gh" gh api "repos/$repo" --jq .full_name
-check "remote Git read" git ls-remote --heads origin HEAD
+check "GitHub API read via gh for $repo" "$gh_retry" gh api "repos/$repo" --jq .full_name
+check "remote Git read" "$gh_retry" git ls-remote --heads origin HEAD
+
+if [[ "$check_project" -eq 1 ]]; then
+  check "Project v2 helper config" "$root/tools/agents/agent-project-status" --check-config
+fi
 
 git_dir="$(git -C "$root" rev-parse --git-dir)"
 case "$git_dir" in

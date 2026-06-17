@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${GH_REPO:-farmerhunter/tiny-ipa}"
 limit="${AGENT_AUDIT_LIMIT:-100}"
 comments_limit="${AGENT_COMMENTS_LIMIT:-100}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 gh_retry="$root/tools/agents/gh-retry"
 source "$root/tools/agents/_lib.sh"
+repo="$(agent_repo)"
 
 usage() {
   cat <<'USAGE'

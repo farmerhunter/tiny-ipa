@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+fixture_root="$tmp_dir/fixture-root"
+mkdir -p "$fixture_root/tools/agents"
+ln -s "$root/tools/agents/_lib.sh" "$fixture_root/tools/agents/_lib.sh"
+ln -s "$root/tools/agents/agent-comment" "$fixture_root/tools/agents/agent-comment"
+ln -s "$root/tools/agents/agent-inbox" "$fixture_root/tools/agents/agent-inbox"
+ln -s "$root/tools/agents/agent-pickup" "$fixture_root/tools/agents/agent-pickup"
+ln -s "$root/tools/agents/agent-project-status" "$fixture_root/tools/agents/agent-project-status"
+ln -s "$root/tools/agents/agent-role-config" "$fixture_root/tools/agents/agent-role-config"
+
+cat > "$tmp_dir/portable-role-routing.conf" <<'CONFIG'
+AGENT_ROLES=(planner builder reviewer user)
+AGENT_ROLE_LABEL_planner="needs:planner"
+AGENT_ROLE_LABEL_builder="needs:builder"
+AGENT_ROLE_LABEL_reviewer="needs:reviewer"
+AGENT_ROLE_LABEL_user="needs:user"
+AGENT_PRIMARY_NEXT_LABELS=(needs:planner needs:builder needs:reviewer needs:user blocked)
+CONFIG
+
+cat > "$fixture_root/tools/agents/gh-retry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+
+issue_json() {
+  jq -n '{
+    number: 42,
+    title: "Portable builder task",
+    state: "open",
+    html_url: "https://example.test/issues/42",
+    body: "## Execution Contract\n\nOwner role: builder\nReview role: reviewer\nAcceptance role: planner\nBranch strategy: issue branch\nBase branch: `feature/base`\nTarget PR base: `feature/base`\nDepends on: none\nCompletion handoff: to:reviewer\n",
+    labels: [{name: "type:task"}, {name: "needs:builder"}]
+  }'
+}
+
+case "$*" in
+  *"POST"*"repos/example-org/example-repo/issues/42/comments"*)
+    jq -n '{html_url:"https://example.test/issues/42#comment"}'
+    ;;
+  *"repos/example-org/example-repo/issues/42/comments"*)
+    printf '[]\n'
+    ;;
+  *"repos/example-org/example-repo/issues/42"*)
+    issue_json
+    ;;
+  *"repos/example-org/example-repo/issues"*"state=open"*)
+    cat <<'JSON'
+[
+  {
+    "number": 42,
+    "title": "Portable builder task",
+    "html_url": "https://example.test/issues/42",
+    "updated_at": "2026-06-17T00:00:00Z",
+    "labels": [{"name": "type:task"}, {"name": "needs:builder"}]
+  },
+  {
+    "number": 43,
+    "title": "Portable review task",
+    "html_url": "https://example.test/issues/43",
+    "updated_at": "2026-06-17T00:00:00Z",
+    "labels": [{"name": "type:task"}, {"name": "needs:reviewer"}]
+  }
+]
+JSON
+    ;;
+  *)
+    printf 'unexpected fake gh call: %s\n' "$*" >&2
+    exit 21
+    ;;
+esac
+SH
+chmod +x "$fixture_root/tools/agents/gh-retry"
+
+body_file="$tmp_dir/body.md"
+printf 'portable comment body\n' > "$body_file"
+
+export GH_REPO="example-org/example-repo"
+export AGENT_ROLE_ROUTING_CONFIG="$tmp_dir/portable-role-routing.conf"
+export FAKE_GH_LOG="$tmp_dir/fake-gh.log"
+
+role_output="$("$fixture_root/tools/agents/agent-role-config")"
+grep -Fq "Repository: example-org/example-repo (GH_REPO)" <<< "$role_output"
+grep -Fq "builder=needs:builder" <<< "$role_output"
+
+inbox_output="$("$fixture_root/tools/agents/agent-inbox" all)"
+grep -Fq "== needs:builder ==" <<< "$inbox_output"
+grep -Fq "#42 Portable builder task" <<< "$inbox_output"
+grep -Fq "== needs:reviewer ==" <<< "$inbox_output"
+grep -Fq "#43 Portable review task" <<< "$inbox_output"
+
+pickup_output="$("$fixture_root/tools/agents/agent-pickup" 42 --role builder)"
+grep -Fq "Role: builder (needs:builder)" <<< "$pickup_output"
+grep -Fq "Mode: dry-run" <<< "$pickup_output"
+grep -Fq "Gate: startable" <<< "$pickup_output"
+grep -Fq "remove needs:builder" <<< "$pickup_output"
+
+comment_output="$("$fixture_root/tools/agents/agent-comment" issue 42 --body-file "$body_file" --apply)"
+grep -Fq "Posted comment: https://example.test/issues/42#comment" <<< "$comment_output"
+
+if grep -Fq "farmerhunter/tiny-ipa" "$FAKE_GH_LOG"; then
+  printf 'portable fixture unexpectedly called Tiny IPA repo\n' >&2
+  exit 1
+fi
+
+if AGENT_REPO="example-org/example-repo" "$fixture_root/tools/agents/agent-project-status" --check-config >/dev/null 2>&1; then
+  printf 'Project config check unexpectedly passed without Project env\n' >&2
+  exit 1
+fi
+
+project_output="$(
+  AGENT_REPO="example-org/example-repo" \
+  GH_PROJECT_OWNER="example-org" \
+  GH_PROJECT_NUMBER="7" \
+  GH_PROJECT_ID="PVT_example" \
+  GH_PROJECT_STATUS_FIELD_ID="PVTSSF_example" \
+    "$fixture_root/tools/agents/agent-project-status" --check-config
+)"
+grep -Fq "Project v2 config ok for example-org/example-repo" <<< "$project_output"
+
+printf 'portable helper fixture checks passed\n'
