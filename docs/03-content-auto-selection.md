@@ -339,3 +339,75 @@ some high-frequency candidates are acronym-like or too abstract for learners
 meaning_zh remains absent in generated candidates and needs curation
 ipa-dict and wordfreq source/license notes must stay in generated reports
 ```
+
+## M8 Core 1000 candidate generation and rebalance report
+
+#124 extends `backend/scripts/select_candidates.py` so the same reproducible
+pipeline still writes Core 100 / Core 300 outputs and additionally writes:
+
+```text
+core_1000_candidates.json
+core_1000_report.json
+```
+
+Recommended dry-run command:
+
+```bash
+uv run --project backend --extra content python backend/scripts/select_candidates.py \
+  --top-n 5000 \
+  --ipa-dict-dir content/sources/ipa-dict \
+  --selection-config content/selection_config.json \
+  --core-300-reference content/core_300_words.json \
+  --output-dir /tmp/tiny-ipa-core1000
+```
+
+The generated output is candidate/report evidence only. It must not be imported
+or promoted as runtime Mid content until #125 curation accepts it.
+
+Core 1000 selection is syllable-aware. It uses bucket targets instead of taking
+the current `candidate_score` top 1000 directly:
+
+```text
+one: 250
+two: 500
+three_plus: 250
+```
+
+Observed #124 dry-run evidence:
+
+```text
+input words: 5000
+joined US IPA: 4930
+joined UK IPA: 4302
+after hard filters: 3792
+Core 100 generated: 100
+Core 300 generated: 300
+Core 1000 generated: 1000
+Core 1000 syllables: one=250, two=500, three_plus=250
+Core 1000 multi-syllable: 750 / 1000 = 75.0%
+Accepted Core 300 reference multi-syllable: 206 / 300 = 68.7%
+```
+
+`core_1000_report.json` also preserves:
+
+```text
+rejection_reasons
+candidate_pool_syllable_distribution
+naive_score_top1000_syllable_distribution
+accepted Core 300 reference distribution
+generated Core 300 distribution
+Core 1000 phoneme coverage
+top missing phonemes
+sample candidates by syllable bucket
+quality review flags
+runtime_content_promoted = false
+```
+
+#125 curation recommendation:
+
+```text
+Use core_1000_candidates.json as the Mid curation starting point.
+Review acronym-like/no-vowel words, very short words, missing UK IPA entries,
+missing meaning_zh, child/learner appropriateness, and known STRUT/r-colored
+vowel override risks before promoting any runtime Core 1000 file.
+```
