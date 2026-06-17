@@ -267,3 +267,75 @@ license_summary
 3. 稀缺音位如 `/ð/`、`/ʒ/`、`/ɚ/` 是否覆盖不足？
 4. 候选词是否适合儿童和初学者？
 5. License metadata 是否足够清楚？
+
+## M8 Core 1000 source feasibility evidence
+
+#123 re-ran the source feasibility question for Mid/Core 1000 as a read-only
+probe over the existing generated candidate pool and curated Core 300 runtime set:
+
+```bash
+python3 backend/scripts/probe_core1000_feasibility.py
+python3 backend/scripts/probe_core1000_feasibility.py --json
+```
+
+The probe does not write generated content and does not promote a Core 1000
+runtime set. It estimates syllable count from IPA vowel nuclei, which is good
+enough for source selection evidence but not a final learner-facing
+syllabification model.
+
+Observed evidence from the checked-in `content/generated/candidate_words.json`
+and `content/core_300_words.json`:
+
+```text
+candidate_pool_count: 3792
+candidate_pool_syllables: one=1603, two=1787, three_plus=402
+candidate_pool_multisyllable_count: 2189
+core300_runtime_count: 300
+core300_syllables: one=94, two=135, three_plus=71
+naive_score_top1000_syllables: one=909, two=90, three_plus=1
+top1000_traceability gaps: missing_ipa_us=0, missing_source_ipa_us=0,
+  missing_source_frequency=0, missing_license_notes=0, missing_uk_ipa=71
+```
+
+Recommendation for #124:
+
+```text
+Proceed with the existing wordfreq + open-dict-data/ipa-dict pipeline.
+Add syllable-aware Core 1000 ranking/rebalance reports instead of taking the
+current candidate_score order directly.
+Keep CMUdict as an optional US-only cross-check/fallback, not the primary Mid
+source, unless #124 adds an ARPABET-to-IPA conversion gate and UK/accent
+traceability plan.
+```
+
+Why not switch primary source to CMUdict for #124:
+
+```text
+CMUdict has permissive source terms and is useful for US pronunciation
+cross-checking, but it is ARPABET and US-only. Making it primary would add
+conversion risk and would not solve UK/accent metadata. The current ipa-dict
+path already carries direct US/UK IPA fields and source metadata.
+```
+
+Source/license traceability notes:
+
+```text
+ipa-dict: https://github.com/open-dict-data/ipa-dict
+  repository says MIT unless otherwise specified; English US/UK credits include
+  derived source notes that generated reports should preserve.
+wordfreq: https://github.com/rspeer/wordfreq
+  code is Apache-2.0; NOTICE documents data attribution/share-alike details.
+CMUdict: https://github.com/cmusphinx/cmudict
+  permissive CMU source license with origin acknowledgement request; US ARPABET only.
+```
+
+Residual risks for #124/#125:
+
+```text
+naive candidate_score order underweights multi-syllable words
+syllable counts are heuristic IPA vowel-nucleus estimates
+STRUT and r-colored vowels already required manual overrides in Core 100/300
+some high-frequency candidates are acronym-like or too abstract for learners
+meaning_zh remains absent in generated candidates and needs curation
+ipa-dict and wordfreq source/license notes must stay in generated reports
+```
