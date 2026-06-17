@@ -74,7 +74,10 @@ TABLES_DDL: List[str] = [
         completed_at    TEXT,
         group_index     INTEGER NOT NULL DEFAULT 1,
         group_type      TEXT    NOT NULL DEFAULT 'normal',
-        source_session_item_ids TEXT NOT NULL DEFAULT '[]'
+        source_session_item_ids TEXT NOT NULL DEFAULT '[]',
+        source_scope     TEXT,
+        source_group_id  TEXT,
+        focus_phonemes   TEXT NOT NULL DEFAULT '[]'
     )
     """,
     # ------------------------------------------------------------------
@@ -184,6 +187,15 @@ def ensure_daily_sessions_schema(conn: sqlite3.Connection) -> None:
     if "source_session_item_ids" not in columns:
         conn.execute(
             "ALTER TABLE daily_sessions ADD COLUMN source_session_item_ids "
+            "TEXT NOT NULL DEFAULT '[]'"
+        )
+    if "source_scope" not in columns:
+        conn.execute("ALTER TABLE daily_sessions ADD COLUMN source_scope TEXT")
+    if "source_group_id" not in columns:
+        conn.execute("ALTER TABLE daily_sessions ADD COLUMN source_group_id TEXT")
+    if "focus_phonemes" not in columns:
+        conn.execute(
+            "ALTER TABLE daily_sessions ADD COLUMN focus_phonemes "
             "TEXT NOT NULL DEFAULT '[]'"
         )
 

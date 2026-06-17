@@ -72,6 +72,11 @@ export interface TodayResponse {
   group_id?: string;
   group_index?: number;
   group_type?: string;
+  origin?: string;
+  source_scope?: string;
+  source_group_id?: string;
+  focus_phonemes?: string[];
+  action_label?: string;
   date: string;
   primary_accent: string;
   daily_word_count: number;
@@ -92,8 +97,56 @@ export async function fetchToday(): Promise<TodayResponse> {
   return res.json();
 }
 
+export async function startNextNormalGroup(): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/practice/next-normal`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function startCurrentGroupReview(
+  groupId: string,
+): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/review/current-group`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ group_id: groupId }),
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
 export async function startRecentMistakeReview(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/review/recent-mistakes`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function startFocusedPractice(
+  focusPhonemes: string[],
+): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/practice/focus`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ focus_phonemes: focusPhonemes }),
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function clearPracticeFocus(): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/practice/clear-focus`, {
     method: "POST",
   });
   if (!res.ok) {

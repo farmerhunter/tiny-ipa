@@ -248,6 +248,30 @@ class TestTodayPersistence:
         assert second["session_id"] != first["session_id"]
         assert second["group_index"] == 2
 
+    def test_next_normal_action_reports_intended_group(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute("UPDATE settings SET daily_word_count = 1 WHERE user_id = 'default'")
+        conn.commit()
+        conn.close()
+
+        first = client.get("/api/today").json()
+        item = first["items"][0]
+        client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": item["display_ipa"],
+        })
+
+        resp = client.post("/api/practice/next-normal")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["session_id"] != first["session_id"]
+        assert data["group_index"] == 2
+        assert data["group_type"] == "normal"
+        assert data["origin"] == "normal_next"
+        assert data["source_scope"] == "normal_next"
+        assert data["action_label"] == "Start Group 2"
+
     def test_recent_mistake_review_empty_queue_is_stable(self, client):
         resp = client.post("/api/review/recent-mistakes")
         assert resp.status_code == 200
@@ -256,6 +280,7 @@ class TestTodayPersistence:
         assert data["status"] == "empty"
         assert data["items"] == []
         assert data["source_count"] == 0
+        assert data["source_scope"] == "recent_global"
 
     def test_recent_mistake_review_group_reuses_attempt_path(self, client, seeded_db):
         today = client.get("/api/today").json()
@@ -273,6 +298,7 @@ class TestTodayPersistence:
 
         assert review["group_type"] == "mistake_review"
         assert review["group_index"] == 2
+        assert review["source_scope"] == "recent_global"
         assert review["source_session_item_ids"] == [missed["session_item_id"]]
         assert review["items"][0]["word_id"] == missed["word_id"]
 
@@ -305,6 +331,137 @@ class TestTodayPersistence:
 
         assert attempts["cnt"] == 2
         assert stats["attempt_count"] == 2
+
+    def test_current_group_review_uses_only_source_group_misses(self, client, seeded_db):
+        today = client.get("/api/today").json()
+        missed = today["items"][0]
+        client.post("/api/attempt", json={
+            "session_item_id": missed["session_item_id"],
+            "selected_answer": "/wrong/",
+        })
+
+        resp = client.post("/api/review/current-group", json={
+            "group_id": today["group_id"],
+        })
+        assert resp.status_code == 200
+        review = resp.json()
+
+        assert review["group_type"] == "mistake_review"
+        assert review["source_scope"] == "current_group"
+        assert review["source_group_id"] == today["group_id"]
+        assert review["source_session_item_ids"] == [missed["session_item_id"]]
+        assert review["items"][0]["word_id"] == missed["word_id"]
+
+    def test_current_group_review_empty_queue_is_non_error(self, client, seeded_db):
+        today = client.get("/api/today").json()
+        resp = client.post("/api/review/current-group", json={
+            "group_id": today["group_id"],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["group_type"] == "mistake_review"
+        assert data["status"] == "empty"
+        assert data["source_scope"] == "current_group"
+        assert data["source_group_id"] == today["group_id"]
+        assert data["source_count"] == 0
+
+    def test_current_group_review_rejects_unknown_group(self, client):
+        resp = client.post("/api/review/current-group", json={
+            "group_id": "missing-group",
+        })
+        assert resp.status_code == 404
+        assert resp.json()["detail"]["error"] == "GROUP_NOT_FOUND"
+
+    def test_current_group_review_rejects_missing_group_id(self, client):
+        resp = client.post("/api/review/current-group", json={})
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "INVALID_REVIEW_SOURCE"
+
+    def test_current_and_recent_review_scopes_do_not_reuse_each_other(
+        self, client, seeded_db
+    ):
+        today = client.get("/api/today").json()
+        missed = today["items"][0]
+        client.post("/api/attempt", json={
+            "session_item_id": missed["session_item_id"],
+            "selected_answer": "/wrong/",
+        })
+
+        current = client.post("/api/review/current-group", json={
+            "group_id": today["group_id"],
+        }).json()
+        recent = client.post("/api/review/recent-mistakes").json()
+
+        assert current["session_id"] != recent["session_id"]
+        assert current["source_scope"] == "current_group"
+        assert current["source_group_id"] == today["group_id"]
+        assert recent["source_scope"] == "recent_global"
+        assert "source_group_id" not in recent
+
+    def test_focus_action_starts_weak_focus_group_and_clear_returns_normal(
+        self, client, seeded_db
+    ):
+        conn = get_connection(seeded_db)
+        conn.execute("UPDATE settings SET daily_word_count = 1 WHERE user_id = 'default'")
+        conn.commit()
+        conn.close()
+
+        resp = client.post("/api/practice/focus", json={
+            "focus_phonemes": ["/æ/"],
+        })
+        assert resp.status_code == 200
+        focused = resp.json()
+
+        assert focused["group_type"] == "weak_focus"
+        assert focused["source_scope"] == "focus_selection"
+        assert focused["focus_phonemes"] == ["/æ/"]
+        assert [item["word_id"] for item in focused["items"]] == ["cat"]
+
+        clear_resp = client.post("/api/practice/clear-focus")
+        assert clear_resp.status_code == 200
+        cleared = clear_resp.json()
+
+        assert cleared["group_type"] == "normal"
+        assert cleared["origin"] == "focus_clear"
+        assert cleared["source_scope"] == "normal_current"
+        assert cleared["focus_phonemes"] == []
+
+    def test_focus_action_resumes_active_weak_focus_group(self, client, seeded_db):
+        first = client.post("/api/practice/focus", json={
+            "focus_phonemes": ["/æ/"],
+        }).json()
+        second = client.post("/api/practice/focus", json={
+            "focus_phonemes": ["/æ/"],
+        }).json()
+
+        assert second["session_id"] == first["session_id"]
+        assert second["origin"] == "focus_resume"
+        assert second["source_scope"] == "focus_selection"
+        assert second["focus_phonemes"] == ["/æ/"]
+
+    def test_different_focus_selection_creates_new_weak_focus_group(
+        self, client, seeded_db
+    ):
+        first = client.post("/api/practice/focus", json={
+            "focus_phonemes": ["/æ/"],
+        }).json()
+        second = client.post("/api/practice/focus", json={
+            "focus_phonemes": ["/ʃ/"],
+        }).json()
+
+        assert second["session_id"] != first["session_id"]
+        assert second["group_type"] == "weak_focus"
+        assert second["origin"] == "focus_start"
+        assert second["source_scope"] == "focus_selection"
+        assert second["focus_phonemes"] == ["/ʃ/"]
+
+    def test_focus_action_rejects_invalid_focus_payload(self, client):
+        resp = client.post("/api/practice/focus", json={
+            "focus_phonemes": [""],
+        })
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "INVALID_FOCUS"
 
     def test_fresh_today_uses_focus_phoneme_setting(self, client, seeded_db):
         conn = get_connection(seeded_db)

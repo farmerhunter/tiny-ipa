@@ -253,8 +253,16 @@ GET /api/today
 - `session_id` 仍是 attempt 提交使用的持久 session id；
 - `group_id` 是 `session_id` 的语义别名，供 UI 用 group 语言表达；
 - `group_index` 是同一 `user_id`/`date`/`primary_accent` 下的递增序号；
-- `group_type` 当前实现 `normal` 和 `mistake_review`；后续弱音素入口使用
-  `weak_focus`，但仍复用同一 session_items/attempts/phoneme_stats 路径；
+- `group_type` 当前实现 `normal`、`mistake_review` 和 `weak_focus`，均复用
+  同一 session_items/attempts/phoneme_stats 路径；
+- `origin` 说明 action reason，例如 `normal_start`、`normal_resume`、
+  `normal_next`、`current_group_review_start`、`recent_review_start`、
+  `focus_start`、`focus_clear`；
+- `source_scope` 说明数据来源范围，例如 `normal_current`、`normal_next`、
+  `current_group`、`recent_global`、`focus_selection`；
+- `source_group_id` 仅 current-group review 使用，指向被复习的 source group；
+- `focus_phonemes` 在 focus 影响选词或清除 focus 时返回；
+- `action_label` 是后端状态驱动的短文案提示，前端可按产品语气改写；
 - `daily_word_count` 保留为兼容字段，M7 UI 文案应理解为 words per group；
 - `word_count` 是本响应实际返回的 item 数；
 - `source_session_item_ids` 仅 review group 使用，用于追踪错题来源。
@@ -274,6 +282,9 @@ active normal group，则创建下一个 normal group。不同 group 共用
   "group_type": "normal",
   "date": "2026-06-06",
   "primary_accent": "US",
+  "origin": "normal_start",
+  "source_scope": "normal_current",
+  "action_label": "Start Group 1",
   "daily_word_count": 10,
   "word_count": 10,
   "status": "in_progress",
@@ -299,6 +310,32 @@ active normal group，则创建下一个 normal group。不同 group 共用
 
 推荐服务端判题，不在生产响应中返回 `answer`。
 
+### Next normal group
+
+```http
+POST /api/practice/next-normal
+```
+
+显式从完成摘要进入下一个 normal group。若当天已经有 active normal group，
+返回该 group 并标记 `origin = "normal_resume"`；否则创建递增
+`group_index` 的 normal group 并标记 `origin = "normal_next"`、
+`source_scope = "normal_next"`。该 endpoint 用于避免 UI 把“继续”误解为重复
+当前 group。
+
+### Current-group review
+
+```http
+POST /api/review/current-group
+Content-Type: application/json
+
+{"group_id": "2026-06-06-default-g001-normal"}
+```
+
+从指定 source group 中的 wrong attempts 创建 `mistake_review` group。它只使用
+该 group 的错题，返回 `source_scope = "current_group"`、
+`source_group_id = <group_id>` 和 `source_session_item_ids`。没有错题时返回
+stable empty response，不视为错误；未知 group id 返回 `GROUP_NOT_FOUND`。
+
 ### Recent mistake review group
 
 ```http
@@ -319,6 +356,8 @@ attempt 查询错词，去重后映射回 `words`/`session_items`，并创建
   "status": "empty",
   "items": [],
   "source_count": 0,
+  "origin": "recent_review_empty",
+  "source_scope": "recent_global",
   "detail": "No recent incorrect attempts are available for review."
 }
 ```
@@ -330,10 +369,14 @@ attempt 查询错词，去重后映射回 `words`/`session_items`，并创建
 ### Weak phoneme focused group
 
 M7 P1 的 Progress 入口可以创建 `group_type = "weak_focus"` 的 practice group。
-它应接收用户选择的 phoneme symbols/ids，并调用现有 scheduler focus weighting；
+`POST /api/practice/focus` 接收 `{"focus_phonemes": [...]}`，保存 focus selection
+并调用现有 scheduler focus weighting；
 不应新建复习统计表，也不应绕开 `phoneme_stats`。若当天已有 active
-`weak_focus` group，API 应恢复该 group；完成后下一次显式 action 才创建新
-focused group。
+`weak_focus` group 且 focus selection 相同，API 应恢复该 group；不同 focus
+selection 会创建新的 clearly scoped `weak_focus` group，避免把旧 focus group
+误报成新的 selection。完成后下一次显式 action 才创建新 focused group。
+`POST /api/practice/clear-focus` 清空 selection，并返回当前 normal practice
+state，标记 `origin = "focus_clear"`、`focus_phonemes = []`。
 
 ### M7 minimum smoke path
 
