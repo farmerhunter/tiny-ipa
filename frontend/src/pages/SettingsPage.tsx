@@ -9,15 +9,30 @@
 import { useEffect, useState } from "react";
 import {
   type SettingsData,
+  type TodayResponse,
+  clearPracticeFocus,
   fetchSettings,
   saveSettings,
+  startFocusedPractice,
 } from "../api";
 
 interface Props {
   onBack: () => void;
+  onFocusChange: (focusPhonemes: string[]) => void;
+  onStartPractice: (session: TodayResponse) => void;
 }
 
-export default function SettingsPage({ onBack }: Props) {
+const COMMON_FOCUS = ["/ʃ/", "/θ/", "/æ/", "/ɪ/", "/tʃ/", "/ʌ/"];
+
+function canonicalFocus(phonemes: string[]): string[] {
+  return Array.from(new Set(phonemes.map((item) => item.trim()).filter(Boolean))).sort();
+}
+
+export default function SettingsPage({
+  onBack,
+  onFocusChange,
+  onStartPractice,
+}: Props) {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [focusInput, setFocusInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -45,6 +60,7 @@ export default function SettingsPage({ onBack }: Props) {
       const updated = await saveSettings(patch);
       setSettings(updated);
       setFocusInput(updated.focus_phonemes.join(", "));
+      onFocusChange(updated.focus_phonemes);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
@@ -53,11 +69,23 @@ export default function SettingsPage({ onBack }: Props) {
   };
 
   const saveFocusPhonemes = () => {
-    const focus_phonemes = focusInput
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const focus_phonemes = canonicalFocus(focusInput.split(","));
     void update({ focus_phonemes });
+  };
+
+  const startFocus = async (phoneme: string) => {
+    setError(null);
+    setSaved(false);
+    try {
+      const session = await startFocusedPractice([phoneme]);
+      const appliedFocus = session.focus_phonemes ?? [phoneme];
+      setSettings({ ...settings, focus_phonemes: appliedFocus });
+      setFocusInput(appliedFocus.join(", "));
+      onFocusChange(appliedFocus);
+      onStartPractice(session);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to start focused practice");
+    }
   };
 
   const removeFocusPhoneme = (phoneme: string) => {
@@ -67,7 +95,16 @@ export default function SettingsPage({ onBack }: Props) {
   };
 
   const clearFocusPhonemes = () => {
-    void update({ focus_phonemes: [] });
+    clearPracticeFocus()
+      .then((session) => {
+        setSettings({ ...settings, focus_phonemes: [] });
+        setFocusInput("");
+        onFocusChange([]);
+        onStartPractice(session);
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Failed to clear focus");
+      });
   };
 
   return (
@@ -105,22 +142,45 @@ export default function SettingsPage({ onBack }: Props) {
           </select>
         </label>
 
-        <label className="setting-row setting-row-stacked">
-          <span>Manual focus entry</span>
-          <input
-            className="focus-input"
-            type="text"
-            value={focusInput}
-            placeholder="/ʃ/, /æ/"
-            onBlur={saveFocusPhonemes}
-            onChange={e => setFocusInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
-            }}
-          />
-        </label>
+        <section className="settings-panel">
+          <h2>Focus practice</h2>
+          <p className="section-copy">
+            Pick a sound to start a focused group. The scheduler will weight words
+            toward that sound until you clear focus.
+          </p>
+          <div className="phoneme-chip-list">
+            {COMMON_FOCUS.map((phoneme) => (
+              <button
+                className="phoneme-chip selectable"
+                key={phoneme}
+                onClick={() => void startFocus(phoneme)}
+                type="button"
+              >
+                Focus {phoneme}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <details className="advanced-focus">
+          <summary>Advanced/debug: manual IPA focus entry</summary>
+          <label className="setting-row setting-row-stacked">
+            <span>Comma-separated IPA symbols</span>
+            <input
+              className="focus-input"
+              type="text"
+              value={focusInput}
+              placeholder="/ʃ/, /æ/"
+              onBlur={saveFocusPhonemes}
+              onChange={e => setFocusInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+            />
+          </label>
+        </details>
 
         {settings.focus_phonemes.length > 0 && (
           <div className="settings-focus-panel">
