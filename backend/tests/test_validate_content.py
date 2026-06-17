@@ -279,6 +279,91 @@ def test_blocklisted_word_is_blocking():
     assert any("blocked word" in err for err in report["errors"])
 
 
+def test_short_word_reusing_longer_word_ipa_is_blocking():
+    """Abbreviations should not silently reuse full-word IPA in active content."""
+    known = load_phoneme_set(PHONEMES_PATH)
+    words = [
+        {
+            "word_id": "feb",
+            "word": "feb",
+            "level": "beginner",
+            "ipa_us": "/ˈfɛbjəˌwɛɹi/",
+            "phoneme_tags_us": ["/f/", "/e/", "/b/"],
+            "meaning_zh": "feb",
+            "content_status": "core_selected",
+        },
+        {
+            "word_id": "february",
+            "word": "february",
+            "level": "beginner",
+            "ipa_us": "/ˈfɛbjəˌwɛɹi/",
+            "phoneme_tags_us": ["/f/", "/e/", "/b/", "/r/", "/iː/"],
+            "meaning_zh": "february",
+            "content_status": "core_selected",
+        },
+    ]
+    report = validate_words(words, known)
+    assert len(report["duplicate_ipa_with_different_words"]) == 1
+    assert any("shares IPA" in err for err in report["errors"])
+
+
+def test_disabled_short_word_reusing_longer_word_ipa_is_allowed():
+    """Disabled entries are retained for provenance but excluded from practice checks."""
+    known = load_phoneme_set(PHONEMES_PATH)
+    words = [
+        {
+            "word_id": "feb",
+            "word": "feb",
+            "level": "beginner",
+            "ipa_us": "/ˈfɛbjəˌwɛɹi/",
+            "phoneme_tags_us": ["/f/", "/e/", "/b/"],
+            "meaning_zh": "feb",
+            "content_status": "disabled",
+            "review_status_us": "disabled",
+        },
+        {
+            "word_id": "february",
+            "word": "february",
+            "level": "beginner",
+            "ipa_us": "/ˈfɛbjəˌwɛɹi/",
+            "phoneme_tags_us": ["/f/", "/e/", "/b/", "/r/", "/iː/"],
+            "meaning_zh": "february",
+            "content_status": "core_selected",
+        },
+    ]
+    report = validate_words(words, known)
+    assert report["duplicate_ipa_with_different_words"] == []
+    assert not any("shares IPA" in err for err in report["errors"])
+
+
+def test_non_prefix_homophones_can_share_ipa():
+    """Shared IPA is valid for homophones when one word is not a short prefix."""
+    known = load_phoneme_set(PHONEMES_PATH)
+    words = [
+        {
+            "word_id": "new",
+            "word": "new",
+            "level": "beginner",
+            "ipa_us": "/ˈnju/",
+            "phoneme_tags_us": ["/n/", "/j/", "/uː/"],
+            "meaning_zh": "新的",
+            "content_status": "core_selected",
+        },
+        {
+            "word_id": "knew",
+            "word": "knew",
+            "level": "beginner",
+            "ipa_us": "/ˈnju/",
+            "phoneme_tags_us": ["/n/", "/j/", "/uː/"],
+            "meaning_zh": "知道的过去式",
+            "content_status": "core_selected",
+        },
+    ]
+    report = validate_words(words, known)
+    assert report["duplicate_ipa_with_different_words"] == []
+    assert not any("shares IPA" in err for err in report["errors"])
+
+
 def test_license_summary():
     """License notes are aggregated in the report."""
     known = load_phoneme_set(PHONEMES_PATH)

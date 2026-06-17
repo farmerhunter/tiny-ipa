@@ -169,6 +169,7 @@ def validate_words(
         "missing_audio_us": 0,
         "unknown_difficulty_tags": [],
         "blocked_words": [],
+        "duplicate_ipa_with_different_words": [],
         "coverage_targets_us": dict(coverage_targets_us),
         "coverage_failures_us": [],
         "priority_phoneme_coverage_us": {},
@@ -183,9 +184,17 @@ def validate_words(
         "phoneme_coverage_us": {},
         "phoneme_coverage_uk": {},
     }
+    active_ipa_us_by_word: dict[str, list[str]] = defaultdict(list)
 
     for i, w in enumerate(words):
         word_id = w.get("word_id", f"<index {i}>")
+        word = str(w.get("word", "")).strip().lower()
+        content_status = w.get("content_status")
+
+        if word and content_status != "disabled":
+            ipa_us = str(w.get("ipa_us", "")).strip()
+            if ipa_us:
+                active_ipa_us_by_word[ipa_us].append(word)
 
         # Required fields
         for field in REQUIRED_FIELDS:
@@ -222,7 +231,7 @@ def validate_words(
             report["missing_audio_us"] += 1
             report["warnings"].append(f"{word_id}: missing optional field 'audio_us'")
 
-        if str(w.get("word", "")).strip().lower() in blocklisted_words:
+        if word in blocklisted_words:
             entry = f"{word_id}: blocked word '{w.get('word')}'"
             report["blocked_words"].append(entry)
             report["errors"].append(entry)
@@ -271,7 +280,6 @@ def validate_words(
             report["errors"].append(entry)
 
         # Validate content_status
-        content_status = w.get("content_status")
         if content_status and content_status not in KNOWN_CONTENT_STATUSES:
             entry = f"{word_id}: unknown content_status '{content_status}'"
             report["invalid_content_status"].append(entry)
@@ -301,6 +309,26 @@ def validate_words(
     report["license_summary"] = dict(report["license_summary"])
     report["source_ipa_us_summary"] = dict(report["source_ipa_us_summary"])
     report["source_ipa_uk_summary"] = dict(report["source_ipa_uk_summary"])
+
+    for ipa_us, ipa_words in sorted(active_ipa_us_by_word.items()):
+        unique_words = sorted(set(ipa_words))
+        if len(unique_words) <= 1:
+            continue
+        for word in unique_words:
+            if any(
+                other != word
+                and 2 <= len(word) <= 4
+                and len(other) >= len(word) + 2
+                and other.startswith(word)
+                for other in unique_words
+            ):
+                entry = (
+                    f"ipa_us {ipa_us}: word '{word}' shares IPA with "
+                    f"longer word(s) {unique_words}"
+                )
+                report["duplicate_ipa_with_different_words"].append(entry)
+                report["errors"].append(entry)
+                break
 
     # Build phoneme coverage
     for phoneme in known_phonemes:
