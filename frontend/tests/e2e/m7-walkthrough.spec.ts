@@ -52,7 +52,7 @@ const groups: Record<string, MockGroup> = {
   group2: {
     session_id: "session-group-2",
     group_id: "group-2",
-    group_index: 2,
+    group_index: 6,
     group_type: "normal",
     primary_accent: "US",
     items: [
@@ -70,7 +70,7 @@ const groups: Record<string, MockGroup> = {
   recentReview: {
     session_id: "session-recent-review",
     group_id: "recent-review",
-    group_index: 3,
+    group_index: 7,
     group_type: "mistake_review",
     primary_accent: "US",
     items: [
@@ -88,7 +88,7 @@ const groups: Record<string, MockGroup> = {
   currentReview: {
     session_id: "session-current-review",
     group_id: "current-review",
-    group_index: 3,
+    group_index: 5,
     group_type: "mistake_review",
     primary_accent: "US",
     items: [
@@ -106,7 +106,7 @@ const groups: Record<string, MockGroup> = {
   focused: {
     session_id: "session-focused",
     group_id: "focused-sh",
-    group_index: 4,
+    group_index: 8,
     group_type: "weak_focus",
     primary_accent: "US",
     items: [
@@ -369,7 +369,7 @@ async function routeMock(route: Route, state: MockState) {
 
 async function openWalkthrough(page: Page) {
   await page.goto("/");
-  await expect(page.getByText("Group 1: 1 / 2")).toBeVisible();
+  await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
 }
 
 async function answerVisibleItem(page: Page, choice: string) {
@@ -384,7 +384,7 @@ async function completeFirstGroupWithOneMiss(page: Page) {
   await expect(page.getByText("thin")).toBeVisible({ timeout: 4_000 });
 
   await answerVisibleItem(page, "/θɪn/");
-  await expect(page.getByRole("heading", { name: "Group 1 complete" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
     timeout: 4_000,
   });
 }
@@ -403,7 +403,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
       await expect(page.getByText("picked")).toBeVisible();
       await expect(page.getByText("Target sound: /ʃ/")).toBeVisible();
       await expect(page.getByRole("button", { name: "Start next 10-word group" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review misses from Group 1" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Return to Progress" })).toBeVisible();
     });
@@ -415,9 +415,10 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await completeFirstGroupWithOneMiss(page);
 
     await page.getByRole("button", { name: "Start next 10-word group" }).click();
-    await expect(page.getByText("Group 2: 1 / 1")).toBeVisible();
+    await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
     await expect(page.getByText("A new normal practice group.")).toBeVisible();
     await expect(page.getByText("cheese")).toBeVisible();
+    await expect(page.getByText(/Group 6/)).toHaveCount(0);
   });
 
   test("4. current-group review and recent/global review are distinguishable", async ({ page }) => {
@@ -425,10 +426,34 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await openWalkthrough(page);
     await completeFirstGroupWithOneMiss(page);
 
-    await expect(page.getByRole("button", { name: "Review misses from Group 1" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
-    await page.getByRole("button", { name: "Review misses from Group 1" }).click();
+    await page.getByRole("button", { name: "Review misses from this group" }).click();
     await expect(page.getByText("Reviewing misses from the group you just finished.")).toBeVisible();
+    await expect(page.getByText("Current-group review: 1 / 1")).toBeVisible();
+    await expect(page.getByText(/Group 5/)).toHaveCount(0);
+  });
+
+  test("review completions with no misses hide current-group review action", async ({ page }) => {
+    await setupMockApi(page);
+    await openWalkthrough(page);
+    await completeFirstGroupWithOneMiss(page);
+
+    await page.getByRole("button", { name: "Review misses from this group" }).click();
+    await expect(page.getByText("Current-group review: 1 / 1")).toBeVisible();
+    await answerVisibleItem(page, "/ʃɪp/");
+    await expect(page.getByRole("heading", { name: "Current-group review complete" })).toBeVisible();
+    await expect(page.getByText("No misses in this group.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Review misses from/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Review recent mistakes" }).click();
+    await expect(page.getByText("Recent mistake review: 1 / 1")).toBeVisible();
+    await answerVisibleItem(page, "/ʃɪp/");
+    await expect(page.getByRole("heading", { name: "Recent mistake review complete" })).toBeVisible();
+    await expect(page.getByText("No misses in this group.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Review misses from/ })).toHaveCount(0);
+    await expect(page.getByText(/Group 7/)).toHaveCount(0);
   });
 
   test("5-6. focus can be selected without raw IPA typing and launches focused practice", async ({ page }) => {
@@ -440,6 +465,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await page.getByRole("button", { name: "Focus /ʃ/" }).click();
 
     await expect(page.getByText("Focused group: 1 / 1")).toBeVisible();
+    await expect(page.getByText(/Group 8/)).toHaveCount(0);
     await expect(page.getByText("Focused practice for /ʃ/.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Clear focus" })).toBeVisible();
     await page.getByRole("button", { name: "Clear focus" }).click();
@@ -469,7 +495,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await completeFirstGroupWithOneMiss(page);
     await page.getByRole("button", { name: "Review recent mistakes" }).click();
 
-    await expect(page.getByRole("heading", { name: "Group 1 complete" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible();
     await expect(page.getByText("REVIEW_FAILED: Review unavailable")).toBeVisible();
     await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
   });
