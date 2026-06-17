@@ -67,8 +67,13 @@ async def focused_group(request: Request):
     """Select focus phonemes and start or resume focused practice."""
     body = await request.json()
     focus_phonemes = body.get("focus_phonemes")
-    if not isinstance(focus_phonemes, list) or any(
-        not isinstance(item, str) or not item.strip() for item in focus_phonemes
+    if (
+        not isinstance(focus_phonemes, list)
+        or not focus_phonemes
+        or any(
+            not isinstance(item, str) or not item.strip()
+            for item in focus_phonemes
+        )
     ):
         raise HTTPException(
             status_code=400,

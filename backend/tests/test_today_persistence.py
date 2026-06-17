@@ -463,6 +463,13 @@ class TestTodayPersistence:
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "INVALID_FOCUS"
 
+    def test_focus_action_rejects_empty_focus_payload(self, client):
+        resp = client.post("/api/practice/focus", json={
+            "focus_phonemes": [],
+        })
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "INVALID_FOCUS"
+
     def test_fresh_today_uses_focus_phoneme_setting(self, client, seeded_db):
         conn = get_connection(seeded_db)
         conn.execute(
