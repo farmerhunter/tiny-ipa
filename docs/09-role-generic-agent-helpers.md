@@ -10,6 +10,14 @@ fast REST-based reads, `needs:*` labels, and local audit scripts can make a
 GitHub Project feel like a lightweight agent scheduler. The next step is to make
 that scheduler role-generic before adding more write automation.
 
+## Dogfood Evaluation
+
+Dogfood evidence and migration readiness are tracked dynamically in
+[#146](https://github.com/farmerhunter/tiny-ipa/issues/146). That issue is the
+source of truth for deciding whether these helpers are ready to migrate into
+`agent-foundry`, which fixes must happen first, and which experiments should
+remain Tiny IPA-local.
+
 ## Design Constraints and Principles
 
 The helper model is a lightweight multi-agent scheduler built on GitHub under
