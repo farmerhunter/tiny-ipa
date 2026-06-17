@@ -1,4 +1,4 @@
-import { fetchHealth } from "./api";
+import { fetchHealth, type TodayResponse } from "./api";
 import { useEffect, useState } from "react";
 import TodayPractice from "./pages/TodayPractice";
 import ProgressPage from "./pages/ProgressPage";
@@ -9,6 +9,7 @@ function App() {
   const [checking, setChecking] = useState(true);
   const [page, setPage] = useState<"today" | "progress" | "settings">("today");
   const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
+  const [practiceSession, setPracticeSession] = useState<TodayResponse | null>(null);
 
   useEffect(() => {
     fetchHealth()
@@ -52,13 +53,26 @@ function App() {
             onBack={() => setPage("today")}
             focusPhonemes={focusPhonemes}
             onFocusChange={setFocusPhonemes}
+            onStartPractice={(session) => {
+              setPracticeSession(session);
+              setPage("today");
+            }}
           />
         : page === "settings"
-        ? <SettingsPage onBack={() => setPage("today")} />
+        ? <SettingsPage
+            onBack={() => setPage("today")}
+            onFocusChange={setFocusPhonemes}
+            onStartPractice={(session) => {
+              setPracticeSession(session);
+              setPage("today");
+            }}
+          />
         : <TodayPractice
             focusPhonemes={focusPhonemes}
             onFocusChange={setFocusPhonemes}
             onOpenProgress={() => setPage("progress")}
+            initialSession={practiceSession}
+            onInitialSessionConsumed={() => setPracticeSession(null)}
           />
       }
     </div>

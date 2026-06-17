@@ -5,19 +5,26 @@
  */
 
 import { useEffect, useState } from "react";
-import type { ProgressResponse, SettingsData } from "../api";
-import { fetchProgress, fetchSettings, saveSettings } from "../api";
+import type { ProgressResponse, SettingsData, TodayResponse } from "../api";
+import {
+  clearPracticeFocus,
+  fetchProgress,
+  fetchSettings,
+  startFocusedPractice,
+} from "../api";
 
 interface Props {
   onBack: () => void;
   focusPhonemes: string[];
   onFocusChange: (focusPhonemes: string[]) => void;
+  onStartPractice: (session: TodayResponse) => void;
 }
 
 export default function ProgressPage({
   onBack,
   focusPhonemes,
   onFocusChange,
+  onStartPractice,
 }: Props) {
   const [data, setData] = useState<ProgressResponse | null>(null);
   const [settings, setSettings] = useState<SettingsData | null>(null);
@@ -37,28 +44,41 @@ export default function ProgressPage({
       .finally(() => setLoading(false));
   }, [onFocusChange]);
 
-  const updateFocus = async (nextFocus: string[], navigateAfter = false) => {
+  const canonicalFocus = (nextFocus: string[]) =>
+    Array.from(new Set(nextFocus.map((item) => item.trim()).filter(Boolean))).sort();
+
+  const startFocus = async (nextFocus: string[]) => {
+    const focus = canonicalFocus(nextFocus);
     setSavingFocus(nextFocus.join(",") || "clear");
     setError(null);
     try {
-      const updated = await saveSettings({ focus_phonemes: nextFocus });
-      setSettings(updated);
-      onFocusChange(updated.focus_phonemes);
-      if (navigateAfter) onBack();
+      const focusedSession = await startFocusedPractice(focus);
+      const appliedFocus = focusedSession.focus_phonemes ?? focus;
+      setSettings((prev) => prev ? { ...prev, focus_phonemes: appliedFocus } : prev);
+      onFocusChange(appliedFocus);
+      onStartPractice(focusedSession);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update focus");
+      setError(e instanceof Error ? e.message : "Failed to start focused practice");
     } finally {
       setSavingFocus(null);
     }
   };
 
   const focusOne = (phoneme: string) => {
-    const next = [phoneme, ...activeFocus.filter((item) => item !== phoneme)];
-    void updateFocus(next, true);
+    void startFocus([phoneme]);
   };
 
   const clearFocus = () => {
-    void updateFocus([]);
+    setSavingFocus("clear");
+    setError(null);
+    clearPracticeFocus()
+      .then((normalSession) => {
+        setSettings((prev) => prev ? { ...prev, focus_phonemes: [] } : prev);
+        onFocusChange([]);
+        onStartPractice(normalSession);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to clear focus"))
+      .finally(() => setSavingFocus(null));
   };
 
   if (loading) return <main className="practice-container"><p>Loading progress…</p></main>;
@@ -75,7 +95,10 @@ export default function ProgressPage({
 
       {activeFocus.length > 0 && (
         <div className="focus-panel">
-          <span className="focus-panel-label">Next group focus</span>
+          <span className="focus-panel-label">Current focus</span>
+          <p className="section-copy">
+            Focus changes the next focused practice group. Clear it to return to normal practice.
+          </p>
           <div className="phoneme-chip-list">
             {activeFocus.map((phoneme) => (
               <span className="phoneme-chip" key={phoneme}>{phoneme}</span>
@@ -109,19 +132,29 @@ export default function ProgressPage({
       {data.weak_phonemes.length > 0 && (
         <section className="phoneme-section">
           <h2>Needs practice</h2>
+          <p className="section-copy">
+            Start focused practice from a weak sound. No IPA typing needed.
+          </p>
           <ul className="phoneme-list">
             {data.weak_phonemes.map((p) => (
               <li key={p.phoneme} className="phoneme-item weak">
                 <span className="phoneme-symbol">{p.phoneme}</span>
-                <span className="phoneme-acc">{Math.round(p.accuracy * 100)}%</span>
-                <span className="phoneme-count">{p.attempt_count} att.</span>
+                <span className="phoneme-acc">
+                  {Math.round(p.accuracy * 100)}% accuracy
+                </span>
+                <span className="phoneme-count">
+                  {p.attempt_count} attempts
+                </span>
                 <button
                   className="focus-action-btn"
                   onClick={() => focusOne(p.phoneme)}
                   disabled={savingFocus !== null}
                 >
-                  {activeFocus.includes(p.phoneme) ? "Focused" : "Focus"}
+                  {activeFocus.includes(p.phoneme) ? "Resume focus" : `Focus ${p.phoneme}`}
                 </button>
+                <span className="phoneme-help">
+                  Focused practice will choose words weighted toward {p.phoneme}.
+                </span>
               </li>
             ))}
           </ul>

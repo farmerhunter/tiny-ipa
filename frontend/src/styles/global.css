@@ -275,6 +275,16 @@ button {
   margin-bottom: 8px;
 }
 
+.workflow-kicker,
+.section-copy {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.workflow-kicker {
+  margin-bottom: 4px;
+}
+
 .summary-score {
   font-size: 1.5rem;
   font-weight: 700;
@@ -379,7 +389,9 @@ button {
 
 .active-focus-banner,
 .focus-panel,
-.settings-focus-panel {
+.settings-focus-panel,
+.mode-panel,
+.settings-panel {
   align-items: center;
   background: #f8fbff;
   border: 1px solid #d6e4ff;
@@ -396,9 +408,22 @@ button {
 }
 
 .focus-panel,
-.settings-focus-panel {
+.settings-focus-panel,
+.mode-panel,
+.settings-panel {
   align-items: flex-start;
   flex-direction: column;
+}
+
+.mode-panel {
+  margin-bottom: 16px;
+}
+
+.focus-choice-panel {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .focus-panel-label {
@@ -509,7 +534,8 @@ button {
 }
 
 .phoneme-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(44px, auto) 1fr auto;
   align-items: center;
   gap: 8px;
   padding: 8px 0;
@@ -530,7 +556,6 @@ button {
 .phoneme-count {
   color: #aaa;
   font-size: 0.8rem;
-  margin-left: auto;
 }
 
 .focus-action-btn {
@@ -538,9 +563,14 @@ button {
   border: 1px solid #ffcc80;
   color: #b45309;
   font-size: 0.8rem;
-  margin-left: 4px;
   min-height: 32px;
   padding: 5px 8px;
+}
+
+.phoneme-help {
+  color: #666;
+  font-size: 0.8rem;
+  grid-column: 2 / -1;
 }
 
 .phoneme-item.weak .phoneme-symbol {
@@ -630,6 +660,23 @@ button {
 .phoneme-chip.removable {
   background: #fff;
   cursor: pointer;
+}
+
+.phoneme-chip.selectable {
+  background: #fff;
+  cursor: pointer;
+}
+
+.advanced-focus {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 10px 0;
+}
+
+.advanced-focus summary {
+  color: #555;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .save-confirm {
