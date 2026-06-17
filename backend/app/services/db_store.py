@@ -257,6 +257,9 @@ def _session_from_row(row: sqlite3.Row) -> DailySession:
         group_index=row["group_index"],
         group_type=row["group_type"],
         source_session_item_ids=_parse_list(row["source_session_item_ids"]) or [],
+        source_scope=row["source_scope"],
+        source_group_id=row["source_group_id"],
+        focus_phonemes=_parse_list(row["focus_phonemes"]) or [],
     )
 
 
@@ -279,10 +282,12 @@ def create_session(conn: sqlite3.Connection, session: DailySession) -> str:
         """
         INSERT INTO daily_sessions (
             id, user_id, session_date, primary_accent, status, created_at, completed_at,
-            group_index, group_type, source_session_item_ids
+            group_index, group_type, source_session_item_ids,
+            source_scope, source_group_id, focus_phonemes
         ) VALUES (
             :id, :user_id, :session_date, :primary_accent, :status, :created_at,
-            :completed_at, :group_index, :group_type, :source_session_item_ids
+            :completed_at, :group_index, :group_type, :source_session_item_ids,
+            :source_scope, :source_group_id, :focus_phonemes
         )
         """,
         {
@@ -296,6 +301,9 @@ def create_session(conn: sqlite3.Connection, session: DailySession) -> str:
             "group_index": session.group_index,
             "group_type": session.group_type,
             "source_session_item_ids": _to_json(session.source_session_item_ids),
+            "source_scope": session.source_scope,
+            "source_group_id": session.source_group_id,
+            "focus_phonemes": _to_json(session.focus_phonemes),
         },
     )
     return session.id
@@ -307,21 +315,37 @@ def get_active_session_for_date(
     session_date: str,
     primary_accent: str,
     group_type: str = "normal",
+    source_scope: Optional[str] = None,
+    source_group_id: Optional[str] = None,
+    focus_phonemes: Optional[List[str]] = None,
 ) -> Optional[DailySession]:
     """Return the active same-day group for the given type, if one exists."""
     ensure_daily_sessions_schema(conn)
+    filters = [
+        "user_id = ?",
+        "session_date = ?",
+        "primary_accent = ?",
+        "group_type = ?",
+        "status = 'in_progress'",
+    ]
+    params: list = [user_id, session_date, primary_accent, group_type]
+    if source_scope is not None:
+        filters.append("source_scope = ?")
+        params.append(source_scope)
+    if source_group_id is not None:
+        filters.append("source_group_id = ?")
+        params.append(source_group_id)
+    if focus_phonemes is not None:
+        filters.append("focus_phonemes = ?")
+        params.append(_to_json(focus_phonemes))
     row = conn.execute(
-        """
+        f"""
         SELECT * FROM daily_sessions
-        WHERE user_id = ?
-          AND session_date = ?
-          AND primary_accent = ?
-          AND group_type = ?
-          AND status = 'in_progress'
+        WHERE {" AND ".join(filters)}
         ORDER BY group_index DESC, created_at DESC
         LIMIT 1
         """,
-        (user_id, session_date, primary_accent, group_type),
+        params,
     ).fetchone()
     if row is None:
         return None
@@ -451,6 +475,46 @@ def get_recent_incorrect_attempt_sources(
         ORDER BY a.created_at DESC
         """,
         (user_id, primary_accent),
+    ).fetchall()
+    sources = []
+    seen_word_ids = set()
+    for row in rows:
+        if row["word_id"] in seen_word_ids:
+            continue
+        seen_word_ids.add(row["word_id"])
+        sources.append({
+            "word_id": row["word_id"],
+            "session_item_id": row["session_item_id"],
+            "last_wrong_at": row["last_wrong_at"],
+        })
+        if len(sources) >= limit:
+            break
+    return sources
+
+
+def get_session_incorrect_attempt_sources(
+    conn: sqlite3.Connection,
+    *,
+    user_id: str,
+    primary_accent: str,
+    session_id: str,
+    limit: int = 10,
+) -> List[dict]:
+    """Return wrong-answer words sourced from one practice group."""
+    rows = conn.execute(
+        """
+        SELECT a.word_id, a.session_item_id, a.created_at AS last_wrong_at
+        FROM attempts a
+        JOIN session_items si ON si.id = a.session_item_id
+        JOIN words w ON w.id = a.word_id
+        WHERE a.user_id = ?
+          AND a.primary_accent = ?
+          AND si.session_id = ?
+          AND a.is_correct = 0
+          AND w.content_status != 'disabled'
+        ORDER BY a.created_at DESC
+        """,
+        (user_id, primary_accent, session_id),
     ).fetchall()
     sources = []
     seen_word_ids = set()
