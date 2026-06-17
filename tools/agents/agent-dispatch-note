@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${GH_REPO:-farmerhunter/tiny-ipa}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 gh_retry="$root/tools/agents/gh-retry"
 source "$root/tools/agents/_lib.sh"
+repo="$(agent_repo)"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  tools/agents/agent-dispatch-note --issue <issue> --to <role|label> [--from <role|label>] [--reason <text>]
-  tools/agents/agent-dispatch-note --pr <pr> --to <role|label> [--from <role|label>] [--reason <text>]
-  tools/agents/agent-dispatch-note --batch --epic <issue> --to <role|label> [--child <issue>...] [--from <role|label>] [--reason <text>]
+  tools/agents/agent-dispatch-note --issue <issue> --to <role|label> [--from <role|label>] [--reason <text>] [--evidence-mode <mode>] [--evidence <text>]
+  tools/agents/agent-dispatch-note --pr <pr> --to <role|label> [--from <role|label>] [--reason <text>] [--evidence-mode <mode>] [--evidence <text>]
+  tools/agents/agent-dispatch-note --batch --epic <issue> --to <role|label> [--child <issue>...] [--from <role|label>] [--reason <text>] [--evidence-mode <mode>] [--evidence <text>]
 
 Generates a bounded dispatch prompt for direct-thread acceleration. This helper only
 prints the durable-boundary note and does not call thread APIs.
+
+Evidence modes:
+  generated-note    default; this helper generated a copy/paste note only
+  live-thread       a runtime thread tool accepted a dispatch; --evidence required
+  github-comment    durable GitHub comment used as portable dispatch fallback
+  portable-prompt   prompt text handed off manually outside a thread tool
 USAGE
 }
 
@@ -29,6 +35,8 @@ epic=""
 to_target=""
 from_target=""
 reason="handoff to next role"
+evidence_mode="generated-note"
+evidence=""
 children=()
 
 while [[ $# -gt 0 ]]; do
@@ -111,6 +119,22 @@ while [[ $# -gt 0 ]]; do
       reason="$2"
       shift 2
       ;;
+    --evidence-mode)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--evidence-mode requires a mode' >&2
+        exit 2
+      fi
+      evidence_mode="$2"
+      shift 2
+      ;;
+    --evidence)
+      if [[ -z "${2:-}" ]]; then
+        printf '%s\n' '--evidence requires text' >&2
+        exit 2
+      fi
+      evidence="$2"
+      shift 2
+      ;;
     *)
       usage >&2
       exit 2
@@ -125,6 +149,21 @@ fi
 
 if [[ -z "$to_target" ]]; then
   printf '%s\n' '--to is required' >&2
+  exit 2
+fi
+
+case "$evidence_mode" in
+  generated-note|live-thread|github-comment|portable-prompt)
+    ;;
+  *)
+    printf 'Unknown evidence mode: %s\n' "$evidence_mode" >&2
+    printf '%s\n' 'Use generated-note, live-thread, github-comment, or portable-prompt.' >&2
+    exit 2
+    ;;
+esac
+
+if [[ "$evidence_mode" == "live-thread" && -z "$evidence" ]]; then
+  printf '%s\n' 'live-thread evidence mode requires --evidence naming the accepted tool/result' >&2
   exit 2
 fi
 
@@ -150,6 +189,7 @@ format_dispatch_payload() {
 
 Do not use this as the durable source of truth.
 Use durable GitHub issue/PR/Project state for state transitions.
+This helper does not call thread APIs by itself.
 
 Bounded dispatch:
 - Subject: $subject_type #$subject_ref
@@ -159,6 +199,8 @@ Bounded dispatch:
 - To: $to_display
 - Reason: $reason
 - Expected result: $summary
+- Evidence mode: $evidence_mode
+- Evidence: ${evidence:-not a live dispatch; generated note/fallback only}
 
 Copy/paste thread note:
 \`\`\`

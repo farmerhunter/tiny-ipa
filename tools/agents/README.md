@@ -9,7 +9,55 @@ Requirements:
 ```bash
 gh
 jq
+bash
 ```
+
+Supported shell target for migrated helpers:
+
+- macOS Bash 3.2
+- modern Bash 5.x
+
+Run `tools/agents/test-shell-compat` before moving helper changes toward a
+portable runtime. Unsupported shells should fail before mutation; these helpers
+are not written for POSIX `sh`, `zsh`, or fish.
+
+## New Repository Setup
+
+For Tiny IPA, helpers discover `farmerhunter/tiny-ipa` from the local Git
+remote and preserve the current dogfood behavior. For another repository, set
+the target explicitly or run from a checkout whose `origin` remote points at the
+target GitHub repo:
+
+```bash
+export GH_REPO=owner/name
+```
+
+`AGENT_REPO` is accepted as a secondary repo override, but `GH_REPO` matches the
+GitHub CLI convention and should be preferred. If neither override is set, the
+helpers try to parse `git remote get-url origin`. The built-in Tiny IPA fallback
+exists only for this project-local dogfood checkout; new projects should not
+depend on it.
+
+Repo-local role routing is configured with:
+
+```bash
+export AGENT_ROLE_ROUTING_CONFIG=/path/to/role-routing.conf
+tools/agents/agent-role-config
+```
+
+The config is shell-readable and must define `AGENT_ROLES`,
+`AGENT_ROLE_LABEL_<role>`, and `AGENT_PRIMARY_NEXT_LABELS`. Unknown roles,
+unknown primary labels, duplicate labels, and malformed `needs:*` labels fail
+closed.
+
+Use a project-local cache path when Project v2 helpers are enabled:
+
+```bash
+export AGENT_CACHE_DIR=.agent-cache
+```
+
+Normal inbox, context, comment, label, pickup, handoff, audit, and dry-run
+planning helpers do not require GitHub Project v2 access.
 
 ## Fast Inbox
 
@@ -37,14 +85,30 @@ Role routing is configured by `tools/agents/role-routing.conf`, with a built-in
 fallback in `_lib.sh` so helpers still work if the config file is absent. The
 config is shell-readable and defines roles, each role's inbox label, and the
 primary next-action labels. Use `tools/agents/agent-role-config` to print the
-active config compactly. Future projects can adapt the role set by changing
-that one config file instead of editing every helper script.
+active repo and config compactly. Future projects can adapt the role set by
+changing that one config file instead of editing every helper script.
 
 `agent-permission-smoke` is the first check for delegated or resumed agent
 turns. It verifies non-mutating GitHub API reads, remote Git reads, and local
-Git metadata writes. If it fails, do not begin branch/PR work from that turn;
+Git metadata writes, using the same retry wrapper as other GitHub helper paths.
+Add `--project` only when the turn needs Project v2 helper access. If it fails,
+do not begin branch/PR work from that turn;
 report the permission downgrade and wait for a user turn with full GitHub
 network access and local Git metadata write permission.
+
+Recommended scopes:
+
+- Read-only inbox/context/audit: repo issue and PR read access.
+- `agent-comment --apply`: permission to create issue/PR conversation comments.
+- `agent-label`: permission to add/remove issue labels.
+- Git branch/PR workflow outside these helpers: normal Git remote read/write
+  permission for the task branch.
+- `agent-project-status`: Project v2 access plus explicit Project env vars.
+
+`gh-retry` retries transient GitHub/TLS failures. `GH_RETRY_ATTEMPTS` and
+`GH_RETRY_SLEEP` tune retry count and delay. Auth failures, missing Project
+access, and permission downgrade should still be treated as blockers rather
+than hidden by repeated retries.
 
 `agent-inbox` reads primary next-action labels only. It deliberately avoids Project v2
 queries because labels are faster and more reliable for agent pickup. It uses
@@ -116,7 +180,12 @@ risks. It deliberately does not parse arbitrary terminal logs or infer success.
 `agent-dispatch-note` is explicit-input only. It prints a bounded dispatch note
 for direct-thread acceleration only. It resolves roles/labels through role routing,
 fetches durable context (subject title/state/link) from GitHub REST, and emits a
-copy/paste thread note that must not be used as the source of truth.
+copy/paste thread note that must not be used as the source of truth. The helper
+does not call thread APIs. Use `--evidence-mode live-thread --evidence <tool
+result>` only after a real runtime thread tool, such as `send_message_to_thread`,
+accepts the dispatch. Use `--evidence-mode github-comment` or
+`--evidence-mode portable-prompt` for runtimes without live thread tools. The
+default `generated-note` mode means a note was generated, not dispatched.
 
 `agent-audit` is a read-only consistency check. It looks for common workflow
 drift without touching GitHub Project v2:
@@ -166,6 +235,7 @@ unnecessary delete/add calls when the issue is already in the requested route.
 tools/agents/agent-project-status 15 "In progress"
 tools/agents/agent-project-status 15 "In Review"
 tools/agents/agent-project-status 15 Done
+tools/agents/agent-project-status --check-config
 ```
 
 Project v2 item IDs are cached in `.agent-cache/project-items.tsv`. Refresh
@@ -177,3 +247,56 @@ tools/agents/agent-project-status --refresh
 
 Do not use Project status as the only routing signal. Update labels and comments
 first, then sync Project status for the visual board.
+
+Project v2 config is optional and deliberately separate from the ordinary helper
+path. Outside Tiny IPA, set all of these before using `agent-project-status`:
+
+```bash
+export GH_PROJECT_OWNER=owner-or-org
+export GH_PROJECT_NUMBER=1
+export GH_PROJECT_ID=PVT_...
+export GH_PROJECT_STATUS_FIELD_ID=PVTSSF_...
+```
+
+If these are missing, `agent-project-status --check-config` fails with
+actionable guidance. This keeps new repositories from inheriting Tiny IPA
+Project IDs accidentally.
+
+## Portable Fixtures
+
+The helper tests now have two categories:
+
+- Portable fixtures: repo-neutral fake `gh-retry` tests that run offline with
+  `GH_REPO=example-org/example-repo`. Use these as migration evidence.
+- Tiny IPA dogfood regression fixtures: tests that preserve project-local
+  examples, historical Epic branches, and issue narratives from #58/#83.
+
+Run:
+
+```bash
+tools/agents/test-portable-fixtures
+tools/agents/test-shell-compat
+```
+
+The portable fixture suite covers repo-neutral role config, read-only inbox,
+dry-run pickup, narrow comment apply through a fake REST endpoint, and Project
+config fail-closed behavior.
+
+## Troubleshooting
+
+- GitHub TLS or HTTP/2 instability: rerun through the helper path so `gh-retry`
+  applies. If retries still fail, report the network/TLS blocker exactly.
+- Auth failure: run `gh auth status` and `tools/agents/agent-permission-smoke`;
+  do not start branch/PR work if smoke fails.
+- Missing Project access: continue label/comment routing when Project is not
+  required; run `tools/agents/agent-permission-smoke --project` only for Project
+  helper work.
+- Missing thread tools: use `agent-dispatch-note --evidence-mode
+  portable-prompt` or a durable GitHub comment fallback, and do not claim a live
+  dispatch happened.
+- Shell incompatibility: run `tools/agents/test-shell-compat`; unsupported
+  shells should be treated as an execution-layer blocker.
+- Permission downgrade: distinguish Codex sandbox execution permission from
+  workflow approval. Authorized issue branch/PR/comment/label routing remains a
+  normal workflow action, but sandbox/network failures must be reported or
+  retried with execution-layer permission.

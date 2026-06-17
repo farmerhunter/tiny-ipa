@@ -43,6 +43,8 @@ grep -Fq "Bounded dispatch:" <<< "$issue_output"
 grep -Fq "Subject: issue #101" <<< "$issue_output"
 grep -Fq "From: needs:architect" <<< "$issue_output"
 grep -Fq "To: needs:reviewer" <<< "$issue_output"
+grep -Fq "Evidence mode: generated-note" <<< "$issue_output"
+grep -Fq "Evidence: not a live dispatch; generated note/fallback only" <<< "$issue_output"
 grep -Fq -- "- Context:" <<< "$issue_output"
 grep -Fq "Title: Issue note" <<< "$issue_output"
 grep -Fq "Expected result: release next-step to needs:reviewer" <<< "$issue_output"
@@ -60,6 +62,23 @@ grep -Fq "Epic: #203 Batch epic" <<< "$batch_output"
 grep -Fq "Child: #11 Child one" <<< "$batch_output"
 grep -Fq "Child: #22 Child two" <<< "$batch_output"
 grep -Fq "Child set: #11 #22" <<< "$batch_output"
+
+live_output="$("$fixture_root/tools/agents/agent-dispatch-note" --issue 101 --to reviewer --evidence-mode live-thread --evidence "send_message_to_thread accepted thread 123")"
+grep -Fq "Evidence mode: live-thread" <<< "$live_output"
+grep -Fq "Evidence: send_message_to_thread accepted thread 123" <<< "$live_output"
+
+github_fallback="$("$fixture_root/tools/agents/agent-dispatch-note" --issue 101 --to reviewer --evidence-mode github-comment --evidence "https://example.test/issues/101#comment")"
+grep -Fq "Evidence mode: github-comment" <<< "$github_fallback"
+
+if "$fixture_root/tools/agents/agent-dispatch-note" --issue 101 --to reviewer --evidence-mode live-thread >/dev/null 2>&1; then
+  printf 'live-thread mode without evidence unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
+if "$fixture_root/tools/agents/agent-dispatch-note" --issue 101 --to reviewer --evidence-mode copied-text >/dev/null 2>&1; then
+  printf 'unknown evidence mode unexpectedly succeeded\n' >&2
+  exit 1
+fi
 
 if "$fixture_root/tools/agents/agent-dispatch-note" --batch --epic 203 --to reviewer >/dev/null 2>&1; then
   printf 'batch without child unexpectedly succeeded\n' >&2

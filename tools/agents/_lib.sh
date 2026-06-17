@@ -5,6 +5,81 @@ repo_api_path() {
   printf 'repos/%s' "$repo"
 }
 
+agent_parse_github_repo_from_remote() {
+  local remote="$1"
+
+  case "$remote" in
+    git@github.com:*.git)
+      printf '%s\n' "${remote#git@github.com:}" | sed 's/\.git$//'
+      ;;
+    git@github.com:*)
+      printf '%s\n' "${remote#git@github.com:}"
+      ;;
+    https://github.com/*.git)
+      printf '%s\n' "${remote#https://github.com/}" | sed 's/\.git$//'
+      ;;
+    https://github.com/*)
+      printf '%s\n' "${remote#https://github.com/}"
+      ;;
+    ssh://git@github.com/*.git)
+      printf '%s\n' "${remote#ssh://git@github.com/}" | sed 's/\.git$//'
+      ;;
+    ssh://git@github.com/*)
+      printf '%s\n' "${remote#ssh://git@github.com/}"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+agent_repo() {
+  local remote repo
+
+  if [[ -n "${GH_REPO:-}" ]]; then
+    printf '%s\n' "$GH_REPO"
+    return
+  fi
+
+  if [[ -n "${AGENT_REPO:-}" ]]; then
+    printf '%s\n' "$AGENT_REPO"
+    return
+  fi
+
+  if remote="$(git remote get-url origin 2>/dev/null)" &&
+    repo="$(agent_parse_github_repo_from_remote "$remote")" &&
+    [[ "$repo" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]]; then
+    printf '%s\n' "$repo"
+    return
+  fi
+
+  printf '%s\n' 'Warning: using built-in Tiny IPA repo fallback; set GH_REPO or run from a GitHub checkout to avoid this fallback.' >&2
+  printf '%s\n' 'farmerhunter/tiny-ipa'
+}
+
+agent_repo_source() {
+  local remote repo
+
+  if [[ -n "${GH_REPO:-}" ]]; then
+    printf '%s\n' 'GH_REPO'
+    return
+  fi
+
+  if [[ -n "${AGENT_REPO:-}" ]]; then
+    printf '%s\n' 'AGENT_REPO'
+    return
+  fi
+
+  if remote="$(git remote get-url origin 2>/dev/null)" &&
+    repo="$(agent_parse_github_repo_from_remote "$remote")" &&
+    [[ "$repo" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]]; then
+    printf '%s\n' 'git remote origin'
+    return
+  fi
+
+  printf '%s\n' 'built-in Tiny IPA fallback'
+}
+
 agent_role_config_path() {
   if [[ -n "${AGENT_ROLE_ROUTING_CONFIG:-}" ]]; then
     printf '%s\n' "$AGENT_ROLE_ROUTING_CONFIG"
@@ -252,6 +327,7 @@ agent_print_role_routing_config() {
   local role label first=1
 
   agent_load_role_config || return 2
+  printf 'Repository: %s (%s)\n' "$(agent_repo)" "$(agent_repo_source)"
   printf 'Config: %s\n' "$AGENT_ROLE_CONFIG_SOURCE"
   printf 'Roles:'
   for role in "${AGENT_ROLES[@]}"; do

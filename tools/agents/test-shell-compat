@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+scripts=()
+while IFS= read -r path; do
+  scripts+=("$path")
+done < <(find "$root/tools/agents" -maxdepth 1 -type f -perm -u+x | sort)
+
+candidates=()
+if command -v bash >/dev/null 2>&1; then
+  candidates+=("$(command -v bash)")
+fi
+if [[ -x /bin/bash ]]; then
+  seen=0
+  for candidate in "${candidates[@]}"; do
+    if [[ "$candidate" == "/bin/bash" ]]; then
+      seen=1
+    fi
+  done
+  if [[ "$seen" -eq 0 ]]; then
+    candidates+=("/bin/bash")
+  fi
+fi
+
+if (( ${#candidates[@]} == 0 )); then
+  printf '%s\n' 'No bash runtime found for helper compatibility checks' >&2
+  exit 1
+fi
+
+cat > "$tmp_dir/custom.conf" <<'CONFIG'
+AGENT_ROLES=(planner builder reviewer user)
+AGENT_ROLE_LABEL_planner="needs:planner"
+AGENT_ROLE_LABEL_builder="needs:builder"
+AGENT_ROLE_LABEL_reviewer="needs:reviewer"
+AGENT_ROLE_LABEL_user="needs:user"
+AGENT_PRIMARY_NEXT_LABELS=(needs:planner needs:builder needs:reviewer needs:user blocked)
+CONFIG
+
+for bash_bin in "${candidates[@]}"; do
+  version="$("$bash_bin" --version | sed -n '1p')"
+  printf 'shell: %s\n' "$version"
+
+  for script in "${scripts[@]}"; do
+    "$bash_bin" -n "$script"
+  done
+
+  AGENT_ROLE_ROUTING_CONFIG="$tmp_dir/custom.conf" ROOT="$root" "$bash_bin" -c '
+    set -euo pipefail
+    source "$ROOT/tools/agents/_lib.sh"
+    [[ "$(agent_role_label_for_role builder)" == "needs:builder" ]]
+    agent_require_primary_next_label blocked
+    agent_join_lines < /dev/null >/tmp/agent-shell-compat-empty.out
+    [[ ! -s /tmp/agent-shell-compat-empty.out ]]
+    rm -f /tmp/agent-shell-compat-empty.out
+  '
+
+  AGENT_REPO="example-org/example-repo" ROOT="$root" "$bash_bin" -c '
+    set -euo pipefail
+    source "$ROOT/tools/agents/_lib.sh"
+    [[ "$(agent_repo)" == "example-org/example-repo" ]]
+  '
+done
+
+printf 'shell compatibility checks passed\n'
