@@ -269,6 +269,10 @@ async function routeMock(route: Route, state: MockState) {
   }
 
   if (path === "/today") {
+    if (state.activeGroup === "focused") {
+      await route.fulfill({ json: toTodayResponse(groups.group2) });
+      return;
+    }
     if (state.completedGroups.has("group1")) {
       state.activeGroup = "group2";
     }

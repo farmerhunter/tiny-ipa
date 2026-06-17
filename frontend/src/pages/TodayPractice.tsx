@@ -6,7 +6,7 @@
  * refresh-safe: reloading on the same date resumes the same session.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { SettingsData, TodayItem, TodayResponse } from "../api";
 import {
   clearPracticeFocus,
@@ -84,6 +84,7 @@ export default function TodayPractice({
   initialSession,
   onInitialSessionConsumed,
 }: Props) {
+  const adoptedInitialSession = useRef(Boolean(initialSession));
   const [session, setSession] = useState<TodayResponse | null>(() => initialSession ?? null);
   const [loading, setLoading] = useState(() => !initialSession);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -119,7 +120,7 @@ export default function TodayPractice({
 
   // Load today's session on mount.
   useEffect(() => {
-    if (initialSession) return;
+    if (initialSession || adoptedInitialSession.current) return;
 
     let cancelled = false;
     Promise.all([fetchToday(), fetchSettings()])
