@@ -44,10 +44,10 @@ function canonicalFocus(phonemes: string[]): string[] {
 
 function groupLabel(session: TodayResponse): string {
   if (session.group_type === "weak_focus") return "Focused group";
-  if (session.source_scope === "current_group") return `Group ${session.group_index ?? 1} review`;
+  if (session.source_scope === "current_group") return "Current-group review";
   if (session.source_scope === "recent_global") return "Recent mistake review";
   if (session.group_type === "mistake_review") return "Mistake review";
-  return `Group ${session.group_index ?? 1}`;
+  return "Practice group";
 }
 
 function groupReason(session: TodayResponse): string {
@@ -75,6 +75,13 @@ function buildFocusHint(targetPhonemes: string[]): string {
     return "Focus on the IPA difference, then listen again.";
   }
   return `Focus on ${targetPhonemes.join(" ")} before choosing.`;
+}
+
+function currentReviewActionLabel(session: TodayResponse): string {
+  if (session.group_type === "mistake_review") {
+    return "Review misses from this review";
+  }
+  return "Review misses from this group";
 }
 
 export default function TodayPractice({
@@ -295,6 +302,7 @@ export default function TodayPractice({
     const total = results.length;
     const wrongResults = results.filter((r) => !r.isCorrect);
     const summarySession = lastSummarySession ?? session;
+    const hasCurrentGroupMisses = wrongResults.length > 0;
     const focusSuggestions = canonicalFocus(
       wrongResults.flatMap((result) => result.targetPhonemes),
     ).slice(0, 3);
@@ -363,13 +371,17 @@ export default function TodayPractice({
             >
               {actionLoading === "continue" ? "Loading…" : "Start next 10-word group"}
             </button>
-            <button
-              className="secondary-action-btn"
-              onClick={handleCurrentGroupReview}
-              disabled={actionLoading !== null}
-            >
-              {actionLoading === "current-review" ? "Loading…" : `Review misses from ${groupLabel(summarySession)}`}
-            </button>
+            {hasCurrentGroupMisses && (
+              <button
+                className="secondary-action-btn"
+                onClick={handleCurrentGroupReview}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === "current-review"
+                  ? "Loading…"
+                  : currentReviewActionLabel(summarySession)}
+              </button>
+            )}
             <button
               className="secondary-action-btn"
               onClick={handleRecentReview}
