@@ -463,11 +463,119 @@ MVP 默认：
   "show_translation": true,
   "show_accent_compare": false,
   "practice_mode": "ipa_first",
-  "review_strength": "normal"
+  "review_strength": "normal",
+  "learner_level": "entry"
 }
 ```
 
 `primary_accent = UK` 可以先不在 UI 开放，但字段应存在。
+
+### M8 learner levels
+
+M8 introduces a learner-facing level setting for future practice groups:
+
+```text
+learner_level = entry | mid
+```
+
+This is separate from `words.level`, which remains word-level difficulty metadata
+from the content source. Runtime scheduling must use `settings.learner_level`
+plus content-set readiness, not infer the user's selected level from
+`words.level`.
+
+User-facing labels:
+
+```text
+entry = Entry
+mid = Mid
+```
+
+Level meanings:
+
+```text
+Entry:
+  uses the existing Core 300 runtime set
+  is the default for existing and new users
+  must not overwrite, delete, or reshuffle the current Core 300 source file
+
+Mid:
+  uses a newly curated Core 1000 runtime set
+  should increase two-syllable and multi-syllable word ratio versus Core 300
+  must not become selectable as a working practice path until Core 1000 is imported and validated
+```
+
+Settings API contract:
+
+```json
+{
+  "primary_accent": "US",
+  "daily_word_count": 10,
+  "show_translation": true,
+  "show_accent_compare": false,
+  "practice_mode": "ipa_first",
+  "review_strength": "normal",
+  "focus_phonemes": [],
+  "learner_level": "entry"
+}
+```
+
+`PUT /api/settings` accepts partial updates. `learner_level` validation:
+
+```text
+entry | mid      accepted values
+other values     400 SETTINGS_INVALID
+```
+
+If the UI exposes `mid` before the Mid content set is ready, the action must fail
+with a clear disabled/hold state or a structured backend error. Final M8
+acceptance requires Mid to be selectable and usable, so the preferred completed
+state is not fallback-to-Entry but verified Core 1000 readiness.
+
+Practice generation contract:
+
+```text
+Changing learner_level affects future generated normal practice groups.
+An already active normal group remains resumable until completed.
+Entry normal groups select only Entry/Core 300 runtime content.
+Mid normal groups select only Mid/Core 1000 runtime content.
+Current-group review reuses the source group's items regardless of later level changes.
+Recent-mistake review may include previously missed words from the user's history,
+but its UI must label it as review rather than as a fresh Entry/Mid group.
+Focused practice uses the active learner_level pool unless the focus action is
+explicitly derived from a source review group.
+```
+
+Frontend workflow contract:
+
+```text
+Settings shows a Practice level control with Entry and Mid options.
+Today Practice displays the active level for normal practice groups.
+Normal practice wording must not imply Mid is only a larger daily quota; it is a
+different content pool.
+Review/focus groups remain visually distinct from normal Entry/Mid practice.
+If Mid is unavailable in a developer or partial-import state, the UI explains
+the hold instead of silently starting Entry practice.
+```
+
+Walkthrough gate:
+
+```text
+Entry smoke:
+  default settings show learner_level=entry
+  a normal group starts from Core 300 content
+  completing a group keeps M7 next/review/focus actions coherent
+
+Mid smoke:
+  switching to Mid is visible in Settings and Today Practice
+  the next normal group uses Core 1000 content
+  sample Mid words include visibly more two-syllable or multi-syllable items
+  switching levels does not corrupt Entry progress or current-group review
+
+Closure:
+  M8 cannot close without a final-user note or trial path describing Entry,
+  Mid, how to switch, what changed, verification evidence, exclusions, and
+  whether human trial is required.
+```
 
 ## 服务端领域规则
 

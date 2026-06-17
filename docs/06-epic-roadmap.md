@@ -280,6 +280,20 @@ Mid level uses a newly generated and reviewed Core 1000 candidate set
 Core 1000 improves two-syllable and multi-syllable coverage compared with Core 300
 level selection affects future practice generation and is visible to the learner
 validation reports separate Entry and Mid coverage/readiness
+M8 closure includes final-user usage/trial notes for Entry vs Mid behavior
+and browser walkthrough evidence for level switching and practice generation
+```
+
+Dependency plan:
+
+```text
+#122 defines the Entry/Mid API, domain, UX, and walkthrough contract.
+#123 proves Core 1000 source feasibility and syllable metadata strategy.
+#124 generates Core 1000 candidates plus rebalance reports.
+#125 curates the Mid runtime content set and requires human sample acceptance.
+#126 adds level-aware validation/import reports.
+#127 wires settings, scheduler, and frontend level selection.
+#128 performs final M8 QA, user-facing usage note, and Epic readiness review.
 ```
 
 ## M9：VPS Deployment and Backup
