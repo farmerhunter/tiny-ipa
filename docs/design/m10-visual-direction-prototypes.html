@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tiny IPA M10 Visual Direction Prototypes</title>
+  <title>小音标 M10 视觉方向原型</title>
   <style>
     :root {
       color-scheme: light;
@@ -15,7 +15,9 @@
       --focus: #2563eb;
       --radius: 8px;
       --shadow: 0 18px 45px rgba(18, 24, 38, 0.12);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --cn-ui-font: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+      --cn-brand-font: "TsangerYuYangT W05", "HYQiHei 60S", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      font-family: var(--cn-ui-font);
     }
 
     * {
@@ -175,6 +177,11 @@
       overflow: hidden;
     }
 
+    .direction-card.is-selected {
+      border-color: #2f78e8;
+      box-shadow: 0 22px 56px rgba(47, 120, 232, 0.2);
+    }
+
     .direction-header {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -249,6 +256,19 @@
       background: var(--texture);
     }
 
+    .proto-screen::after {
+      content: "小  /ʃ/  /θ/  /ɪ/";
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      color: var(--pattern-ink, rgba(47, 120, 232, 0.2));
+      font-family: var(--cn-brand-font);
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      pointer-events: none;
+    }
+
     .proto-inner {
       position: relative;
       z-index: 1;
@@ -257,6 +277,48 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
+    }
+
+    .brand-strip {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-radius: var(--card-radius);
+      border: var(--card-border);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(236, 254, 255, 0.86));
+      box-shadow: var(--card-shadow);
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      background: #172033;
+      color: #fffefa;
+      font-family: var(--cn-brand-font);
+      font-size: 1.65rem;
+      font-weight: 950;
+      line-height: 1;
+      box-shadow: inset 0 -6px 0 rgba(6, 182, 212, 0.26);
+    }
+
+    .brand-copy strong {
+      display: block;
+      font-family: var(--cn-brand-font);
+      font-size: 1.28rem;
+      line-height: 1.1;
+    }
+
+    .brand-copy span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted-copy);
+      font-size: 0.82rem;
+      line-height: 1.35;
     }
 
     .proto-nav {
@@ -401,6 +463,39 @@
       font-size: 0.72rem;
       font-weight: 950;
       vertical-align: middle;
+    }
+
+    .signal-ribbon {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 3px;
+      align-items: end;
+      height: 34px;
+      padding: 8px 10px;
+      border-radius: var(--button-radius);
+      background: #ecfeff;
+      border: 1px solid #a5f3fc;
+    }
+
+    .signal-ribbon span {
+      display: block;
+      min-height: 7px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #06b6d4, #2f78e8);
+      opacity: 0.82;
+    }
+
+    .signal-ribbon span:nth-child(2n) {
+      min-height: 18px;
+    }
+
+    .signal-ribbon span:nth-child(3n) {
+      min-height: 25px;
+      background: linear-gradient(180deg, #f9736b, #2f78e8);
+    }
+
+    .brand-preview-gap {
+      height: 12px;
     }
 
     .choice-list {
@@ -607,6 +702,7 @@
       --label-spacing: 0.08em;
       --texture-opacity: 0.2;
       --texture: repeating-linear-gradient(90deg, transparent 0 14px, rgba(6, 182, 212, 0.2) 14px 16px);
+      --pattern-ink: rgba(37, 99, 235, 0.18);
     }
 
     .direction-card[data-direction="studio"] {
@@ -654,6 +750,7 @@
       --label-spacing: 0;
       --texture-opacity: 0.08;
       --texture: radial-gradient(circle at 10% 8%, #f9736b 0 8px, transparent 9px), radial-gradient(circle at 92% 14%, #a78bfa 0 7px, transparent 8px);
+      --pattern-ink: rgba(249, 115, 107, 0.2);
     }
 
     .direction-card[data-direction="mission"] {
@@ -701,6 +798,7 @@
       --label-spacing: 0.06em;
       --texture-opacity: 0.12;
       --texture: linear-gradient(135deg, rgba(124, 58, 237, 0.28) 0 2px, transparent 2px 14px);
+      --pattern-ink: rgba(29, 78, 216, 0.16);
     }
 
     .direction-card[data-direction="hybrid"] {
@@ -747,7 +845,8 @@
       --label-transform: none;
       --label-spacing: 0;
       --texture-opacity: 0.16;
-      --texture: repeating-linear-gradient(90deg, transparent 0 18px, rgba(6, 182, 212, 0.16) 18px 20px);
+      --texture: radial-gradient(circle at 16% 10%, rgba(249, 115, 107, 0.42) 0 5px, transparent 6px), radial-gradient(circle at 86% 16%, rgba(6, 182, 212, 0.3) 0 7px, transparent 8px), repeating-linear-gradient(90deg, transparent 0 18px, rgba(6, 182, 212, 0.16) 18px 20px);
+      --pattern-ink: rgba(47, 120, 232, 0.24);
     }
 
     @media (max-width: 1100px) {
@@ -791,48 +890,47 @@
   <main class="shell">
     <header class="review-top">
       <div>
-        <h1>Tiny IPA M10 visual direction prototypes</h1>
-        <p>Interactive review artifact for issue #175. Compare the same learner flows across direction A, B, C, and the recommended B+A hybrid before choosing a production UI direction.</p>
+        <h1>小音标 M10 视觉方向原型</h1>
+        <p>#175 评审用交互原型。已按选择聚焦 B+A：用 B 的温和练习室作为整体体验，再引入 A 的音频信号与 IPA 清晰度。A/B/C 保留作对照。</p>
       </div>
-      <div class="controls" aria-label="Prototype controls">
-        <div class="segmented" aria-label="Direction filter">
-          <button type="button" data-filter="all" aria-pressed="true">All</button>
+      <div class="controls" aria-label="原型控制">
+        <div class="segmented" aria-label="视觉方向筛选">
+          <button type="button" data-filter="all" aria-pressed="false">全部</button>
           <button type="button" data-filter="sound" aria-pressed="false">A</button>
           <button type="button" data-filter="studio" aria-pressed="false">B</button>
           <button type="button" data-filter="mission" aria-pressed="false">C</button>
-          <button type="button" data-filter="hybrid" aria-pressed="false">B+A</button>
+          <button type="button" data-filter="hybrid" aria-pressed="true">B+A</button>
         </div>
-        <div class="segmented" aria-label="Viewport mode">
-          <button type="button" data-viewport="desktop" aria-pressed="true">Desktop</button>
-          <button type="button" data-viewport="mobile" aria-pressed="false">Mobile</button>
+        <div class="segmented" aria-label="视口模式">
+          <button type="button" data-viewport="desktop" aria-pressed="true">桌面</button>
+          <button type="button" data-viewport="mobile" aria-pressed="false">手机</button>
         </div>
       </div>
     </header>
 
     <div class="review-grid">
       <aside class="decision-panel">
-        <h2>Decision Gate</h2>
-        <p>Pick a visual direction after inspecting the prototype screens. This is not production UI; it is an evaluation artifact.</p>
-        <h3>Recommended</h3>
-        <p><strong>B+A hybrid</strong>: Practice Studio overall, with Sound Lab's restrained IPA/audio signal motif.</p>
-        <h3>Choose</h3>
+        <h2>视觉评审门</h2>
+        <p>这不是生产 UI，是用于判断方向的 HTML 原型。当前默认展示已选择的 B+A 方向。</p>
+        <h3>当前选择</h3>
+        <p><strong>B+A 小音标练习室</strong>：整体温和、有练习陪伴感，同时用声波、音标碎片和“小”字标识建立记忆点。</p>
+        <h3>评审结论</h3>
         <div class="vote-list">
-          <button type="button" data-vote="A">A - Sound Lab</button>
-          <button type="button" data-vote="B">B - Practice Studio</button>
-          <button type="button" data-vote="C">C - Mission Cards</button>
-          <button type="button" data-vote="B+A hybrid">B+A hybrid</button>
-          <button type="button" data-vote="Defer">Defer for mockups</button>
+          <button type="button" data-vote="认可 B+A 小音标练习室" aria-pressed="true">认可 B+A</button>
+          <button type="button" data-vote="认可 B+A，但需要调整字体/图案">认可但调字体/图案</button>
+          <button type="button" data-vote="认可 B+A，但需要调整配色">认可但调配色</button>
+          <button type="button" data-vote="暂缓，需要更多视觉稿">暂缓，需要更多视觉稿</button>
         </div>
-        <h3>Response to paste</h3>
-        <div class="vote-output" id="voteOutput">Select visual direction: <pending>
-Optional notes: </div>
-        <h3>Review checks</h3>
+        <h3>可复制回复</h3>
+        <div class="vote-output" id="voteOutput">视觉方向选择：认可 B+A 小音标练习室
+补充意见：</div>
+        <h3>检查点</h3>
         <ul>
-          <li>Would a teen want to come back?</li>
-          <li>Is IPA easier to read?</li>
-          <li>Does a wrong answer feel recoverable?</li>
-          <li>Does Progress motivate without pressure?</li>
-          <li>Does mobile feel like the primary surface?</li>
+          <li>青少年会不会愿意回来练？</li>
+          <li>IPA 是否更容易读？</li>
+          <li>答错后是否感觉可以恢复？</li>
+          <li>进度页是否激励但不施压？</li>
+          <li>手机端是否像第一体验面？</li>
         </ul>
       </aside>
 
@@ -840,10 +938,10 @@ Optional notes: </div>
         <article class="direction-card" data-direction="sound">
           <div class="direction-header">
             <div>
-              <h2>A. Sound Lab</h2>
-              <p>Precise, signal-driven, and trustworthy. Best for IPA/audio clarity; risk is feeling too clinical.</p>
+              <h2>A. 声音实验室</h2>
+              <p>准确、信号化、有可信度。强项是 IPA 与音频清晰；风险是偏工具感。</p>
             </div>
-            <div class="swatches" aria-label="Sound Lab colors">
+            <div class="swatches" aria-label="声音实验室配色">
               <span class="swatch" style="background:#172033"></span>
               <span class="swatch" style="background:#2563eb"></span>
               <span class="swatch" style="background:#06b6d4"></span>
@@ -860,19 +958,19 @@ Optional notes: </div>
             </div>
           </div>
           <div class="notes">
-            <div><h3>Best at</h3><p>IPA confidence, audio status, technical trust.</p></div>
-            <div><h3>Watch risk</h3><p>May feel like a diagnostics tool if copy stays dry.</p></div>
-            <div><h3>Useful motif</h3><p>Subtle waveform/phoneme signal treatment.</p></div>
+            <div><h3>强项</h3><p>IPA 可信度、音频状态、技术清晰度。</p></div>
+            <div><h3>风险</h3><p>文案过冷时会像诊断工具。</p></div>
+            <div><h3>可继承母题</h3><p>克制的声波与音素信号处理。</p></div>
           </div>
         </article>
 
         <article class="direction-card" data-direction="studio">
           <div class="direction-header">
             <div>
-              <h2>B. Practice Studio</h2>
-              <p>Warm, tactile, and forgiving. Best broad teen fit; strongest for wrong-answer recovery.</p>
+              <h2>B. 练习室</h2>
+              <p>温和、有触感、允许犯错。青少年适配度最好，最利于答错后的继续练习。</p>
             </div>
-            <div class="swatches" aria-label="Practice Studio colors">
+            <div class="swatches" aria-label="练习室配色">
               <span class="swatch" style="background:#202124"></span>
               <span class="swatch" style="background:#3b82f6"></span>
               <span class="swatch" style="background:#f9736b"></span>
@@ -889,19 +987,19 @@ Optional notes: </div>
             </div>
           </div>
           <div class="notes">
-            <div><h3>Best at</h3><p>Everyday appeal, forgiving feedback, clear action hierarchy.</p></div>
-            <div><h3>Watch risk</h3><p>Needs a distinctive IPA/audio motif to avoid generic app polish.</p></div>
-            <div><h3>Useful motif</h3><p>Practice desk, tactile tiles, recovery shelf.</p></div>
+            <div><h3>强项</h3><p>日常吸引力、温和反馈、清楚的操作层级。</p></div>
+            <div><h3>风险</h3><p>需要独特的 IPA/音频母题，否则会显得普通。</p></div>
+            <div><h3>可继承母题</h3><p>练习桌、可触摸卡片、恢复型反馈区。</p></div>
           </div>
         </article>
 
         <article class="direction-card" data-direction="mission">
           <div class="direction-header">
             <div>
-              <h2>C. Mission Cards</h2>
-              <p>Goal-oriented and compact. Good for daily momentum; risk is over-emphasizing completion.</p>
+              <h2>C. 任务卡</h2>
+              <p>目标明确、结构紧凑。适合每日推进；风险是过度强调完成和打卡。</p>
             </div>
-            <div class="swatches" aria-label="Mission Cards colors">
+            <div class="swatches" aria-label="任务卡配色">
               <span class="swatch" style="background:#171717"></span>
               <span class="swatch" style="background:#1d4ed8"></span>
               <span class="swatch" style="background:#84cc16"></span>
@@ -918,19 +1016,19 @@ Optional notes: </div>
             </div>
           </div>
           <div class="notes">
-            <div><h3>Best at</h3><p>Next-action clarity and short-session momentum.</p></div>
-            <div><h3>Watch risk</h3><p>Can drift into habit-app pressure or reward loops.</p></div>
-            <div><h3>Useful motif</h3><p>Mission state cards: Start, Learn, Review, Next.</p></div>
+            <div><h3>强项</h3><p>下一步清楚，短练习很有推进感。</p></div>
+            <div><h3>风险</h3><p>容易变成习惯 App 压力或奖励循环。</p></div>
+            <div><h3>可继承母题</h3><p>开始、学习、复习、下一步的状态卡。</p></div>
           </div>
         </article>
 
-        <article class="direction-card" data-direction="hybrid">
+        <article class="direction-card is-selected" data-direction="hybrid">
           <div class="direction-header">
             <div>
-              <h2>B+A. Studio Signal</h2>
-              <p>Recommended hybrid: Practice Studio warmth with Sound Lab's IPA/audio signal language.</p>
+              <h2>B+A. 小音标练习室</h2>
+              <p>已选方向：B 的温和练习体验 + A 的声波/音标信号语言。中文产品名为“小音标”。</p>
             </div>
-            <div class="swatches" aria-label="Studio Signal colors">
+            <div class="swatches" aria-label="小音标练习室配色">
               <span class="swatch" style="background:#172033"></span>
               <span class="swatch" style="background:#2f78e8"></span>
               <span class="swatch" style="background:#06b6d4"></span>
@@ -939,6 +1037,14 @@ Optional notes: </div>
             </div>
           </div>
           <div class="proto-wrap">
+            <div class="brand-strip" aria-label="小音标品牌方向">
+              <div class="brand-mark">小</div>
+              <div class="brand-copy">
+                <strong>小音标</strong>
+                <span>把 IPA 变成每天几分钟的声音练习。字形方向：圆润、有手写感，但 IPA 使用等宽清晰字形。</span>
+              </div>
+            </div>
+            <div class="brand-preview-gap" aria-hidden="true"></div>
             <div class="screen-grid">
               <div class="proto-screen"><div class="proto-inner" data-screen="today"></div></div>
               <div class="proto-screen"><div class="proto-inner" data-screen="practice"></div></div>
@@ -947,9 +1053,9 @@ Optional notes: </div>
             </div>
           </div>
           <div class="notes">
-            <div><h3>Best at</h3><p>Balanced teen appeal, IPA trust, and recoverable mistakes.</p></div>
-            <div><h3>Watch risk</h3><p>Must stay disciplined; one signature signal, not decoration everywhere.</p></div>
-            <div><h3>Useful motif</h3><p>Warm practice layout plus audio/phoneme signal strip.</p></div>
+            <div><h3>强项</h3><p>青少年吸引力、IPA 可信度、答错后可恢复感之间最平衡。</p></div>
+            <div><h3>风险</h3><p>图案必须克制：一个核心声音信号，而不是到处装饰。</p></div>
+            <div><h3>视觉母题</h3><p>“小”字标、声波条、音标碎片、圆角练习卡。</p></div>
           </div>
         </article>
       </section>
@@ -957,37 +1063,42 @@ Optional notes: </div>
   </main>
 
   <template id="today-template">
-    <nav class="proto-nav"><span class="active">Today</span><span>Progress</span><span>Settings</span></nav>
-    <span class="mini-label">Today practice hub</span>
-    <div class="hero-line"><h3>Entry selected</h3><span class="status-pill">US audio</span></div>
-    <div class="info-box"><strong>Ready to start Entry</strong><span>2 words today. Review appears when there is something useful to replay.</span></div>
-    <button class="primary-action">Start Entry group</button>
-    <button class="secondary-action">Review recent mistakes</button>
-    <button class="secondary-action">View Progress</button>
+    <nav class="proto-nav"><span class="active">今日</span><span>进度</span><span>设置</span></nav>
+    <div class="brand-strip">
+      <div class="brand-mark">小</div>
+      <div class="brand-copy"><strong>小音标</strong><span>每天几分钟，把声音和 IPA 对上号。</span></div>
+    </div>
+    <span class="mini-label">今日练习</span>
+    <div class="hero-line"><h3>入门已选</h3><span class="status-pill">美式发音</span></div>
+    <div class="info-box"><strong>准备开始入门</strong><span>今天 2 个词。有值得回放的错题时，复习入口会自动出现。</span></div>
+    <div class="signal-ribbon" aria-label="声音信号图案"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <button class="primary-action">开始入门练习</button>
+    <button class="secondary-action">复习最近错题</button>
+    <button class="secondary-action">查看进度</button>
   </template>
 
   <template id="practice-template">
-    <nav class="proto-nav"><span class="active">Today</span><span>Progress</span><span>Settings</span></nav>
-    <div class="hero-line"><span class="mini-label">Practice group 1 / 2</span><span class="status-pill">Entry</span></div>
-    <div class="info-box"><strong>Practice group</strong><span>Listen, compare the sound, then choose the IPA.</span></div>
-    <div class="word-zone"><div><span class="word">ship</span><span class="audio-mark">TTS</span></div><div class="meaning">船</div></div>
+    <nav class="proto-nav"><span class="active">今日</span><span>进度</span><span>设置</span></nav>
+    <div class="hero-line"><span class="mini-label">练习组 1 / 2</span><span class="status-pill">入门</span></div>
+    <div class="info-box"><strong>跟读单词</strong><span>听一遍，比较声音，再选择对应的音标。</span></div>
+    <div class="word-zone"><div><span class="word">ship</span><span class="audio-mark">听</span></div><div class="meaning">船</div></div>
     <div class="choice-list"><div class="choice wrong">/sɪp/</div><div class="choice correct">/ʃɪp/</div></div>
-    <div class="feedback-box"><div class="feedback-title">Not quite. Study the contrast.</div><div class="compare-grid"><span>You picked</span><code>/sɪp/</code><span>Correct IPA</span><code>/ʃɪp/</code><span>Target sound</span><code>/ʃ/</code></div></div>
+    <div class="feedback-box"><div class="feedback-title">不太对，先看这个差异。</div><div class="compare-grid"><span>你选了</span><code>/sɪp/</code><span>正确音标</span><code>/ʃɪp/</code><span>目标音</span><code>/ʃ/</code></div></div>
   </template>
 
   <template id="progress-template">
-    <nav class="proto-nav"><span>Today</span><span class="active">Progress</span><span>Settings</span></nav>
-    <span class="mini-label">Progress</span>
-    <div class="progress-row"><div class="progress-box"><strong>0</strong><span>day streak</span></div><div class="progress-box"><strong>2</strong><span>attempts</span></div><div class="progress-box"><strong>1</strong><span>group done</span></div></div>
-    <div class="info-box"><strong>Needs practice in Entry</strong><span>Focus one sound and make the next group easier to understand.</span></div>
-    <div class="phoneme-list"><div class="phoneme-row"><span class="phoneme-symbol">/ʃ/</span><span>50% accuracy</span><button class="secondary-action">Focus /ʃ/</button></div><div class="phoneme-row"><span class="phoneme-symbol">/θ/</span><span>new signal</span><button class="secondary-action">Focus /θ/</button></div></div>
+    <nav class="proto-nav"><span>今日</span><span class="active">进度</span><span>设置</span></nav>
+    <span class="mini-label">进度</span>
+    <div class="progress-row"><div class="progress-box"><strong>0</strong><span>连续天数</span></div><div class="progress-box"><strong>2</strong><span>次尝试</span></div><div class="progress-box"><strong>1</strong><span>已完成组</span></div></div>
+    <div class="info-box"><strong>入门还需练</strong><span>先专注一个声音，让下一组更容易听懂。</span></div>
+    <div class="phoneme-list"><div class="phoneme-row"><span class="phoneme-symbol">/ʃ/</span><span>正确率 50%</span><button class="secondary-action">专注 /ʃ/</button></div><div class="phoneme-row"><span class="phoneme-symbol">/θ/</span><span>新声音</span><button class="secondary-action">专注 /θ/</button></div></div>
   </template>
 
   <template id="settings-template">
-    <nav class="proto-nav"><span>Today</span><span>Progress</span><span class="active">Settings</span></nav>
-    <span class="mini-label">Settings</span>
-    <div class="settings-box"><strong>Practice level</strong><div class="level-choice"><strong>Entry</strong><span>Starter IPA contrasts with short daily groups.</span></div><div class="level-choice"><strong>Mid</strong><span>Longer words. Starts with the next new group.</span></div></div>
-    <div class="settings-box"><strong>Focus practice</strong><div class="phoneme-row"><span class="phoneme-symbol">/ʃ/</span><span>ship, shoe, special</span><button class="secondary-action">Start focus</button></div></div>
+    <nav class="proto-nav"><span>今日</span><span>进度</span><span class="active">设置</span></nav>
+    <span class="mini-label">设置</span>
+    <div class="settings-box"><strong>练习级别</strong><div class="level-choice"><strong>入门</strong><span>短练习组，先掌握最常见的 IPA 对比。</span></div><div class="level-choice"><strong>进阶</strong><span>更长单词，从下一组开始生效。</span></div></div>
+    <div class="settings-box"><strong>专注练习</strong><div class="phoneme-row"><span class="phoneme-symbol">/ʃ/</span><span>ship, shoe, special</span><button class="secondary-action">开始专注</button></div></div>
   </template>
 
   <script>
@@ -1005,6 +1116,9 @@ Optional notes: </div>
 
     const directionButtons = document.querySelectorAll("[data-filter]");
     const cards = document.querySelectorAll(".direction-card");
+    cards.forEach((card) => {
+      card.hidden = card.dataset.direction !== "hybrid";
+    });
     directionButtons.forEach((button) => {
       button.addEventListener("click", () => {
         const filter = button.dataset.filter;
@@ -1029,7 +1143,7 @@ Optional notes: </div>
         document.querySelectorAll("[data-vote]").forEach((item) => {
           item.setAttribute("aria-pressed", String(item === button));
         });
-        voteOutput.textContent = `Select visual direction: ${button.dataset.vote}\nOptional notes: `;
+        voteOutput.textContent = `视觉方向选择：${button.dataset.vote}\n补充意见：`;
       });
     });
   </script>
