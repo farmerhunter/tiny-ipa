@@ -1,9 +1,8 @@
 """Tests for the IPA parser and candidate selection helpers."""
 
 import sys
+from collections import Counter
 from pathlib import Path
-
-import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -12,7 +11,11 @@ from select_candidates import (  # noqa: E402
     PHONEME_NORMALIZE,
     SUPPORTED_PHONEMES,
     apply_hard_filters,
+    build_core_1000_report,
+    estimate_syllable_count,
     parse_ipa_to_phonemes,
+    select_core_1000_candidates,
+    syllable_distribution,
 )
 
 
@@ -142,3 +145,104 @@ class TestHardFilters:
     def test_content_word_not_rejected_as_function(self):
         reason, _, _ = apply_hard_filters("ship", 4.5, ["/ʃɪp/"], ["/ʃɪp/"], self.CONFIG)
         assert reason is None  # "ship" is not a function word
+
+
+def _candidate(word, ipa_us, score=10.0, phonemes=None):
+    return {
+        "word_id": word,
+        "word": word,
+        "level": "beginner",
+        "ipa_us": ipa_us,
+        "ipa_uk": ipa_us,
+        "phoneme_tags_us": phonemes or ["/t/"],
+        "phoneme_tags_uk": phonemes or ["/t/"],
+        "meaning_zh": None,
+        "difficulty_tags": [],
+        "minimal_pair_group": None,
+        "frequency_zipf": 4.5,
+        "candidate_score": score,
+        "source_ipa_us": "open-dict-data/ipa-dict en_US",
+        "source_ipa_uk": "open-dict-data/ipa-dict en_UK",
+        "source_frequency": "wordfreq",
+        "license_notes": "open-data",
+        "content_status": "candidate",
+        "review_status_us": "auto_checked",
+        "review_status_uk": "auto_checked",
+    }
+
+
+class TestCore1000Rebalance:
+    CONFIG = {
+        "phoneme_coverage_targets_us": {
+            "/t/": 1,
+            "/æ/": 1,
+            "/ə/": 1,
+        },
+        "greedy_selection": {
+            "max_same_rhyme_group": 3,
+        },
+    }
+
+    def test_estimate_syllable_count_uses_ipa_vowel_nuclei(self):
+        assert estimate_syllable_count("/ʃɪp/") == 1
+        assert estimate_syllable_count("/əˈbaʊt/") == 2
+        assert estimate_syllable_count("/ˌedjəˈkeɪʃən/") == 4
+        assert estimate_syllable_count("/ˈbʌtn̩/") == 2
+
+    def test_select_core_1000_uses_syllable_targets_not_naive_score_order(self):
+        candidates = [
+            _candidate("ship", "/ʃɪp/", score=99, phonemes=["/ʃ/", "/ɪ/"]),
+            _candidate("cat", "/kæt/", score=98, phonemes=["/k/", "/æ/"]),
+            _candidate("about", "/əˈbaʊt/", score=10, phonemes=["/ə/", "/b/", "/aʊ/"]),
+            _candidate("garden", "/ˈɡɑrdən/", score=9, phonemes=["/g/", "/ɑ/", "/ə/"]),
+            _candidate("family", "/ˈfæməli/", score=8, phonemes=["/f/", "/æ/", "/ə/"]),
+        ]
+
+        selected = select_core_1000_candidates(
+            candidates,
+            self.CONFIG,
+            target_size=4,
+            syllable_targets={"one": 1, "two": 2, "three_plus": 1},
+        )
+
+        distribution = syllable_distribution(selected)
+        assert len(selected) == 4
+        assert distribution["one"]["count"] == 1
+        assert distribution["two"]["count"] == 2
+        assert distribution["three_plus"]["count"] == 1
+        assert all(c["content_status"] == "core1000_candidate" for c in selected)
+        assert all(c["level"] == "intermediate" for c in selected)
+        assert [c["core1000_rank"] for c in selected] == [1, 2, 3, 4]
+
+    def test_core_1000_report_includes_distribution_and_runtime_guard(self):
+        candidates = [
+            _candidate("ship", "/ʃɪp/"),
+            _candidate("about", "/əˈbaʊt/"),
+            _candidate("family", "/ˈfæməli/"),
+        ]
+        core_300 = candidates[:2]
+        core_1000 = select_core_1000_candidates(
+            candidates,
+            self.CONFIG,
+            target_size=3,
+            syllable_targets={"one": 1, "two": 1, "three_plus": 1},
+        )
+
+        report = build_core_1000_report(
+            candidates,
+            core_300,
+            core_300,
+            core_1000,
+            Counter({"function_word": 2}),
+            self.CONFIG,
+            "python3 scripts/select_candidates.py --top-n 5000",
+            {"python_version": "test"},
+        )
+
+        assert report["runtime_content_promoted"] is False
+        assert report["core_1000_count"] == 3
+        assert report["core_1000_syllable_distribution"]["three_plus"]["count"] == 1
+        assert report["core_1000_multisyllable_count"] == 2
+        assert report["core_300_reference_multisyllable_count"] == 1
+        assert report["rejection_reasons"] == {"function_word": 2}
+        assert report["sample_candidates"]["two"][0]["word"] == "about"
