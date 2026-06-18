@@ -84,6 +84,8 @@ settings(
   show_accent_compare INTEGER NOT NULL,
   practice_mode TEXT NOT NULL,
   review_strength TEXT NOT NULL,
+  learner_level TEXT NOT NULL DEFAULT 'entry',
+  focus_phonemes TEXT NOT NULL DEFAULT '[]',
   updated_at TEXT NOT NULL
 )
 
@@ -97,6 +99,7 @@ daily_sessions(
   completed_at TEXT,
   group_index INTEGER NOT NULL DEFAULT 1,
   group_type TEXT NOT NULL DEFAULT 'normal',
+  learner_level TEXT NOT NULL DEFAULT 'entry',
   source_session_item_ids TEXT NOT NULL DEFAULT '[]'
 )
 
@@ -209,7 +212,7 @@ why the learner is seeing a group.
 
 | Current UI state | Domain state | User action | Command/query | Next domain state | Next UI state | User-facing copy | Failure/empty state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Entry/home | No active group or unknown | Start practice | `GET /api/today` or future explicit start query | Active normal group | Active normal group | `Group 1`, `10 words` | Show setup/import error with retry |
+| Entry/home | No active group | Start practice | `POST /api/practice/next-normal` | Active normal group | Active normal group | `Start Entry group` / `Start Mid group` | Show setup/import error with retry |
 | Entry/home | Active normal group exists | Resume practice | `GET /api/today` | Same active normal group | Active normal group | `Resume Group N` | Keep entry/home actions visible |
 | Active normal group | Pending items remain | Submit answer | `POST /api/attempt` | Attempt recorded; next item pending | Active normal group | Feedback on current answer | Keep item visible with retry |
 | Active normal group | Last item answered | Submit answer | `POST /api/attempt` | Group completed | Group completed | Score, current misses, target sounds, next choices | Keep summary if follow-up load fails |
@@ -247,19 +250,30 @@ against the M7 v2 integration branch, not only route-mocked fixtures.
 GET /api/today
 ```
 
-创建或恢复当天的普通练习组。M7 起，Tiny IPA 将“每日练习”收窄为
-“当天可重复创建的 10 词 practice group”：
+查询 Today hub 状态，不创建新的普通练习组。M7 起，Tiny IPA 将“每日练习”
+收窄为“当天可重复创建的 practice group”，group creation 必须来自显式
+user command：
 
-- `session_id` 仍是 attempt 提交使用的持久 session id；
-- `group_id` 是 `session_id` 的语义别名，供 UI 用 group 语言表达；
-- `group_index` 是同一 `user_id`/`date`/`primary_accent` 下的递增序号；
+- active group response 中，`session_id` 仍是 attempt 提交使用的持久 session id；
+- active group response 中，`group_id` 是 `session_id` 的语义别名，供 UI 用
+  group 语言表达；
+- active group response 中，`group_index` 是同一
+  `user_id`/`date`/`primary_accent` 下的递增序号；
 - `group_type` 当前实现 `normal`、`mistake_review` 和 `weak_focus`，均复用
   同一 session_items/attempts/phoneme_stats 路径；
-- `origin` 说明 action reason，例如 `normal_start`、`normal_resume`、
-  `normal_next`、`current_group_review_start`、`recent_review_start`、
-  `focus_start`、`focus_clear`；
-- `source_scope` 说明数据来源范围，例如 `normal_current`、`normal_next`、
-  `current_group`、`recent_global`、`focus_selection`；
+- `learner_level` 和 `learner_level_label` 记录创建该 group 时使用的
+  learner-facing level，active group 恢复时不随 settings 切换而改写；
+- `selected_learner_level` 和 `selected_learner_level_label` 记录 Settings
+  当前选择，用于 Today hub 说明“已选择的未来练习 level”；
+- `pending_level_change` 在 active normal group 的 level 与 Settings level
+  不一致时为 true；
+- `completed_normal_groups_today` 按 Entry/Mid/total 统计当天已完成的 normal
+  practice group，不包含 review/focus group；
+- `origin` 说明 action reason，例如 `normal_empty`、`normal_resume`、
+  `normal_next`、`normal_abandon_next`、`current_group_review_start`、
+  `recent_review_start`、`focus_start`、`focus_clear`；
+- `source_scope` 说明数据来源范围，例如 `normal_none`、`normal_current`、
+  `normal_next`、`current_group`、`recent_global`、`focus_selection`；
 - `source_group_id` 仅 current-group review 使用，指向被复习的 source group；
 - `focus_phonemes` 在 focus 影响选词或清除 focus 时返回；
 - `action_label` 是后端状态驱动的短文案提示，前端可按产品语气改写；
@@ -268,11 +282,36 @@ GET /api/today
 - `source_session_item_ids` 仅 review group 使用，用于追踪错题来源。
 
 重复调用 `GET /api/today` 时，如果存在当天同 accent 的 `normal`
-`in_progress` group，则恢复它；如果当天已有 completed normal group 且没有
-active normal group，则创建下一个 normal group。不同 group 共用
+`in_progress` group，则恢复它；如果没有 active normal group，则返回
+`status = "idle"`、`origin = "normal_empty"`、`source_scope = "normal_none"`、
+`items = []` 的 hub response，不写入 `daily_sessions`。不同 group 共用
 `session_items`、`attempts` 和 `phoneme_stats`，不引入第二套判题或统计来源。
 
-返回领域摘要，不返回原始调度内部状态：
+No-active hub response 示例：
+
+```json
+{
+  "group_type": "normal",
+  "learner_level": "entry",
+  "learner_level_label": "Entry",
+  "selected_learner_level": "entry",
+  "selected_learner_level_label": "Entry",
+  "pending_level_change": false,
+  "completed_normal_groups_today": {"entry": 0, "mid": 0, "total": 0},
+  "date": "2026-06-06",
+  "primary_accent": "US",
+  "origin": "normal_empty",
+  "source_scope": "normal_none",
+  "action_label": "Start Entry group",
+  "daily_word_count": 10,
+  "word_count": 0,
+  "status": "idle",
+  "source_session_item_ids": [],
+  "items": []
+}
+```
+
+Active group response 返回领域摘要，不返回原始调度内部状态：
 
 ```json
 {
@@ -280,11 +319,17 @@ active normal group，则创建下一个 normal group。不同 group 共用
   "group_id": "2026-06-06-default-g001-normal",
   "group_index": 1,
   "group_type": "normal",
+  "learner_level": "entry",
+  "learner_level_label": "Entry",
+  "selected_learner_level": "entry",
+  "selected_learner_level_label": "Entry",
+  "pending_level_change": false,
+  "completed_normal_groups_today": {"entry": 0, "mid": 0, "total": 0},
   "date": "2026-06-06",
   "primary_accent": "US",
-  "origin": "normal_start",
+  "origin": "normal_next",
   "source_scope": "normal_current",
-  "action_label": "Start Group 1",
+  "action_label": "Start Entry Group 1",
   "daily_word_count": 10,
   "word_count": 10,
   "status": "in_progress",
@@ -316,11 +361,24 @@ active normal group，则创建下一个 normal group。不同 group 共用
 POST /api/practice/next-normal
 ```
 
-显式从完成摘要进入下一个 normal group。若当天已经有 active normal group，
-返回该 group 并标记 `origin = "normal_resume"`；否则创建递增
-`group_index` 的 normal group 并标记 `origin = "normal_next"`、
-`source_scope = "normal_next"`。该 endpoint 用于避免 UI 把“继续”误解为重复
-当前 group。
+显式从 Today hub 或完成摘要进入第一个/下一个 normal group。若当天已经有
+active normal group，返回该 group 并标记 `origin = "normal_resume"`；
+否则按 Settings 当前 `learner_level` 创建递增 `group_index` 的 normal group，
+并标记 `origin = "normal_next"`、`source_scope = "normal_next"`。该 endpoint
+用于避免 UI 把打开 Today 或“继续”误解为自动分配/重复当前 group。
+
+### Abandon current and start selected level
+
+```http
+POST /api/practice/abandon-current-and-next
+```
+
+显式结束当天 active normal group，并创建 Settings 当前 `learner_level` 对应的
+new normal group。旧 group 标记为 `status = "abandoned"`，保留已有 attempts，
+但不计入 completed normal group。该 endpoint 用于 Today hub 的 intentional
+restart / level-switch path，例如 `End this Entry group and start Mid`。
+
+如果没有 active normal group，该 endpoint 退化为 next normal group creation。
 
 ### Current-group review
 
@@ -438,6 +496,35 @@ GET /api/progress
   "today_completed": true,
   "streak_days": 5,
   "total_attempts": 120,
+  "total_sessions": 12,
+  "total_normal_groups": 9,
+  "stat_scope": "global",
+  "level_stats": {
+    "entry": {
+      "learner_level": "entry",
+      "label": "Entry",
+      "attempts": 60,
+      "correct_attempts": 44,
+      "accuracy": 0.73,
+      "normal_groups": 5,
+      "completed_normal_groups": 4,
+      "completed_normal_groups_today": 1,
+      "weak_phonemes": [],
+      "strong_phonemes": []
+    },
+    "mid": {
+      "learner_level": "mid",
+      "label": "Mid",
+      "attempts": 40,
+      "correct_attempts": 30,
+      "accuracy": 0.75,
+      "normal_groups": 4,
+      "completed_normal_groups": 3,
+      "completed_normal_groups_today": 0,
+      "weak_phonemes": [],
+      "strong_phonemes": []
+    }
+  },
   "weak_phonemes": [
     {"phoneme": "/ɪ/", "accuracy": 0.62, "attempt_count": 13}
   ],
@@ -463,11 +550,154 @@ MVP 默认：
   "show_translation": true,
   "show_accent_compare": false,
   "practice_mode": "ipa_first",
-  "review_strength": "normal"
+  "review_strength": "normal",
+  "learner_level": "entry"
 }
 ```
 
 `primary_accent = UK` 可以先不在 UI 开放，但字段应存在。
+
+### M8 learner levels
+
+M8 introduces a learner-facing level setting for future practice groups:
+
+```text
+learner_level = entry | mid
+```
+
+This is separate from `words.level`, which remains word-level difficulty metadata
+from the content source. Runtime scheduling must use `settings.learner_level`
+plus content-set readiness, not infer the user's selected level from
+`words.level`.
+
+User-facing labels:
+
+```text
+entry = Entry
+mid = Mid
+```
+
+Level meanings:
+
+```text
+Entry:
+  uses the existing Core 300 runtime set
+  is the default for existing and new users
+  must not overwrite, delete, or reshuffle the current Core 300 source file
+
+Mid:
+  uses a newly curated Core 1000 runtime set
+  should increase two-syllable and multi-syllable word ratio versus Core 300
+  must not become selectable as a working practice path until Core 1000 is imported and validated
+```
+
+Content readiness and import contract:
+
+```text
+Entry source: content/core_300_words.json
+Mid source:   content/core_1000_words.json
+
+Entry validation:
+  backend/scripts/validate_content.py content/core_300_words.json --content-level entry
+
+Mid validation:
+  backend/scripts/validate_content.py content/core_1000_words.json --content-level mid
+```
+
+Mid/Core1000 word IDs use a `mid_` namespace while preserving
+`source_word_id`, so a selected-level import can load Mid rows into the same
+SQLite database without replacing Entry/Core300 rows that share the same word
+string. `import_words.py --content-level entry|mid|auto` applies the matching
+readiness profile before import. Mid readiness reports Core1000 count, level
+counts, content statuses, syllable buckets, and multisyllable percentage.
+
+#125 promoted `content/core_1000_words.json` with the accepted #124 target split
+of 250 one-syllable, 500 two-syllable, and 250 three-plus-syllable words. The
+file includes `meaning_zh` values for runtime compatibility; entries marked
+`meaning_zh_review_status = inherited_core300` reuse accepted Entry meanings,
+while `meaning_zh_review_status = curated_mid` comes from
+`content/core_1000_meanings_zh.json`. Mid validation fails closed if placeholder
+meanings remain. The curation script also reuses the accepted Core100
+STRUT/r-colored phoneme overrides where matching words appear.
+
+Settings API contract:
+
+```json
+{
+  "primary_accent": "US",
+  "daily_word_count": 10,
+  "show_translation": true,
+  "show_accent_compare": false,
+  "practice_mode": "ipa_first",
+  "review_strength": "normal",
+  "focus_phonemes": [],
+  "learner_level": "entry"
+}
+```
+
+`PUT /api/settings` accepts partial updates. `learner_level` validation:
+
+```text
+entry | mid      accepted values
+other values     400 SETTINGS_INVALID
+```
+
+If the UI exposes `mid` before the Mid content set is ready, the action must fail
+with a clear disabled/hold state or a structured backend error. Final M8
+acceptance requires Mid to be selectable and usable, so the preferred completed
+state is not fallback-to-Entry but verified Core 1000 readiness.
+
+Practice generation contract:
+
+```text
+Changing learner_level affects future generated normal practice groups.
+An already active normal group remains resumable until completed.
+Entry normal groups select only Entry/Core 300 runtime content.
+Mid normal groups select only Mid/Core 1000 runtime content.
+Current-group review reuses the source group's items regardless of later level changes.
+Recent-mistake review may include previously missed words from the user's history,
+but its UI must label it as review rather than as a fresh Entry/Mid group.
+Focused practice uses the active learner_level pool; the same focus selection
+resumes only an active focused group with the same learner_level.
+```
+
+Frontend workflow contract:
+
+```text
+Settings shows a Practice level control with Entry and Mid options.
+Today Practice displays the active level for normal practice groups.
+Normal practice wording must not imply Mid is only a larger daily quota; it is a
+different content pool.
+Review/focus groups remain visually distinct from normal Entry/Mid practice.
+If Mid is unavailable in a developer or partial-import state, the UI explains
+the hold instead of silently starting Entry practice.
+```
+
+Walkthrough gate:
+
+```text
+Entry smoke:
+  default settings show learner_level=entry
+  a normal group starts from Core 300 content
+  completing a group keeps M7 next/review/focus actions coherent
+
+Mid smoke:
+  switching to Mid is visible in Settings and Today Practice
+  the next normal group uses Core 1000 content
+  sample Mid words include visibly more two-syllable or multi-syllable items
+  switching levels does not corrupt Entry progress or current-group review
+
+Closure:
+  M8 cannot close without a final-user note or trial path describing Entry,
+  Mid, how to switch, what changed, verification evidence, exclusions, and
+  whether human trial is required.
+
+Route-mocked browser command:
+
+```text
+cd frontend && pnpm test:e2e:m8
+```
+```
 
 ## 服务端领域规则
 

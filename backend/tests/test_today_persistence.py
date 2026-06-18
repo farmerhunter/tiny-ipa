@@ -37,6 +37,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CONTENT_SAMPLE = FIXTURES / "content_sample.json"
 PHONEMES_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "phonemes.json"
 CORE_300_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "core_300_words.json"
+CORE_1000_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "core_1000_words.json"
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +92,36 @@ def core_300_client_fixture(seeded_db_core_300: str) -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture(name="seeded_db_entry_mid")
+def seeded_db_entry_mid_fixture(tmp_path: Path) -> str:
+    """Create a database with both Entry/Core300 and Mid/Core1000 content."""
+    db_path = str(tmp_path / "entry_mid.sqlite")
+    import_words(
+        source_path=CORE_300_PATH,
+        phonemes_path=PHONEMES_PATH,
+        db_path=db_path,
+        content_level="entry",
+    )
+    import_words(
+        source_path=CORE_1000_PATH,
+        phonemes_path=PHONEMES_PATH,
+        db_path=db_path,
+        content_level="mid",
+    )
+
+    import app.db as db_mod
+
+    orig = db_mod.DEFAULT_DB_PATH
+    db_mod.DEFAULT_DB_PATH = db_path
+    yield db_path
+    db_mod.DEFAULT_DB_PATH = orig
+
+
+@pytest.fixture(name="entry_mid_client")
+def entry_mid_client_fixture(seeded_db_entry_mid: str) -> TestClient:
+    return TestClient(app)
+
+
 # ---------------------------------------------------------------------------
 # Session persistence tests
 # ---------------------------------------------------------------------------
@@ -99,30 +130,35 @@ def core_300_client_fixture(seeded_db_core_300: str) -> TestClient:
 class TestTodayPersistence:
     """Tests that /api/today is database-backed and refresh-safe."""
 
-    def test_first_today_creates_session(self, client, seeded_db):
+    def test_first_today_returns_no_active_hub_without_creating_session(
+        self, client, seeded_db
+    ):
         resp = client.get("/api/today")
         assert resp.status_code == 200
         data = resp.json()
         assert "error" not in data, data
-        assert data["status"] == "in_progress"
-        assert data["group_id"] == data["session_id"]
-        assert data["group_index"] == 1
+        assert data["status"] == "idle"
+        assert data["origin"] == "normal_empty"
+        assert data["source_scope"] == "normal_none"
         assert data["group_type"] == "normal"
-        assert data["word_count"] == len(data["items"])
+        assert data["learner_level"] == "entry"
+        assert data["learner_level_label"] == "Entry"
+        assert data["selected_learner_level"] == "entry"
+        assert data["pending_level_change"] is False
+        assert data["word_count"] == 0
         assert data["source_session_item_ids"] == []
         assert data["date"] == date.today().isoformat()
         assert data["primary_accent"] == "US"
         assert data["daily_word_count"] == 10
-        assert len(data["items"]) == 3  # fixture has 3 words
-        # Session row exists in DB
+        assert data["items"] == []
+        assert data["action_label"] == "Start Entry group"
         conn = get_connection(seeded_db)
         s = get_session_for_date(conn, "default", date.today().isoformat(), "US")
         conn.close()
-        assert s is not None
-        assert s.status == "in_progress"
+        assert s is None
 
     def test_second_today_returns_same_session(self, client, seeded_db):
-        first = client.get("/api/today").json()
+        first = client.post("/api/practice/next-normal").json()
         second = client.get("/api/today").json()
         assert second["session_id"] == first["session_id"]
         assert len(second["items"]) == len(first["items"])
@@ -131,6 +167,7 @@ class TestTodayPersistence:
             assert a["word_id"] == b["word_id"]
 
     def test_second_today_creates_no_duplicate(self, client, seeded_db):
+        client.post("/api/practice/next-normal")
         client.get("/api/today")
         client.get("/api/today")
         conn = get_connection(seeded_db)
@@ -143,7 +180,7 @@ class TestTodayPersistence:
         assert items["cnt"] == 1
 
     def test_completed_group_allows_next_same_day_group(self, client, seeded_db):
-        first = client.get("/api/today").json()
+        first = client.post("/api/practice/next-normal").json()
         conn = get_connection(seeded_db)
         conn.execute(
             """
@@ -156,7 +193,11 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        second = client.get("/api/today").json()
+        empty = client.get("/api/today").json()
+        assert empty["status"] == "idle"
+        assert empty["origin"] == "normal_empty"
+
+        second = client.post("/api/practice/next-normal").json()
 
         assert second["session_id"] != first["session_id"]
         assert second["group_index"] == 2
@@ -181,7 +222,7 @@ class TestTodayPersistence:
         ]
 
     def test_items_have_required_fields(self, client, seeded_db):
-        resp = client.get("/api/today")
+        resp = client.post("/api/practice/next-normal")
         data = resp.json()
         for item in data["items"]:
             assert "session_item_id" in item
@@ -194,7 +235,7 @@ class TestTodayPersistence:
             assert len(item["question"]["choices"]) >= 2  # correct + distractors
 
     def test_items_use_us_accent(self, client, seeded_db):
-        resp = client.get("/api/today")
+        resp = client.post("/api/practice/next-normal")
         data = resp.json()
         for item in data["items"]:
             conn = get_connection(seeded_db)
@@ -211,7 +252,7 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        resp = client.get("/api/today")
+        resp = client.post("/api/practice/next-normal")
         data = resp.json()
         word_ids = [item["word_id"] for item in data["items"]]
         assert "cat" not in word_ids
@@ -223,7 +264,7 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        resp = client.get("/api/today")
+        resp = client.post("/api/practice/next-normal")
         data = resp.json()
         assert len(data["items"]) <= 1
 
@@ -235,7 +276,7 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        first = client.get("/api/today").json()
+        first = client.post("/api/practice/next-normal").json()
         item = first["items"][0]
         attempt = client.post("/api/attempt", json={
             "session_item_id": item["session_item_id"],
@@ -245,6 +286,9 @@ class TestTodayPersistence:
         assert attempt["next_action"] == "group_complete"
 
         second = client.get("/api/today").json()
+        assert second["status"] == "idle"
+
+        second = client.post("/api/practice/next-normal").json()
         assert second["session_id"] != first["session_id"]
         assert second["group_index"] == 2
 
@@ -254,7 +298,7 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        first = client.get("/api/today").json()
+        first = client.post("/api/practice/next-normal").json()
         item = first["items"][0]
         client.post("/api/attempt", json={
             "session_item_id": item["session_item_id"],
@@ -268,9 +312,10 @@ class TestTodayPersistence:
         assert data["session_id"] != first["session_id"]
         assert data["group_index"] == 2
         assert data["group_type"] == "normal"
+        assert data["learner_level"] == "entry"
         assert data["origin"] == "normal_next"
         assert data["source_scope"] == "normal_next"
-        assert data["action_label"] == "Start Group 2"
+        assert data["action_label"] == "Start Entry Group 2"
 
     def test_recent_mistake_review_empty_queue_is_stable(self, client):
         resp = client.post("/api/review/recent-mistakes")
@@ -283,7 +328,7 @@ class TestTodayPersistence:
         assert data["source_scope"] == "recent_global"
 
     def test_recent_mistake_review_group_reuses_attempt_path(self, client, seeded_db):
-        today = client.get("/api/today").json()
+        today = client.post("/api/practice/next-normal").json()
         missed = today["items"][0]
         miss_resp = client.post("/api/attempt", json={
             "session_item_id": missed["session_item_id"],
@@ -333,7 +378,7 @@ class TestTodayPersistence:
         assert stats["attempt_count"] == 2
 
     def test_current_group_review_uses_only_source_group_misses(self, client, seeded_db):
-        today = client.get("/api/today").json()
+        today = client.post("/api/practice/next-normal").json()
         missed = today["items"][0]
         client.post("/api/attempt", json={
             "session_item_id": missed["session_item_id"],
@@ -353,7 +398,7 @@ class TestTodayPersistence:
         assert review["items"][0]["word_id"] == missed["word_id"]
 
     def test_current_group_review_empty_queue_is_non_error(self, client, seeded_db):
-        today = client.get("/api/today").json()
+        today = client.post("/api/practice/next-normal").json()
         resp = client.post("/api/review/current-group", json={
             "group_id": today["group_id"],
         })
@@ -381,7 +426,7 @@ class TestTodayPersistence:
     def test_current_and_recent_review_scopes_do_not_reuse_each_other(
         self, client, seeded_db
     ):
-        today = client.get("/api/today").json()
+        today = client.post("/api/practice/next-normal").json()
         missed = today["items"][0]
         client.post("/api/attempt", json={
             "session_item_id": missed["session_item_id"],
@@ -424,7 +469,7 @@ class TestTodayPersistence:
 
         assert cleared["group_type"] == "normal"
         assert cleared["origin"] == "focus_clear"
-        assert cleared["source_scope"] == "normal_current"
+        assert cleared["source_scope"] == "normal_none"
         assert cleared["focus_phonemes"] == []
 
     def test_focus_action_resumes_active_weak_focus_group(self, client, seeded_db):
@@ -483,7 +528,7 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        resp = client.get("/api/today")
+        resp = client.post("/api/practice/next-normal")
         data = resp.json()
 
         assert [item["word_id"] for item in data["items"]] == ["cat"]
@@ -501,7 +546,7 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        first = client.get("/api/today").json()
+        first = client.post("/api/practice/next-normal").json()
         assert [item["word_id"] for item in first["items"]] == ["cat"]
 
         conn = get_connection(seeded_db)
@@ -541,7 +586,7 @@ class TestTodayPersistence:
         conn.commit()
         conn.close()
 
-        resp = client.get("/api/today")
+        resp = client.post("/api/practice/next-normal")
         data = resp.json()
 
         assert [item["word_id"] for item in data["items"]] == ["cat"]
@@ -603,7 +648,7 @@ class TestCore300TodayReadiness:
     """Regression coverage for the full Core 300 runtime content path."""
 
     def test_core_300_today_keeps_daily_count_to_settings(self, core_300_client):
-        resp = core_300_client.get("/api/today")
+        resp = core_300_client.post("/api/practice/next-normal")
         assert resp.status_code == 200
         data = resp.json()
         assert "error" not in data, data
@@ -615,7 +660,7 @@ class TestCore300TodayReadiness:
         import app.db as db_mod
 
         conn = get_connection(db_mod.DEFAULT_DB_PATH)
-        first_resp = core_300_client.get("/api/today")
+        first_resp = core_300_client.post("/api/practice/next-normal")
         assert first_resp.status_code == 200
         first_data = first_resp.json()
         session_id = first_data["session_id"]
@@ -645,7 +690,7 @@ class TestCore300TodayReadiness:
         conn.commit()
         conn.close()
 
-        resp = core_300_client.get("/api/today")
+        resp = core_300_client.post("/api/practice/next-normal")
         assert resp.status_code == 200
         data = resp.json()
         assert "error" not in data, data
@@ -675,11 +720,130 @@ class TestCore300TodayReadiness:
         conn.commit()
         conn.close()
 
-        resp = core_300_client.get("/api/today")
+        resp = core_300_client.post("/api/practice/next-normal")
         assert resp.status_code == 200
         data = resp.json()
         assert "error" not in data, data
         assert focus_id[0] in {item["word_id"] for item in data["items"]}
+
+
+class TestLevelAwareToday:
+    """Regression coverage for M8 learner-level scheduling semantics."""
+
+    def test_entry_is_default_and_uses_core300_pool(self, entry_mid_client):
+        resp = entry_mid_client.post("/api/practice/next-normal")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["learner_level"] == "entry"
+        assert data["learner_level_label"] == "Entry"
+        assert data["group_type"] == "normal"
+        assert data["items"]
+        assert all(not item["word_id"].startswith("mid_") for item in data["items"])
+
+    def test_mid_setting_uses_core1000_pool_without_entry_mix(self, entry_mid_client):
+        settings_resp = entry_mid_client.put("/api/settings", json={
+            "learner_level": "mid",
+            "daily_word_count": 6,
+        })
+        assert settings_resp.status_code == 200
+
+        resp = entry_mid_client.post("/api/practice/next-normal")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["learner_level"] == "mid"
+        assert data["learner_level_label"] == "Mid"
+        assert data["items"]
+        assert all(item["word_id"].startswith("mid_") for item in data["items"])
+
+    def test_level_change_keeps_active_group_and_affects_next_group(
+        self, entry_mid_client, seeded_db_entry_mid
+    ):
+        entry_mid_client.put("/api/settings", json={
+            "learner_level": "entry",
+            "daily_word_count": 2,
+        })
+        first = entry_mid_client.post("/api/practice/next-normal").json()
+        assert first["learner_level"] == "entry"
+        assert all(not item["word_id"].startswith("mid_") for item in first["items"])
+
+        entry_mid_client.put("/api/settings", json={"learner_level": "mid"})
+        resumed = entry_mid_client.get("/api/today").json()
+        assert resumed["session_id"] == first["session_id"]
+        assert resumed["learner_level"] == "entry"
+        assert resumed["selected_learner_level"] == "mid"
+        assert resumed["pending_level_change"] is True
+        assert resumed["completed_normal_groups_today"] == {
+            "entry": 0,
+            "mid": 0,
+            "total": 0,
+        }
+
+        conn = get_connection(seeded_db_entry_mid)
+        conn.execute(
+            """
+            UPDATE daily_sessions
+            SET status = 'completed', completed_at = '2026-06-17T00:00:00Z'
+            WHERE id = ?
+            """,
+            (first["session_id"],),
+        )
+        conn.commit()
+        conn.close()
+
+        next_group = entry_mid_client.post("/api/practice/next-normal").json()
+        assert next_group["group_index"] == first["group_index"] + 1
+        assert next_group["learner_level"] == "mid"
+        assert next_group["source_scope"] == "normal_next"
+        assert next_group["pending_level_change"] is False
+        assert all(item["word_id"].startswith("mid_") for item in next_group["items"])
+
+    def test_focused_practice_uses_active_learner_level_pool(self, entry_mid_client):
+        entry_mid_client.put("/api/settings", json={
+            "learner_level": "mid",
+            "daily_word_count": 5,
+        })
+
+        focused = entry_mid_client.post("/api/practice/focus", json={
+            "focus_phonemes": ["/ʃ/"],
+        }).json()
+
+        assert focused["group_type"] == "weak_focus"
+        assert focused["learner_level"] == "mid"
+        assert focused["focus_phonemes"] == ["/ʃ/"]
+        assert focused["items"]
+        assert all(item["word_id"].startswith("mid_") for item in focused["items"])
+
+    def test_abandon_current_group_starts_selected_level_group(
+        self, entry_mid_client, seeded_db_entry_mid
+    ):
+        entry_mid_client.put("/api/settings", json={
+            "learner_level": "entry",
+            "daily_word_count": 2,
+        })
+        first = entry_mid_client.post("/api/practice/next-normal").json()
+        entry_mid_client.put("/api/settings", json={"learner_level": "mid"})
+
+        resp = entry_mid_client.post("/api/practice/abandon-current-and-next")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["abandoned_group_id"] == first["session_id"]
+        assert data["origin"] == "normal_abandon_next"
+        assert data["learner_level"] == "mid"
+        assert data["selected_learner_level"] == "mid"
+        assert data["pending_level_change"] is False
+        assert all(item["word_id"].startswith("mid_") for item in data["items"])
+
+        conn = get_connection(seeded_db_entry_mid)
+        old_status = conn.execute(
+            "SELECT status FROM daily_sessions WHERE id = ?",
+            (first["session_id"],),
+        ).fetchone()
+        conn.close()
+
+        assert old_status["status"] == "abandoned"
 
 
 # ---------------------------------------------------------------------------
@@ -730,6 +894,7 @@ class TestSessionStore:
         assert got is not None
         assert got.id == "2026-06-06-default"
         assert got.status == "in_progress"
+        assert got.learner_level == "entry"
 
     def test_get_missing_session(self):
         assert (

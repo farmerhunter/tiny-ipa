@@ -2,8 +2,9 @@
 """
 Tiny IPA content auto-selection feasibility spike.
 
-Generates candidate word lists with US/UK IPA, phoneme tags, and a coverage report
-from open word-frequency data and the open-dict-data/ipa-dict dataset.
+Generates candidate word lists with US/UK IPA, phoneme tags, Core 100/300
+coverage reports, and a syllable-rebalanced Core 1000 candidate report from
+open word-frequency data and the open-dict-data/ipa-dict dataset.
 
 Usage:
     python select_candidates.py [--top-n 5000] [--ipa-dict-dir /path/to/ipa-dict/data]
@@ -15,7 +16,8 @@ If ipa-dict data is not available locally, download en_US.txt and en_UK.txt from
 https://github.com/open-dict-data/ipa-dict/tree/master/data and place them in a
 directory, then pass --ipa-dict-dir.
 
-Outputs go to content/generated/ (gitignored).
+Outputs go to content/generated/ by default (gitignored), including
+core_1000_candidates.json and core_1000_report.json.
 """
 
 import argparse
@@ -25,6 +27,16 @@ import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Optional
+
+SYLLABLE_BUCKETS = ("one", "two", "three_plus", "unknown")
+CORE_1000_SIZE = 1000
+CORE_1000_SYLLABLE_TARGETS = {
+    "one": 250,
+    "two": 500,
+    "three_plus": 250,
+}
+VOWEL_NUCLEUS_RE = re.compile(r"[aæɑɒeɛɜəɚɝiɪoɔuʊʌɐ]+|[mnlrŋ][̩]")
 
 # ---------------------------------------------------------------------------
 # IPA PARSER
@@ -154,6 +166,16 @@ def _get_package_version(package_name: str) -> str:
         return "unknown"
 
 
+def load_word_entries(path: Path) -> list:
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and isinstance(data.get("words"), list):
+        return data["words"]
+    raise ValueError(f"{path} must contain a JSON list or a {{'words': [...]}} object")
+
+
 def parse_ipa_to_phonemes(ipa_str: str):
     """
     Parse a raw IPA string (e.g. \"/ʃɪp/\") into a list of phoneme tags
@@ -211,6 +233,43 @@ def parse_ipa_to_phonemes(ipa_str: str):
             seen.add(canonical)
             result.append(canonical)
     return result, unknown
+
+
+def estimate_syllable_count(ipa_str: Optional[str]) -> int:
+    if not ipa_str:
+        return 0
+    raw = ipa_str.split(",")[0].strip()
+    if raw.startswith("/") and raw.endswith("/"):
+        raw = raw[1:-1]
+    elif raw.startswith("[") and raw.endswith("]"):
+        raw = raw[1:-1]
+    cleaned = raw.replace("ˈ", "").replace("ˌ", "").replace("ː", "")
+    return max(1, len(VOWEL_NUCLEUS_RE.findall(cleaned)))
+
+
+def syllable_bucket(syllable_count: int) -> str:
+    if syllable_count <= 0:
+        return "unknown"
+    if syllable_count == 1:
+        return "one"
+    if syllable_count == 2:
+        return "two"
+    return "three_plus"
+
+
+def syllable_distribution(candidates: list) -> dict:
+    counts = Counter(
+        syllable_bucket(estimate_syllable_count(c.get("ipa_us")))
+        for c in candidates
+    )
+    total = len(candidates)
+    return {
+        bucket: {
+            "count": counts.get(bucket, 0),
+            "percent": round(counts.get(bucket, 0) * 100 / total, 1) if total else 0.0,
+        }
+        for bucket in SYLLABLE_BUCKETS
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -499,6 +558,202 @@ def greedy_select(candidates: list, target_size: int, config: dict) -> list:
     return selected
 
 
+def _candidate_with_syllable_metadata(candidate: dict, rank: int, reason: str) -> dict:
+    enriched = dict(candidate)
+    count = estimate_syllable_count(candidate.get("ipa_us"))
+    enriched["level"] = "intermediate"
+    enriched["syllable_count_us"] = count
+    enriched["syllable_bucket_us"] = syllable_bucket(count)
+    enriched["content_status"] = "core1000_candidate"
+    enriched["core1000_rank"] = rank
+    enriched["core1000_selection_reason"] = reason
+    return enriched
+
+
+def select_core_1000_candidates(
+    candidates: list,
+    config: dict,
+    target_size: int = CORE_1000_SIZE,
+    syllable_targets: Optional[dict] = None,
+) -> list:
+    targets = syllable_targets or CORE_1000_SYLLABLE_TARGETS
+    selected = []
+    selected_ids = set()
+
+    for bucket in ("three_plus", "two", "one"):
+        bucket_candidates = [
+            c for c in candidates
+            if syllable_bucket(estimate_syllable_count(c.get("ipa_us"))) == bucket
+        ]
+        bucket_target = targets.get(bucket, 0)
+        bucket_selected = greedy_select(bucket_candidates, bucket_target, config)
+        for candidate in bucket_selected:
+            if candidate["word_id"] in selected_ids:
+                continue
+            selected_ids.add(candidate["word_id"])
+            selected.append(
+                _candidate_with_syllable_metadata(
+                    candidate,
+                    len(selected) + 1,
+                    f"syllable_target_{bucket}",
+                )
+            )
+
+    if len(selected) < target_size:
+        remaining = [c for c in candidates if c["word_id"] not in selected_ids]
+        fill = greedy_select(remaining, target_size - len(selected), config)
+        for candidate in fill:
+            if candidate["word_id"] in selected_ids:
+                continue
+            selected_ids.add(candidate["word_id"])
+            selected.append(
+                _candidate_with_syllable_metadata(
+                    candidate,
+                    len(selected) + 1,
+                    "coverage_fill",
+                )
+            )
+
+    return selected[:target_size]
+
+
+def phoneme_coverage(candidates: list, key: str = "phoneme_tags_us") -> dict:
+    counts = Counter()
+    for candidate in candidates:
+        for tag in candidate.get(key) or []:
+            counts[tag] += 1
+    return dict(counts)
+
+
+def coverage_gaps(coverage: dict, targets: dict) -> list:
+    gaps = []
+    for phoneme, target in sorted(targets.items(), key=lambda x: -x[1]):
+        actual = coverage.get(phoneme, 0)
+        if actual < target:
+            gaps.append({
+                "phoneme": phoneme,
+                "target": target,
+                "actual": actual,
+                "gap": target - actual,
+            })
+    return gaps
+
+
+def learner_review_flags(candidates: list) -> dict:
+    no_vowel_letters = [
+        c["word"] for c in candidates if not re.search(r"[aeiouy]", c.get("word", ""))
+    ]
+    very_short = [c["word"] for c in candidates if len(c.get("word", "")) <= 2]
+    missing_meaning = [c["word"] for c in candidates if not c.get("meaning_zh")]
+    missing_uk = [c["word"] for c in candidates if not c.get("ipa_uk")]
+    return {
+        "no_vowel_letter_words": {
+            "count": len(no_vowel_letters),
+            "samples": no_vowel_letters[:10],
+        },
+        "very_short_words": {
+            "count": len(very_short),
+            "samples": very_short[:10],
+        },
+        "missing_meaning_zh": {
+            "count": len(missing_meaning),
+            "samples": missing_meaning[:10],
+        },
+        "missing_uk_ipa": {
+            "count": len(missing_uk),
+            "samples": missing_uk[:10],
+        },
+    }
+
+
+def sample_by_syllable_bucket(candidates: list, bucket: str, limit: int = 8) -> list:
+    samples = []
+    for candidate in candidates:
+        if candidate.get("syllable_bucket_us") != bucket:
+            continue
+        samples.append({
+            "word": candidate["word"],
+            "ipa_us": candidate.get("ipa_us"),
+            "ipa_uk": candidate.get("ipa_uk"),
+            "frequency_zipf": candidate.get("frequency_zipf"),
+            "syllable_count_us": candidate.get("syllable_count_us"),
+            "candidate_score": candidate.get("candidate_score"),
+            "phoneme_tags_us": candidate.get("phoneme_tags_us", []),
+        })
+        if len(samples) >= limit:
+            break
+    return samples
+
+
+def build_core_1000_report(
+    candidates: list,
+    core_300_reference: list,
+    generated_core_300: list,
+    core_1000: list,
+    rejection_reasons: Counter,
+    config: dict,
+    generator_command: str,
+    environment: dict,
+) -> dict:
+    targets = config.get("phoneme_coverage_targets_us", {})
+    core_300_coverage = phoneme_coverage(core_300_reference)
+    core_1000_coverage = phoneme_coverage(core_1000)
+    core_300_dist = syllable_distribution(core_300_reference)
+    generated_core_300_dist = syllable_distribution(generated_core_300)
+    core_1000_dist = syllable_distribution(core_1000)
+    naive_top1000 = candidates[:CORE_1000_SIZE]
+
+    core_300_multi = (
+        core_300_dist["two"]["count"] + core_300_dist["three_plus"]["count"]
+    )
+    core_1000_multi = (
+        core_1000_dist["two"]["count"] + core_1000_dist["three_plus"]["count"]
+    )
+
+    return {
+        "report_title": "Core 1000 Candidate Rebalance Report",
+        "generator_command": generator_command,
+        "environment": environment,
+        "runtime_content_promoted": False,
+        "candidate_pool_count": len(candidates),
+        "core_300_reference_count": len(core_300_reference),
+        "generated_core_300_count": len(generated_core_300),
+        "core_1000_count": len(core_1000),
+        "rejection_reasons": dict(rejection_reasons),
+        "syllable_targets": CORE_1000_SYLLABLE_TARGETS,
+        "candidate_pool_syllable_distribution": syllable_distribution(candidates),
+        "naive_score_top1000_syllable_distribution": syllable_distribution(naive_top1000),
+        "core_300_reference_syllable_distribution": core_300_dist,
+        "generated_core_300_syllable_distribution": generated_core_300_dist,
+        "core_1000_syllable_distribution": core_1000_dist,
+        "core_300_reference_multisyllable_count": core_300_multi,
+        "core_1000_multisyllable_count": core_1000_multi,
+        "core_300_reference_multisyllable_percent": round(
+            core_300_multi * 100 / len(core_300_reference), 1
+        ),
+        "core_1000_multisyllable_percent": round(core_1000_multi * 100 / len(core_1000), 1),
+        "phoneme_coverage_us": core_1000_coverage,
+        "core_300_reference_phoneme_coverage_us": core_300_coverage,
+        "top_missing_phonemes": coverage_gaps(core_1000_coverage, targets)[:10],
+        "quality_review_flags": learner_review_flags(core_1000),
+        "sample_candidates": {
+            "one": sample_by_syllable_bucket(core_1000, "one"),
+            "two": sample_by_syllable_bucket(core_1000, "two"),
+            "three_plus": sample_by_syllable_bucket(core_1000, "three_plus"),
+        },
+        "recommendation_for_125": (
+            "Use core_1000_candidates.json as the Mid curation starting point, "
+            "then manually review child appropriateness, acronym-like words, "
+            "meaning_zh, UK gaps, and known STRUT/r-colored vowel override risks "
+            "before promoting any runtime Core 1000 content."
+        ),
+        "selection_note": (
+            "Core 1000 selection is syllable-aware and intentionally does not use "
+            "the current candidate_score top 1000 directly."
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # MAIN PIPELINE
 # ---------------------------------------------------------------------------
@@ -513,6 +768,8 @@ def main():
                         help="Directory containing en_US.txt and en_UK.txt from ipa-dict")
     parser.add_argument("--selection-config", type=str, default=None,
                         help="Path to selection_config.json")
+    parser.add_argument("--core-300-reference", type=str, default=None,
+                        help="Path to accepted Core 300 runtime set for comparison")
     parser.add_argument("--output-dir", type=str, default=None,
                         help="Output directory for generated files")
     args = parser.parse_args()
@@ -529,6 +786,11 @@ def main():
         config_path = Path(args.selection_config)
     else:
         config_path = repo_root / "content" / "selection_config.json"
+
+    if args.core_300_reference:
+        core_300_reference_path = Path(args.core_300_reference)
+    else:
+        core_300_reference_path = repo_root / "content" / "core_300_words.json"
 
     if args.ipa_dict_dir:
         ipa_dir = args.ipa_dict_dir
@@ -683,10 +945,11 @@ def main():
         print("  (e.g. lower min_frequency_zipf).")
         sys.exit(1)
 
-    # Step 5: Greedy select Core 100 and Core 300
+    # Step 5: Greedy select Core 100 and Core 300, plus a syllable-aware Core 1000
     print("\n[5/6] Greedy phoneme-coverage selection...")
     core_100 = greedy_select(list(candidates), 100, config)
     core_300 = greedy_select(list(candidates), 300, config)
+    core_1000 = select_core_1000_candidates(list(candidates), config)
 
     # Mark selection status
     core_100_ids = {c["word_id"] for c in core_100}
@@ -699,6 +962,7 @@ def main():
 
     print(f"  Core 100: {len(core_100)} words selected")
     print(f"  Core 300: {len(core_300)} words selected")
+    print(f"  Core 1000: {len(core_1000)} words selected")
 
     # Step 6: Build report
     print("\n[6/6] Writing output files...")
@@ -786,8 +1050,19 @@ def main():
         f"--top-n {args.top_n} "
         f"--ipa-dict-dir {ipa_dir} "
         f"--selection-config {config_path} "
+        f"--core-300-reference {core_300_reference_path} "
         f"--output-dir {output_dir}"
     )
+    environment = {
+        "python_version": (
+            f"{sys.version_info.major}."
+            f"{sys.version_info.minor}."
+            f"{sys.version_info.micro}"
+        ),
+        "wordfreq_version": _get_package_version("wordfreq"),
+        "ipa_dict_source": "open-dict-data/ipa-dict (GitHub)",
+        "frequency_source": "wordfreq (MIT/Apache-2.0)",
+    }
 
     # Candidate gaps: words that could fill low-coverage phonemes
     candidate_gaps = []
@@ -812,16 +1087,7 @@ def main():
         "report_title": "Core 300 Candidate and Coverage Gap Report",
         "report_date": "2026-06-15",
         "generator_command": generator_command,
-        "environment": {
-            "python_version": (
-                f"{sys.version_info.major}."
-                f"{sys.version_info.minor}."
-                f"{sys.version_info.micro}"
-            ),
-            "wordfreq_version": _get_package_version("wordfreq"),
-            "ipa_dict_source": "open-dict-data/ipa-dict (GitHub)",
-            "frequency_source": "wordfreq (MIT/Apache-2.0)",
-        },
+        "environment": environment,
         "input_word_count": len(freq_words),
         "joined_us_count": joined_us,
         "joined_uk_count": joined_uk,
@@ -829,6 +1095,7 @@ def main():
         "selected_count": len(candidates),
         "core_100_count": len(core_100),
         "core_300_count": len(core_300),
+        "core_1000_count": len(core_1000),
         "rejection_reasons": dict(rejection_reasons),
         "phoneme_coverage_us": dict(phoneme_cov_300),
         "phoneme_coverage_uk": dict(phoneme_cov_uk),
@@ -852,6 +1119,16 @@ def main():
             "and (4) add Chinese short meanings."
         ),
     }
+    core_1000_report = build_core_1000_report(
+        candidates,
+        load_word_entries(core_300_reference_path),
+        core_300,
+        core_1000,
+        rejection_reasons,
+        config,
+        generator_command,
+        environment,
+    )
 
     # Write outputs
     with open(output_dir / "candidate_words.json", "w", encoding="utf-8") as fh:
@@ -860,8 +1137,12 @@ def main():
         json.dump(core_100, fh, indent=2, ensure_ascii=False)
     with open(output_dir / "core_300_candidates.json", "w", encoding="utf-8") as fh:
         json.dump(core_300, fh, indent=2, ensure_ascii=False)
+    with open(output_dir / "core_1000_candidates.json", "w", encoding="utf-8") as fh:
+        json.dump(core_1000, fh, indent=2, ensure_ascii=False)
     with open(output_dir / "content_report.json", "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
+    with open(output_dir / "core_1000_report.json", "w", encoding="utf-8") as fh:
+        json.dump(core_1000_report, fh, indent=2, ensure_ascii=False)
 
     # Print summary
     print(f"\n  Output files written to {output_dir}/")
@@ -875,6 +1156,7 @@ def main():
     print(f"After filters:        {report['selected_count']}")
     print(f"Core 100:             {report['core_100_count']}")
     print(f"Core 300:             {report['core_300_count']}")
+    print(f"Core 1000:            {report['core_1000_count']}")
     print(f"Unknown IPA symbols:  {len(report['unknown_ipa_symbols'])}")
     if report["unknown_ipa_symbols"]:
         print(f"  Symbols: {', '.join(report['unknown_ipa_symbols'][:20])}")
@@ -893,6 +1175,19 @@ def main():
               f"{dc['count_first']}/{dc['count_second']} words (both: {dc['count_both']})")
     print(f"\nSample selected: {', '.join(sample_selected)}")
     print(f"Sample rejected: {', '.join(sample_rejected[:8])}")
+    print("\nCore 1000 syllable distribution:")
+    for bucket, values in core_1000_report["core_1000_syllable_distribution"].items():
+        print(f"  {bucket}: {values['count']} ({values['percent']}%)")
+    print(
+        "Core 1000 multi-syllable: "
+        f"{core_1000_report['core_1000_multisyllable_count']} "
+        f"({core_1000_report['core_1000_multisyllable_percent']}%)"
+    )
+    print(
+        "Core 300 reference multi-syllable: "
+        f"{core_1000_report['core_300_reference_multisyllable_count']} "
+        f"({core_1000_report['core_300_reference_multisyllable_percent']}%)"
+    )
     print("\nCURATION NOTE:")
     print(f"  {report['curation_note']}")
 

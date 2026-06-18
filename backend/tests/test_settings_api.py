@@ -51,18 +51,21 @@ class TestSettingsApi:
         assert data["primary_accent"] == "US"
         assert data["daily_word_count"] == 10
         assert data["show_translation"] is True
+        assert data["learner_level"] == "entry"
         assert data["focus_phonemes"] == []
 
     def test_put_updates_and_persists(self, client, seeded_db):
         resp = client.put("/api/settings", json={
             "daily_word_count": 5,
             "show_translation": False,
+            "learner_level": "mid",
             "focus_phonemes": ["/ʃ/", " /ɪ/ "],
         })
         assert resp.status_code == 200
         data = resp.json()
         assert data["daily_word_count"] == 5
         assert data["show_translation"] is False
+        assert data["learner_level"] == "mid"
         assert data["focus_phonemes"] == ["/ʃ/", "/ɪ/"]
         # Other fields unchanged
         assert data["primary_accent"] == "US"
@@ -74,6 +77,7 @@ class TestSettingsApi:
         assert s is not None
         assert s.daily_word_count == 5
         assert s.show_translation is False
+        assert s.learner_level == "mid"
         assert s.focus_phonemes == ["/ʃ/", "/ɪ/"]
 
     def test_put_invalid_daily_word_count(self, client):
@@ -89,6 +93,11 @@ class TestSettingsApi:
 
     def test_put_invalid_practice_mode(self, client):
         resp = client.put("/api/settings", json={"practice_mode": "random"})
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "SETTINGS_INVALID"
+
+    def test_put_invalid_learner_level(self, client):
+        resp = client.put("/api/settings", json={"learner_level": "advanced"})
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "SETTINGS_INVALID"
 
@@ -127,6 +136,7 @@ class TestSettingsApi:
             resp = c.get("/api/settings")
             assert resp.status_code == 200
             assert resp.json()["daily_word_count"] == 10
+            assert resp.json()["learner_level"] == "entry"
             assert resp.json()["focus_phonemes"] == []
         finally:
             db_mod.DEFAULT_DB_PATH = orig

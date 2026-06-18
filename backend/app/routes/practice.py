@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.db import get_db
 from app.services.sessions import (
+    build_abandon_current_and_next_response,
     build_clear_focus_response,
     build_current_group_review_response,
     build_focused_group_response,
@@ -17,10 +18,10 @@ router = APIRouter()
 
 @router.get("/today")
 def today():
-    """Return today's practice session, creating it if needed.
+    """Return today's practice hub state without creating a new group.
 
-    Refresh-safe: repeated calls on the same date return the same session
-    and items. Session and item rows are persisted in SQLite.
+    Refresh-safe: repeated calls on the same date return the active normal group
+    if one exists, otherwise a no-active hub response.
     """
     with get_db() as conn:
         return build_today_response(conn)
@@ -28,9 +29,16 @@ def today():
 
 @router.post("/practice/next-normal")
 def next_normal_group():
-    """Resume the active normal group or create the next normal group."""
+    """Resume active normal group or explicitly create the first/next normal group."""
     with get_db() as conn:
         return build_next_normal_group_response(conn)
+
+
+@router.post("/practice/abandon-current-and-next")
+def abandon_current_and_next_group():
+    """Abandon active normal group and create the next selected-level group."""
+    with get_db() as conn:
+        return build_abandon_current_and_next_response(conn)
 
 
 @router.post("/review/recent-mistakes")

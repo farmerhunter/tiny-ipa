@@ -20,7 +20,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import List, Optional
 
 # Ensure the backend package is importable when running this script directly.
 _HERE = Path(__file__).resolve().parent
@@ -34,6 +34,7 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from validate_content import (  # noqa: E402
+    infer_content_level,
     load_phoneme_set,
     load_words,
     validate_words,
@@ -43,7 +44,6 @@ from app.db import DEFAULT_DB_PATH, get_db  # noqa: E402
 from app.models import Settings  # noqa: E402
 from app.services.db_schema import init_db, table_names  # noqa: E402
 from app.services.db_store import (  # noqa: E402
-    count_phonemes,
     count_words,
     upsert_phoneme,
     upsert_settings,
@@ -103,6 +103,7 @@ def import_words(
     db_path: str,
     *,
     skip_validation: bool = False,
+    content_level: Optional[str] = None,
 ) -> dict:
     """Run the full import pipeline and return a report dict.
 
@@ -131,13 +132,26 @@ def import_words(
         "validation_passed": False,
         "validation_errors": 0,
         "tables_created": [],
+        "content_level": content_level,
     }
 
     # ---- validation --------------------------------------------------------
     if not skip_validation:
         known_phonemes = load_phoneme_set(phonemes_path)
         words = load_words(source_path)
-        val_report = validate_words(words, known_phonemes)
+        val_report = validate_words(
+            words,
+            known_phonemes,
+            content_level=content_level,
+        )
+        report["content_level"] = val_report.get("content_level")
+        report["level_counts"] = val_report.get("level_counts", {})
+        report["content_status_counts"] = val_report.get("content_status_counts", {})
+        report["syllable_distribution_us"] = val_report.get(
+            "syllable_distribution_us", {}
+        )
+        report["multisyllable_count"] = val_report.get("multisyllable_count", 0)
+        report["multisyllable_percent"] = val_report.get("multisyllable_percent", 0.0)
         # Unknown US phoneme tags are hard errors — reject the import.
         if val_report["unknown_phoneme_tags_us"]:
             for tag_entry in val_report["unknown_phoneme_tags_us"]:
@@ -212,11 +226,25 @@ def print_report(report: dict) -> None:
     print("=" * 60)
     print(f"Validation: {'PASS' if report['validation_passed'] else 'SKIPPED'}"
           f" ({report['validation_errors']} errors)")
-    print(f"Tables created:  {', '.join(report['tables_created']) if report['tables_created'] else '(none — already existed)'}")
+    tables = (
+        ", ".join(report["tables_created"])
+        if report["tables_created"]
+        else "(none — already existed)"
+    )
+    print(f"Tables created:  {tables}")
     print(f"Words inserted:  {report['inserted']}")
     print(f"Words skipped:   {report['skipped']}")
     print(f"Total words:     {report.get('total_words_in_db', '?')}")
     print(f"Phonemes added:  {report['phonemes_inserted']}")
+    if report.get("content_level"):
+        print(f"Content level:   {report['content_level']}")
+        print(f"Level counts:    {report.get('level_counts', {})}")
+        print(f"Syllables:       {report.get('syllable_distribution_us', {})}")
+        print(
+            "Multisyllable:   "
+            f"{report.get('multisyllable_count', 0)} "
+            f"({report.get('multisyllable_percent', 0.0)}%)"
+        )
     print(f"Import errors:   {len(report['errors'])}")
     if report["errors"]:
         print()
@@ -258,6 +286,15 @@ def main() -> None:
         help="Skip content validation (use only with trusted fixtures).",
     )
     parser.add_argument(
+        "--content-level",
+        choices=["auto", "entry", "mid"],
+        default="auto",
+        help=(
+            "Apply level-aware validation before import. auto maps "
+            "core_300_words.json to entry and core_1000_words.json to mid."
+        ),
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Output the report as JSON instead of human-readable text.",
@@ -275,11 +312,17 @@ def main() -> None:
         sys.exit(1)
 
     db_path = args.db_url if args.db_url else DEFAULT_DB_PATH
+    content_level = (
+        infer_content_level(source_path)
+        if args.content_level == "auto"
+        else args.content_level
+    )
     report = import_words(
         source_path=source_path,
         phonemes_path=phonemes_path,
         db_path=db_path,
         skip_validation=args.skip_validation,
+        content_level=content_level,
     )
 
     if args.json:

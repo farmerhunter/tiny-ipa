@@ -24,6 +24,23 @@ interface Props {
 
 const COMMON_FOCUS = ["/ʃ/", "/θ/", "/æ/", "/ɪ/", "/tʃ/", "/ʌ/"];
 
+const LEVEL_OPTIONS: Array<{
+  value: SettingsData["learner_level"];
+  title: string;
+  description: string;
+}> = [
+  {
+    value: "entry",
+    title: "Entry",
+    description: "Starter practice with the current core word set.",
+  },
+  {
+    value: "mid",
+    title: "Mid",
+    description: "Broader word practice for longer words; translations and audio are still under review.",
+  },
+];
+
 function canonicalFocus(phonemes: string[]): string[] {
   return Array.from(new Set(phonemes.map((item) => item.trim()).filter(Boolean))).sort();
 }
@@ -141,6 +158,27 @@ export default function SettingsPage({
             <option value="extra_review">Extra review</option>
           </select>
         </label>
+
+        <section className="settings-panel">
+          <h2>Practice level</h2>
+          <p className="section-copy">
+            Choose the word pool for the next new normal group. Your current group
+            stays unchanged until you finish it.
+          </p>
+          <div className="level-choice-list">
+            {LEVEL_OPTIONS.map((option) => (
+              <button
+                className={`level-choice ${settings.learner_level === option.value ? "selected" : ""}`}
+                key={option.value}
+                onClick={() => void update({ learner_level: option.value })}
+                type="button"
+              >
+                <strong>{option.title}</strong>
+                <span>{option.description}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section className="settings-panel">
           <h2>Focus practice</h2>

@@ -10,6 +10,7 @@ and produces a content report with coverage counts and rejection reasons.
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -58,6 +59,20 @@ KNOWN_CONTENT_STATUSES = {
     "disabled",
 }
 KNOWN_REVIEW_STATUSES = {"draft", "auto_checked", "reviewed", "disabled"}
+CONTENT_LEVEL_PROFILES = {
+    "entry": {
+        "expected_level": "beginner",
+        "minimum_words": 300,
+        "label": "Entry/Core300",
+    },
+    "mid": {
+        "expected_level": "intermediate",
+        "minimum_words": 1000,
+        "label": "Mid/Core1000",
+        "minimum_syllable_counts": {"one": 240, "two": 480, "three_plus": 240},
+        "minimum_multisyllable_percent": 70.0,
+    },
+}
 KNOWN_DIFFICULTY_TAGS = {
     "broad_a",
     "ch",
@@ -84,6 +99,10 @@ KNOWN_DIFFICULTY_TAGS = {
     "w",
     "zh",
 }
+
+_VOWEL_NUCLEUS_RE = re.compile(
+    r"(?:iː|uː|eɪ|aɪ|oʊ|aʊ|ɔɪ|ɪ|ʊ|e|æ|ɑ|ɔ|ʌ|ə|ɝ|ɚ|ɒ|ɐ|ɜ|i|u)"
+)
 
 
 def load_json(path: Path) -> dict:
@@ -140,6 +159,32 @@ def load_words(words_path: Path) -> List[dict]:
     )
 
 
+def estimate_syllable_count(ipa: str) -> int:
+    """Estimate syllable count from IPA vowel nuclei for validation reporting."""
+    if not ipa:
+        return 0
+    return len(_VOWEL_NUCLEUS_RE.findall(ipa.replace("/", "")))
+
+
+def syllable_bucket(count: int) -> str:
+    if count <= 0:
+        return "unknown"
+    if count == 1:
+        return "one"
+    if count == 2:
+        return "two"
+    return "three_plus"
+
+
+def infer_content_level(words_path: Path) -> Optional[str]:
+    name = words_path.name
+    if name == "core_300_words.json":
+        return "entry"
+    if name == "core_1000_words.json":
+        return "mid"
+    return None
+
+
 def validate_words(
     words: List[dict],
     known_phonemes: Set[str],
@@ -147,6 +192,7 @@ def validate_words(
     coverage_targets_us: Optional[Dict[str, int]] = None,
     priority_phonemes: Optional[Set[str]] = None,
     blocklisted_words: Optional[Set[str]] = None,
+    content_level: Optional[str] = None,
 ) -> dict:
     """Validate a list of word entries and return a content report."""
     del primary_accent
@@ -166,6 +212,7 @@ def validate_words(
         "unknown_phoneme_tags_uk": [],
         "unsupported_ipa_symbols": [],
         "missing_meaning_zh": 0,
+        "meaning_zh_placeholders": [],
         "missing_audio_us": 0,
         "unknown_difficulty_tags": [],
         "blocked_words": [],
@@ -183,13 +230,48 @@ def validate_words(
         "source_ipa_uk_summary": defaultdict(int),
         "phoneme_coverage_us": {},
         "phoneme_coverage_uk": {},
+        "content_level": content_level,
+        "level_counts": defaultdict(int),
+        "content_status_counts": defaultdict(int),
+        "duplicate_word_ids": [],
+        "level_profile_mismatches": [],
+        "level_readiness_failures": [],
+        "syllable_distribution_us": {
+            "one": {"count": 0, "percent": 0.0},
+            "two": {"count": 0, "percent": 0.0},
+            "three_plus": {"count": 0, "percent": 0.0},
+            "unknown": {"count": 0, "percent": 0.0},
+        },
+        "multisyllable_count": 0,
+        "multisyllable_percent": 0.0,
     }
     active_ipa_us_by_word: dict[str, list[str]] = defaultdict(list)
+    seen_word_ids: set[str] = set()
+    profile = CONTENT_LEVEL_PROFILES.get(content_level or "")
 
     for i, w in enumerate(words):
         word_id = w.get("word_id", f"<index {i}>")
         word = str(w.get("word", "")).strip().lower()
         content_status = w.get("content_status")
+        level = w.get("level")
+
+        if word_id in seen_word_ids:
+            entry = f"{word_id}: duplicate word_id"
+            report["duplicate_word_ids"].append(entry)
+            report["errors"].append(entry)
+        seen_word_ids.add(word_id)
+
+        if level:
+            report["level_counts"][level] += 1
+        if content_status:
+            report["content_status_counts"][content_status] += 1
+        syllable_count = int(
+            w.get("syllable_count_us")
+            or estimate_syllable_count(str(w.get("ipa_us", "")))
+        )
+        report["syllable_distribution_us"][syllable_bucket(syllable_count)]["count"] += 1
+        if syllable_count >= 2:
+            report["multisyllable_count"] += 1
 
         if word and content_status != "disabled":
             ipa_us = str(w.get("ipa_us", "")).strip()
@@ -226,6 +308,13 @@ def validate_words(
         if "meaning_zh" not in w or not w.get("meaning_zh"):
             report["missing_meaning_zh"] += 1
             report["errors"].append(f"{word_id}: missing required Core 300 field 'meaning_zh'")
+        elif content_level == "mid" and (
+            str(w.get("meaning_zh", "")).startswith("待确认：")
+            or w.get("meaning_zh_review_status") == "placeholder"
+        ):
+            entry = f"{word_id}: Mid/Core1000 placeholder meaning_zh is not allowed"
+            report["meaning_zh_placeholders"].append(entry)
+            report["errors"].append(entry)
 
         if not w.get("audio_us"):
             report["missing_audio_us"] += 1
@@ -273,10 +362,16 @@ def validate_words(
             report["errors"].append(f"{word_id}: difficulty_tags must be an array")
 
         # Validate level
-        level = w.get("level")
         if level and level not in KNOWN_LEVELS:
             entry = f"{word_id}: unknown level '{level}'"
             report["invalid_level"].append(entry)
+            report["errors"].append(entry)
+        if profile and content_status != "disabled" and level != profile["expected_level"]:
+            entry = (
+                f"{word_id}: {profile['label']} expected level "
+                f"'{profile['expected_level']}', got '{level}'"
+            )
+            report["level_profile_mismatches"].append(entry)
             report["errors"].append(entry)
 
         # Validate content_status
@@ -309,6 +404,42 @@ def validate_words(
     report["license_summary"] = dict(report["license_summary"])
     report["source_ipa_us_summary"] = dict(report["source_ipa_us_summary"])
     report["source_ipa_uk_summary"] = dict(report["source_ipa_uk_summary"])
+    report["level_counts"] = dict(report["level_counts"])
+    report["content_status_counts"] = dict(report["content_status_counts"])
+
+    total = max(report["total_words"], 1)
+    for bucket_report in report["syllable_distribution_us"].values():
+        bucket_report["percent"] = round(bucket_report["count"] * 100 / total, 1)
+    report["multisyllable_percent"] = round(
+        report["multisyllable_count"] * 100 / total, 1
+    )
+
+    if profile:
+        if report["total_words"] < profile["minimum_words"]:
+            entry = (
+                f"{profile['label']}: {report['total_words']} word(s), "
+                f"minimum {profile['minimum_words']}"
+            )
+            report["level_readiness_failures"].append(entry)
+            report["errors"].append(entry)
+        minimum_syllables = profile.get("minimum_syllable_counts", {})
+        for bucket, minimum in minimum_syllables.items():
+            count = report["syllable_distribution_us"][bucket]["count"]
+            if count < minimum:
+                entry = (
+                    f"{profile['label']}: {bucket} syllable bucket has {count}, "
+                    f"minimum {minimum}"
+                )
+                report["level_readiness_failures"].append(entry)
+                report["errors"].append(entry)
+        minimum_multi = profile.get("minimum_multisyllable_percent")
+        if minimum_multi is not None and report["multisyllable_percent"] < minimum_multi:
+            entry = (
+                f"{profile['label']}: multisyllable {report['multisyllable_percent']}%, "
+                f"minimum {minimum_multi}%"
+            )
+            report["level_readiness_failures"].append(entry)
+            report["errors"].append(entry)
 
     for ipa_us, ipa_words in sorted(active_ipa_us_by_word.items()):
         unique_words = sorted(set(ipa_words))
@@ -438,6 +569,26 @@ def print_report(report: dict, known_phonemes: Set[str]) -> None:
     print(f"Missing audio_us:       {report['missing_audio_us']}")
     print()
 
+    print("--- Content level readiness ---")
+    if report.get("content_level"):
+        print(f"Content level:          {report['content_level']}")
+        print(f"Level counts:           {report['level_counts']}")
+        print(f"Content statuses:       {report['content_status_counts']}")
+        print(
+            "Multisyllable:          "
+            f"{report['multisyllable_count']} "
+            f"({report['multisyllable_percent']}%)"
+        )
+        print(f"Syllable distribution:  {report['syllable_distribution_us']}")
+        if report["level_readiness_failures"]:
+            for failure in report["level_readiness_failures"]:
+                print(f"  {failure}")
+        else:
+            print("  (level readiness checks passed)")
+    else:
+        print("  (none configured)")
+    print()
+
     print("--- Unknown phoneme tags (US) ---")
     if report["unknown_phoneme_tags_us"]:
         for entry in report["unknown_phoneme_tags_us"]:
@@ -472,8 +623,16 @@ def print_report(report: dict, known_phonemes: Set[str]) -> None:
     if report["invalid_review_status"]:
         for entry in report["invalid_review_status"]:
             print(f"  {entry}")
+    if report["level_profile_mismatches"]:
+        for entry in report["level_profile_mismatches"][:10]:
+            print(f"  {entry}")
     if not any(
-        [report["invalid_level"], report["invalid_content_status"], report["invalid_review_status"]]
+        [
+            report["invalid_level"],
+            report["invalid_content_status"],
+            report["invalid_review_status"],
+            report["level_profile_mismatches"],
+        ]
     ):
         print("  (all status values valid)")
 
@@ -607,6 +766,15 @@ def main():
         ),
     )
     parser.add_argument(
+        "--content-level",
+        choices=["auto", "entry", "mid"],
+        default="auto",
+        help=(
+            "Apply level-aware readiness checks. auto maps core_300_words.json "
+            "to entry and core_1000_words.json to mid."
+        ),
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Output the report as JSON instead of human-readable text.",
@@ -632,9 +800,15 @@ def main():
 
     script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parent.parent
+    content_level = (
+        infer_content_level(words_path)
+        if args.content_level == "auto"
+        else args.content_level
+    )
+
     if args.coverage_config:
         coverage_config_path = Path(args.coverage_config)
-    elif words_path.name == "core_300_words.json":
+    elif content_level == "entry":
         coverage_config_path = repo_root / "content" / "selection_config.json"
     else:
         coverage_config_path = None
@@ -659,6 +833,7 @@ def main():
         ),
         priority_phonemes=priority_phonemes,
         blocklisted_words=load_blocklisted_words(blocklist_path),
+        content_level=content_level,
     )
 
     # ---- audio file check (opt-in) -------------------------------------------

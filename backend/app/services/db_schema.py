@@ -56,6 +56,7 @@ TABLES_DDL: List[str] = [
         show_accent_compare  INTEGER NOT NULL,   -- boolean 0/1
         practice_mode        TEXT    NOT NULL,
         review_strength      TEXT    NOT NULL,
+        learner_level        TEXT    NOT NULL DEFAULT 'entry',
         focus_phonemes       TEXT    NOT NULL DEFAULT '[]', -- JSON array
         updated_at           TEXT    NOT NULL
     )
@@ -74,6 +75,7 @@ TABLES_DDL: List[str] = [
         completed_at    TEXT,
         group_index     INTEGER NOT NULL DEFAULT 1,
         group_type      TEXT    NOT NULL DEFAULT 'normal',
+        learner_level   TEXT    NOT NULL DEFAULT 'entry',
         source_session_item_ids TEXT NOT NULL DEFAULT '[]',
         source_scope     TEXT,
         source_group_id  TEXT,
@@ -162,6 +164,10 @@ def ensure_settings_schema(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE settings ADD COLUMN focus_phonemes TEXT NOT NULL DEFAULT '[]'"
         )
+    if "learner_level" not in columns:
+        conn.execute(
+            "ALTER TABLE settings ADD COLUMN learner_level TEXT NOT NULL DEFAULT 'entry'"
+        )
 
 
 def ensure_daily_sessions_schema(conn: sqlite3.Connection) -> None:
@@ -183,6 +189,10 @@ def ensure_daily_sessions_schema(conn: sqlite3.Connection) -> None:
     if "group_type" not in columns:
         conn.execute(
             "ALTER TABLE daily_sessions ADD COLUMN group_type TEXT NOT NULL DEFAULT 'normal'"
+        )
+    if "learner_level" not in columns:
+        conn.execute(
+            "ALTER TABLE daily_sessions ADD COLUMN learner_level TEXT NOT NULL DEFAULT 'entry'"
         )
     if "source_session_item_ids" not in columns:
         conn.execute(

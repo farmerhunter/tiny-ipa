@@ -267,3 +267,188 @@ license_summary
 3. 稀缺音位如 `/ð/`、`/ʒ/`、`/ɚ/` 是否覆盖不足？
 4. 候选词是否适合儿童和初学者？
 5. License metadata 是否足够清楚？
+
+## M8 Core 1000 source feasibility evidence
+
+#123 re-ran the source feasibility question for Mid/Core 1000 as a read-only
+probe over the existing generated candidate pool and curated Core 300 runtime set:
+
+```bash
+python3 backend/scripts/probe_core1000_feasibility.py
+python3 backend/scripts/probe_core1000_feasibility.py --json
+```
+
+The probe does not write generated content and does not promote a Core 1000
+runtime set. It estimates syllable count from IPA vowel nuclei, which is good
+enough for source selection evidence but not a final learner-facing
+syllabification model.
+
+Observed evidence from the checked-in `content/generated/candidate_words.json`
+and `content/core_300_words.json`:
+
+```text
+candidate_pool_count: 3792
+candidate_pool_syllables: one=1603, two=1787, three_plus=402
+candidate_pool_multisyllable_count: 2189
+core300_runtime_count: 300
+core300_syllables: one=94, two=135, three_plus=71
+naive_score_top1000_syllables: one=909, two=90, three_plus=1
+top1000_traceability gaps: missing_ipa_us=0, missing_source_ipa_us=0,
+  missing_source_frequency=0, missing_license_notes=0, missing_uk_ipa=71
+```
+
+Recommendation for #124:
+
+```text
+Proceed with the existing wordfreq + open-dict-data/ipa-dict pipeline.
+Add syllable-aware Core 1000 ranking/rebalance reports instead of taking the
+current candidate_score order directly.
+Keep CMUdict as an optional US-only cross-check/fallback, not the primary Mid
+source, unless #124 adds an ARPABET-to-IPA conversion gate and UK/accent
+traceability plan.
+```
+
+Why not switch primary source to CMUdict for #124:
+
+```text
+CMUdict has permissive source terms and is useful for US pronunciation
+cross-checking, but it is ARPABET and US-only. Making it primary would add
+conversion risk and would not solve UK/accent metadata. The current ipa-dict
+path already carries direct US/UK IPA fields and source metadata.
+```
+
+Source/license traceability notes:
+
+```text
+ipa-dict: https://github.com/open-dict-data/ipa-dict
+  repository says MIT unless otherwise specified; English US/UK credits include
+  derived source notes that generated reports should preserve.
+wordfreq: https://github.com/rspeer/wordfreq
+  code is Apache-2.0; NOTICE documents data attribution/share-alike details.
+CMUdict: https://github.com/cmusphinx/cmudict
+  permissive CMU source license with origin acknowledgement request; US ARPABET only.
+```
+
+Residual risks for #124/#125:
+
+```text
+naive candidate_score order underweights multi-syllable words
+syllable counts are heuristic IPA vowel-nucleus estimates
+STRUT and r-colored vowels already required manual overrides in Core 100/300
+some high-frequency candidates are acronym-like or too abstract for learners
+meaning_zh remains absent in generated candidates and needs curation
+ipa-dict and wordfreq source/license notes must stay in generated reports
+```
+
+## M8 Core 1000 candidate generation and rebalance report
+
+#124 extends `backend/scripts/select_candidates.py` so the same reproducible
+pipeline still writes Core 100 / Core 300 outputs and additionally writes:
+
+```text
+core_1000_candidates.json
+core_1000_report.json
+```
+
+Recommended dry-run command:
+
+```bash
+uv run --project backend --extra content python backend/scripts/select_candidates.py \
+  --top-n 5000 \
+  --ipa-dict-dir content/sources/ipa-dict \
+  --selection-config content/selection_config.json \
+  --core-300-reference content/core_300_words.json \
+  --output-dir /tmp/tiny-ipa-core1000
+```
+
+The generated output is candidate/report evidence only. It must not be imported
+or promoted as runtime Mid content until #125 curation accepts it.
+
+Core 1000 selection is syllable-aware. It uses bucket targets instead of taking
+the current `candidate_score` top 1000 directly:
+
+```text
+one: 250
+two: 500
+three_plus: 250
+```
+
+Observed #124 dry-run evidence:
+
+```text
+input words: 5000
+joined US IPA: 4930
+joined UK IPA: 4302
+after hard filters: 3792
+Core 100 generated: 100
+Core 300 generated: 300
+Core 1000 generated: 1000
+Core 1000 syllables: one=250, two=500, three_plus=250
+Core 1000 multi-syllable: 750 / 1000 = 75.0%
+Accepted Core 300 reference multi-syllable: 206 / 300 = 68.7%
+```
+
+`core_1000_report.json` also preserves:
+
+```text
+rejection_reasons
+candidate_pool_syllable_distribution
+naive_score_top1000_syllable_distribution
+accepted Core 300 reference distribution
+generated Core 300 distribution
+Core 1000 phoneme coverage
+top missing phonemes
+sample candidates by syllable bucket
+quality review flags
+runtime_content_promoted = false
+```
+
+#125 curation recommendation:
+
+```text
+Use core_1000_candidates.json as the Mid curation starting point.
+Review acronym-like/no-vowel words, very short words, missing UK IPA entries,
+missing meaning_zh, child/learner appropriateness, and known STRUT/r-colored
+vowel override risks before promoting any runtime Core 1000 file.
+```
+
+#125/#126 Mid runtime curation and level-aware validation:
+
+```bash
+uv run --project backend python backend/scripts/select_candidates.py \
+  --top-n 5000 \
+  --ipa-dict-dir content/sources/ipa-dict \
+  --selection-config content/selection_config.json \
+  --core-300-reference content/core_300_words.json \
+  --output-dir /tmp/tiny-ipa-core1000
+
+uv run --project backend python backend/scripts/curate_core_1000.py \
+  --candidates /tmp/tiny-ipa-core1000/core_1000_candidates.json \
+  --pool content/generated/candidate_words.json \
+  --mid-meanings content/core_1000_meanings_zh.json \
+  --output content/core_1000_words.json \
+  --report content/core_1000_curation_report.json
+
+uv run --project backend python backend/scripts/validate_content.py \
+  content/core_1000_words.json --content-level mid
+```
+
+The promoted Mid runtime file uses `mid_<source_word_id>` IDs so importing
+Core1000 does not overwrite existing Entry/Core300 rows. The compact curation
+report records:
+
+```text
+runtime_content_promoted = true
+core_1000_count = 1000
+syllable distribution = one 250 / two 500 / three_plus 250
+multisyllable = 750 (75.0%)
+missing UK IPA = 53 warning-only entries
+meaning_zh placeholders = 0
+meaning_zh curated Mid meanings = 845
+phoneme overrides = 13 accepted STRUT/r-colored overrides reused from Core100
+```
+
+`content/core_1000_words.json` is a runtime/source artifact for Mid import.
+`content/core_1000_curation_report.json` is intentionally compact review
+evidence, not the raw generated candidate report. #127 still owns runtime
+settings/scheduler/API/UI level selection.

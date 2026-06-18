@@ -24,6 +24,11 @@ _REVIEW_STRENGTH_MULTIPLIERS = {
     "high": 1.7,
 }
 
+_LEARNER_LEVEL_TO_WORD_LEVEL = {
+    "entry": "beginner",
+    "mid": "intermediate",
+}
+
 
 @dataclass(frozen=True)
 class _Candidate:
@@ -41,6 +46,7 @@ def select_daily_words(
     *,
     user_id: str = "default",
     review_strength: str = "normal",
+    learner_level: str = "entry",
     focus_phonemes: Optional[Sequence[str]] = None,
 ) -> List[Word]:
     """Select ``daily_word_count`` usable words for today's practice.
@@ -55,6 +61,7 @@ def select_daily_words(
               so same-day calls return the same order.
         user_id: User whose phoneme stats and recent sessions should be read.
         review_strength: Weighting mode for weak-phoneme review.
+        learner_level: Learner-facing level whose runtime content pool is selected.
         focus_phonemes: Optional phoneme ids/symbols to boost for this session.
 
     Returns:
@@ -66,13 +73,16 @@ def select_daily_words(
     accent = accent.upper()
     ipa_field = "ipa_us" if accent.upper() == "US" else "ipa_uk"
     tag_field = "phoneme_tags_us" if accent.upper() == "US" else "phoneme_tags_uk"
+    word_level = _LEARNER_LEVEL_TO_WORD_LEVEL.get(learner_level, "beginner")
     rows = conn.execute(
         f"""
         SELECT id, {tag_field} AS phoneme_tags
         FROM words
         WHERE {ipa_field} IS NOT NULL AND {ipa_field} != ''
           AND content_status != 'disabled'
-        """
+          AND level = ?
+        """,
+        (word_level,),
     ).fetchall()
 
     recent_word_ids = _recent_word_ids(conn, user_id=user_id, accent=accent)

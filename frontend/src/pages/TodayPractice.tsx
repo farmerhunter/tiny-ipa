@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SettingsData, TodayItem, TodayResponse } from "../api";
 import {
+  abandonCurrentAndStartNext,
   clearPracticeFocus,
   fetchSettings,
   fetchToday,
@@ -50,10 +51,19 @@ function groupLabel(session: TodayResponse): string {
   return "Practice group";
 }
 
+function learnerLevelLabel(session: TodayResponse): string {
+  return session.learner_level_label ?? (session.learner_level === "mid" ? "Mid" : "Entry");
+}
+
+function selectedLevelLabel(session: TodayResponse): string {
+  return session.selected_learner_level_label
+    ?? (session.selected_learner_level === "mid" ? "Mid" : "Entry");
+}
+
 function groupReason(session: TodayResponse): string {
   if (session.group_type === "weak_focus") {
     const focus = session.focus_phonemes?.join(" ") || "selected sounds";
-    return `Focused practice for ${focus}.`;
+    return `${learnerLevelLabel(session)} focused practice for ${focus}.`;
   }
   if (session.source_scope === "current_group") {
     return "Reviewing misses from the group you just finished.";
@@ -62,12 +72,12 @@ function groupReason(session: TodayResponse): string {
     return "Reviewing recent mistakes from earlier practice.";
   }
   if (session.source_scope === "normal_next") {
-    return "A new normal practice group.";
+    return `A new ${learnerLevelLabel(session)} practice group.`;
   }
   if (session.origin === "normal_resume") {
-    return "Resuming your current normal group.";
+    return `Resuming your current ${learnerLevelLabel(session)} group.`;
   }
-  return "Normal practice group.";
+  return `${learnerLevelLabel(session)} practice group.`;
 }
 
 function buildFocusHint(targetPhonemes: string[]): string {
@@ -82,6 +92,21 @@ function currentReviewActionLabel(session: TodayResponse): string {
     return "Review misses from this review";
   }
   return "Review misses from this group";
+}
+
+function nextNormalActionLabel(session: TodayResponse): string {
+  const level = selectedLevelLabel(session);
+  return `Start next ${level} group`;
+}
+
+function resumeActionLabel(session: TodayResponse): string {
+  const level = learnerLevelLabel(session);
+  return `Resume ${level} group`;
+}
+
+function completedGroupsCopy(session: TodayResponse): string {
+  const counts = session.completed_normal_groups_today ?? { entry: 0, mid: 0, total: 0 };
+  return `${counts.total} normal groups completed today: Entry ${counts.entry}, Mid ${counts.mid}.`;
 }
 
 export default function TodayPractice({
@@ -102,9 +127,14 @@ export default function TodayPractice({
   const [finished, setFinished] = useState(() =>
     Boolean(initialSession && initialSession.items.length === 0),
   );
+  const [showHub, setShowHub] = useState(() => !initialSession);
   const [lastSummarySession, setLastSummarySession] = useState<TodayResponse | null>(null);
 
-  const resetPractice = useCallback((data: TodayResponse, settings?: SettingsData) => {
+  const resetPractice = useCallback((
+    data: TodayResponse,
+    settings?: SettingsData,
+    options: { showHub?: boolean } = {},
+  ) => {
     if (data.error) {
       setError(data.detail ?? data.error);
       return;
@@ -113,6 +143,7 @@ export default function TodayPractice({
     setCurrentIndex(0);
     setResults([]);
     setFinished(data.items.length === 0);
+    setShowHub(options.showHub ?? false);
     setLastSummarySession(null);
     setNotice(null);
     if (data.focus_phonemes) onFocusChange(data.focus_phonemes);
@@ -134,7 +165,7 @@ export default function TodayPractice({
       .then(([today, settings]) => {
         if (cancelled) return;
         setError(null);
-        resetPractice(today, settings);
+        resetPractice(today, settings, { showHub: true });
       })
       .catch((err) => {
         if (!cancelled) {
@@ -184,6 +215,28 @@ export default function TodayPractice({
       resetPractice(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load another group");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAbandonAndNext = async () => {
+    if (!session) return;
+    const isPending = Boolean(session.pending_level_change);
+    const ok = window.confirm(
+      isPending
+        ? `End this ${learnerLevelLabel(session)} group and start ${selectedLevelLabel(session)}?`
+        : `End this ${learnerLevelLabel(session)} group and start a fresh ${selectedLevelLabel(session)} group?`,
+    );
+    if (!ok) return;
+    setActionLoading("abandon-next");
+    setError(null);
+    try {
+      const data = await abandonCurrentAndStartNext();
+      resetPractice(data);
+      setNotice(data.detail ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to switch groups");
     } finally {
       setActionLoading(null);
     }
@@ -247,7 +300,7 @@ export default function TodayPractice({
     try {
       const data = await clearPracticeFocus();
       onFocusChange([]);
-      resetPractice(data);
+      resetPractice(data, undefined, { showHub: true });
       setNotice("Focus cleared. Back to normal practice.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to clear focus");
@@ -292,6 +345,96 @@ export default function TodayPractice({
             is running.
           </p>
         </div>
+      </main>
+    );
+  }
+
+  if (showHub && session.group_type === "normal") {
+    const hasActiveGroup = Boolean(
+      session.group_id && session.items.length > 0 && session.status !== "idle",
+    );
+    const pendingLevelChange = hasActiveGroup && Boolean(session.pending_level_change);
+    return (
+      <main className="practice-container">
+        <section className="today-hub">
+          <p className="workflow-kicker">Today practice hub</p>
+          <h1>{selectedLevelLabel(session)} selected</h1>
+          <p className="section-copy">
+            {completedGroupsCopy(session)}
+          </p>
+
+          <div className={`hub-status-card ${pendingLevelChange ? "pending" : ""}`}>
+            {hasActiveGroup ? (
+              <>
+                <span className="focus-panel-label">Active group</span>
+                <strong>{learnerLevelLabel(session)} group in progress</strong>
+                <span>
+                  {session.word_count ?? session.items.length} words assigned · {session.primary_accent}
+                </span>
+                {pendingLevelChange && (
+                  <p className="pending-copy">
+                    You selected {selectedLevelLabel(session)}. This {learnerLevelLabel(session)} group is still in progress.
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <span className="focus-panel-label">No active group</span>
+                <strong>Ready to start {selectedLevelLabel(session)}</strong>
+                <span>
+                  {session.daily_word_count} words per normal group · {session.primary_accent}
+                </span>
+              </>
+            )}
+          </div>
+
+          {notice && <p className="empty-hint">{notice}</p>}
+          {error && <p className="save-error">{error}</p>}
+
+          <div className="summary-actions">
+            <button
+              className="primary-action-btn"
+              onClick={() => {
+                if (hasActiveGroup) {
+                  setShowHub(false);
+                  setNotice(null);
+                } else {
+                  void handleNextNormal();
+                }
+              }}
+              disabled={actionLoading !== null}
+            >
+              {actionLoading === "continue"
+                ? "Loading…"
+                : hasActiveGroup
+                  ? resumeActionLabel(session)
+                  : session.action_label ?? `Start ${selectedLevelLabel(session)} group`}
+            </button>
+            {hasActiveGroup && (
+              <button
+                className="secondary-action-btn"
+                onClick={() => void handleAbandonAndNext()}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === "abandon-next"
+                  ? "Loading…"
+                  : pendingLevelChange
+                    ? `End this ${learnerLevelLabel(session)} group and start ${selectedLevelLabel(session)}`
+                    : `End this group and start fresh ${selectedLevelLabel(session)}`}
+              </button>
+            )}
+            <button
+              className="secondary-action-btn"
+              onClick={handleRecentReview}
+              disabled={actionLoading !== null}
+            >
+              {actionLoading === "recent-review" ? "Loading…" : "Review recent mistakes"}
+            </button>
+            <button className="secondary-action-btn" onClick={onOpenProgress}>
+              View Progress
+            </button>
+          </div>
+        </section>
       </main>
     );
   }
@@ -369,7 +512,7 @@ export default function TodayPractice({
               onClick={handleNextNormal}
               disabled={actionLoading !== null}
             >
-              {actionLoading === "continue" ? "Loading…" : "Start next 10-word group"}
+              {actionLoading === "continue" ? "Loading…" : nextNormalActionLabel(summarySession)}
             </button>
             {hasCurrentGroupMisses && (
               <button
@@ -406,7 +549,10 @@ export default function TodayPractice({
     <main className="practice-container">
       <div className="practice-header">
         <span className="progress-label">{groupLabel(session)}: {progress}</span>
-        <span className="accent-label">{session.primary_accent}</span>
+        <span className="practice-context">
+          <span className="level-label">{learnerLevelLabel(session)}</span>
+          <span className="accent-label">{session.primary_accent}</span>
+        </span>
       </div>
       <div className="mode-panel">
         <strong>{groupLabel(session)}</strong>

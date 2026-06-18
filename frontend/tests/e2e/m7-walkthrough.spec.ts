@@ -146,6 +146,16 @@ function toTodayResponse(group: MockGroup) {
     group_id: group.group_id,
     group_index: group.group_index,
     group_type: group.group_type,
+    learner_level: "entry",
+    learner_level_label: "Entry",
+    selected_learner_level: "entry",
+    selected_learner_level_label: "Entry",
+    pending_level_change: false,
+    completed_normal_groups_today: {
+      entry: stateCompletedCount(group.group_id),
+      mid: 0,
+      total: stateCompletedCount(group.group_id),
+    },
     date: "2026-06-17",
     primary_accent: group.primary_accent,
     origin:
@@ -182,6 +192,37 @@ function toTodayResponse(group: MockGroup) {
   };
 }
 
+function noActiveTodayResponse() {
+  return {
+    group_type: "normal",
+    learner_level: "entry",
+    learner_level_label: "Entry",
+    selected_learner_level: "entry",
+    selected_learner_level_label: "Entry",
+    pending_level_change: false,
+    completed_normal_groups_today: {
+      entry: 0,
+      mid: 0,
+      total: 0,
+    },
+    date: "2026-06-17",
+    primary_accent: "US",
+    origin: "normal_empty",
+    source_scope: "normal_none",
+    focus_phonemes: [],
+    action_label: "Start Entry group",
+    daily_word_count: groups.group1.items.length,
+    word_count: 0,
+    status: "idle",
+    source_session_item_ids: [],
+    items: [],
+  };
+}
+
+function stateCompletedCount(groupId: string) {
+  return groupId === "group-2" ? 1 : 0;
+}
+
 function settingsResponse(state: MockState) {
   return {
     primary_accent: "US",
@@ -190,6 +231,7 @@ function settingsResponse(state: MockState) {
     show_accent_compare: false,
     practice_mode: "adaptive",
     review_strength: "normal",
+    learner_level: "entry",
     focus_phonemes: state.focusPhonemes,
   };
 }
@@ -201,6 +243,42 @@ function progressResponse() {
     streak_days: 2,
     total_attempts: 8,
     total_sessions: 2,
+    total_normal_groups: 2,
+    stat_scope: "global",
+    level_stats: {
+      entry: {
+        learner_level: "entry",
+        label: "Entry",
+        attempts: 8,
+        correct_attempts: 4,
+        accuracy: 0.5,
+        normal_groups: 2,
+        completed_normal_groups: 1,
+        completed_normal_groups_today: 1,
+        weak_phonemes: [
+          {
+            phoneme: "/ʃ/",
+            accuracy: 0.25,
+            attempt_count: 4,
+            correct_count: 1,
+            mastery_status: "weak",
+          },
+        ],
+        strong_phonemes: [],
+      },
+      mid: {
+        learner_level: "mid",
+        label: "Mid",
+        attempts: 0,
+        correct_attempts: 0,
+        accuracy: null,
+        normal_groups: 0,
+        completed_normal_groups: 0,
+        completed_normal_groups_today: 0,
+        weak_phonemes: [],
+        strong_phonemes: [],
+      },
+    },
     weak_phonemes: [
       {
         phoneme: "/ʃ/",
@@ -254,7 +332,10 @@ async function routeMock(route: Route, state: MockState) {
 
   if (path === "/settings") {
     if (request.method() === "PUT") {
-      const body = request.postDataJSON() as { focus_phonemes?: string[] };
+      const body = request.postDataJSON() as {
+        focus_phonemes?: string[];
+        learner_level?: "entry" | "mid";
+      };
       if (Array.isArray(body.focus_phonemes)) {
         state.focusPhonemes = body.focus_phonemes;
       }
@@ -275,14 +356,16 @@ async function routeMock(route: Route, state: MockState) {
     }
     if (state.completedGroups.has("group1")) {
       state.activeGroup = "group2";
+      await route.fulfill({ json: toTodayResponse(groups[state.activeGroup]) });
+      return;
     }
-    await route.fulfill({ json: toTodayResponse(groups[state.activeGroup]) });
+    await route.fulfill({ json: noActiveTodayResponse() });
     return;
   }
 
   if (path === "/practice/next-normal") {
-    state.activeGroup = "group2";
-    await route.fulfill({ json: toTodayResponse(groups.group2) });
+    state.activeGroup = state.completedGroups.has("group1") ? "group2" : "group1";
+    await route.fulfill({ json: toTodayResponse(groups[state.activeGroup]) });
     return;
   }
 
@@ -369,6 +452,9 @@ async function routeMock(route: Route, state: MockState) {
 
 async function openWalkthrough(page: Page) {
   await page.goto("/");
+  await expect(page.getByText("Today practice hub")).toBeVisible();
+  await expect(page.getByText("No active group")).toBeVisible();
+  await page.getByRole("button", { name: "Start Entry group" }).click();
   await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
 }
 
@@ -381,7 +467,9 @@ async function completeFirstGroupWithOneMiss(page: Page) {
   await expect(page.getByText("Not quite")).toBeVisible();
   await expect(page.getByText("Target sound")).toBeVisible();
   await page.getByText("Focus on /ʃ/ before choosing.").waitFor();
-  await expect(page.getByText("thin")).toBeVisible({ timeout: 4_000 });
+  await expect(page.getByRole("button", { name: "Select /θɪn/" })).toBeVisible({
+    timeout: 6_000,
+  });
 
   await answerVisibleItem(page, "/θɪn/");
   await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
@@ -402,7 +490,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
       await expect(page.getByText("ship")).toBeVisible();
       await expect(page.getByText("picked")).toBeVisible();
       await expect(page.getByText("Target sound: /ʃ/")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Start next 10-word group" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Start next Entry group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Return to Progress" })).toBeVisible();
@@ -414,9 +502,9 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await openWalkthrough(page);
     await completeFirstGroupWithOneMiss(page);
 
-    await page.getByRole("button", { name: "Start next 10-word group" }).click();
+    await page.getByRole("button", { name: "Start next Entry group" }).click();
     await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
-    await expect(page.getByText("A new normal practice group.")).toBeVisible();
+    await expect(page.getByText("A new Entry practice group.")).toBeVisible();
     await expect(page.getByText("cheese")).toBeVisible();
     await expect(page.getByText(/Group 6/)).toHaveCount(0);
   });
@@ -461,12 +549,13 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await openWalkthrough(page);
     await page.getByRole("button", { name: "Progress" }).click();
     await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
-    await expect(page.getByText("Start focused practice from a weak sound.")).toBeVisible();
-    await page.getByRole("button", { name: "Focus /ʃ/" }).click();
+    await expect(page.getByRole("heading", { name: "Needs practice in Entry" })).toBeVisible();
+    await expect(page.getByText("Focused practice starts at the selected level in Settings.")).toBeVisible();
+    await page.getByRole("button", { name: "Focus /ʃ/" }).first().click();
 
     await expect(page.getByText("Focused group: 1 / 1")).toBeVisible();
     await expect(page.getByText(/Group 8/)).toHaveCount(0);
-    await expect(page.getByText("Focused practice for /ʃ/.")).toBeVisible();
+    await expect(page.getByText("Entry focused practice for /ʃ/.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Clear focus" })).toBeVisible();
     await page.getByRole("button", { name: "Clear focus" }).click();
     await expect(page.getByText("Focus cleared. Back to normal practice.")).toBeVisible();
@@ -485,7 +574,8 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await page.getByRole("button", { name: "Return to Progress" }).click();
 
     await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
-    await expect(page.getByText("Needs practice")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Needs practice in Entry" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Global needs practice" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Today", exact: true })).toBeVisible();
   });
 

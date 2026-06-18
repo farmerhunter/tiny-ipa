@@ -1,0 +1,228 @@
+{
+  "report_title": "Core 1000 Mid runtime curation report",
+  "runtime_content_promoted": true,
+  "core_1000_count": 1000,
+  "word_id_namespace": "mid_<source_word_id>",
+  "syllable_targets": {
+    "one": 250,
+    "two": 500,
+    "three_plus": 250
+  },
+  "syllable_distribution_us": {
+    "one": {
+      "count": 250,
+      "percent": 25.0
+    },
+    "two": {
+      "count": 500,
+      "percent": 50.0
+    },
+    "three_plus": {
+      "count": 250,
+      "percent": 25.0
+    },
+    "unknown": {
+      "count": 0,
+      "percent": 0.0
+    }
+  },
+  "multisyllable_count": 750,
+  "multisyllable_percent": 75.0,
+  "meaning_zh_placeholder_count": 0,
+  "meaning_zh_inherited_core300_count": 155,
+  "meaning_zh_curated_mid_count": 845,
+  "phoneme_override_count": 13,
+  "missing_uk_ipa_count": 53,
+  "rejection_reasons": {
+    "manual_quality_exclude": 14,
+    "very_short_word": 73,
+    "no_vowel_letter": 8
+  },
+  "rejection_samples": {
+    "manual_quality_exclude": [
+      "vs",
+      "tax",
+      "death",
+      "jail",
+      "tv",
+      "tv",
+      "feb",
+      "http",
+      "abortion",
+      "dvd"
+    ],
+    "very_short_word": [
+      "ms",
+      "em",
+      "ad",
+      "en",
+      "uh",
+      "la",
+      "eh",
+      "ai",
+      "mi",
+      "ex"
+    ],
+    "no_vowel_letter": [
+      "mrs",
+      "cnn",
+      "mrs",
+      "cnn",
+      "bbc",
+      "ltd",
+      "bbc",
+      "ltd"
+    ]
+  },
+  "source_ipa_us_summary": {
+    "open-dict-data/ipa-dict en_US": 1000
+  },
+  "license_summary": {
+    "open-data (wordfreq: MIT/Apache-2.0, ipa-dict: see repo)": 1000
+  },
+  "sample_quality_review": [
+    {
+      "word": "want",
+      "ipa_us": "/ˈwɑnt/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "want"
+    },
+    {
+      "word": "think",
+      "ipa_us": "/ˈθɪŋk/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "think"
+    },
+    {
+      "word": "help",
+      "ipa_us": "/ˈhɛɫp/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "help"
+    },
+    {
+      "word": "find",
+      "ipa_us": "/ˈfaɪnd/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "find"
+    },
+    {
+      "word": "part",
+      "ipa_us": "/ˈpɑɹt/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "part"
+    },
+    {
+      "word": "ends",
+      "ipa_us": "/ˈɛndz/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "curated_mid",
+      "source_word_id": "ends"
+    },
+    {
+      "word": "first",
+      "ipa_us": "/ˈfɝst/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "first"
+    },
+    {
+      "word": "best",
+      "ipa_us": "/ˈbɛst/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "best"
+    },
+    {
+      "word": "left",
+      "ipa_us": "/ˈɫɛft/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "left"
+    },
+    {
+      "word": "game",
+      "ipa_us": "/ˈɡeɪm/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "game"
+    },
+    {
+      "word": "told",
+      "ipa_us": "/ˈtoʊɫd/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "told"
+    },
+    {
+      "word": "hard",
+      "ipa_us": "/ˈhɑɹd/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "hard"
+    },
+    {
+      "word": "once",
+      "ipa_us": "/ˈwəns/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "once"
+    },
+    {
+      "word": "view",
+      "ipa_us": "/ˈvju/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "view"
+    },
+    {
+      "word": "gym",
+      "ipa_us": "/ˈdʒɪm/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "curated_mid",
+      "source_word_id": "gym"
+    },
+    {
+      "word": "sure",
+      "ipa_us": "/ˈʃʊɹ/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "sure"
+    },
+    {
+      "word": "boys",
+      "ipa_us": "/ˈbɔɪz/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "boys"
+    },
+    {
+      "word": "next",
+      "ipa_us": "/ˈnɛks/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "next"
+    },
+    {
+      "word": "match",
+      "ipa_us": "/ˈmætʃ/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "match"
+    },
+    {
+      "word": "power",
+      "ipa_us": "/ˈpaʊɝ/",
+      "syllable_bucket_us": "one",
+      "meaning_zh_review_status": "inherited_core300",
+      "source_word_id": "power"
+    }
+  ],
+  "residual_risks": [
+    "missing UK IPA remains non-blocking and visible in validation warnings"
+  ]
+}
