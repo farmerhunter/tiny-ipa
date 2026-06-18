@@ -14,6 +14,16 @@ The harness uses `@playwright/test`, Chromium, a mobile viewport, and route-mock
 
 Some contract assertions are marked as expected failures until the later M7 v2 implementation issues add the scoped next-group, current-group review, recent-review, and focused-practice behavior. Tooling/bootstrap failures are still surfaced by the passing smoke and summary tests.
 
+## M10 UX Walkthrough
+
+Run the M10 UX evidence harness from this directory:
+
+```bash
+pnpm test:e2e:m10
+```
+
+The harness uses desktop and Pixel 5 Chromium projects with route-mocked disposable API data. It preserves the #174 audit scenarios as repeatable evidence: Today start, wrong-answer feedback, current-group review, recent mistakes, Entry/Mid switching, Progress focus entry, Settings changes, audio/TTS visible status, mobile Today, and mobile Settings. It does not connect to the local backend or mutate `backend/tiny_ipa.sqlite`. Screenshots are attached to Playwright test results under `test-results/m10-walkthrough`; the HTML report is written under `playwright-report/m10`.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
