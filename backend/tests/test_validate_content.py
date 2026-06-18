@@ -248,6 +248,69 @@ def test_priority_phoneme_coverage_is_reported():
     assert report["priority_phoneme_coverage_us"] == {"/ʃ/": 2, "/θ/": 0}
 
 
+def test_mid_core1000_level_readiness_reports_distribution():
+    """Mid/Core1000 validation is level-aware and reports syllable readiness."""
+    known = load_phoneme_set(PHONEMES_PATH)
+    words = []
+    for i in range(1000):
+        if i < 250:
+            ipa = "/kæt/"
+            tags = ["/k/", "/æ/", "/t/"]
+            syllables = 1
+        elif i < 750:
+            ipa = "/ˈteɪbəl/"
+            tags = ["/t/", "/eɪ/", "/b/", "/ə/", "/l/"]
+            syllables = 2
+        else:
+            ipa = "/ˈfæməli/"
+            tags = ["/f/", "/æ/", "/m/", "/ə/", "/l/", "/iː/"]
+            syllables = 3
+        words.append({
+            "word_id": f"mid_word_{i}",
+            "word": f"word{i}",
+            "level": "intermediate",
+            "ipa_us": ipa,
+            "ipa_uk": ipa,
+            "phoneme_tags_us": tags,
+            "phoneme_tags_uk": tags,
+            "meaning_zh": f"词{i}",
+            "content_status": "core_selected",
+            "syllable_count_us": syllables,
+        })
+
+    report = validate_words(words, known, content_level="mid")
+
+    assert report["errors"] == []
+    assert report["level_counts"] == {"intermediate": 1000}
+    assert report["content_status_counts"] == {"core_selected": 1000}
+    assert report["syllable_distribution_us"]["one"]["count"] == 250
+    assert report["syllable_distribution_us"]["two"]["count"] == 500
+    assert report["syllable_distribution_us"]["three_plus"]["count"] == 250
+    assert report["multisyllable_percent"] == 75.0
+
+
+def test_mid_core1000_level_mismatch_fails_closed():
+    """Mid/Core1000 validation rejects beginner-level rows."""
+    known = load_phoneme_set(PHONEMES_PATH)
+    words = [{
+        "word_id": f"mid_word_{i}",
+        "word": f"word{i}",
+        "level": "beginner",
+        "ipa_us": "/kæt/",
+        "ipa_uk": "/kæt/",
+        "phoneme_tags_us": ["/k/", "/æ/", "/t/"],
+        "phoneme_tags_uk": ["/k/", "/æ/", "/t/"],
+        "meaning_zh": f"词{i}",
+        "content_status": "core_selected",
+        "syllable_count_us": 1,
+    } for i in range(1000)]
+
+    report = validate_words(words, known, content_level="mid")
+
+    assert report["level_profile_mismatches"]
+    assert any("expected level 'intermediate'" in err for err in report["errors"])
+
+
 def test_unknown_difficulty_tag_is_blocking():
     """Unknown difficulty labels fail closed."""
     known = load_phoneme_set(PHONEMES_PATH)

@@ -504,6 +504,33 @@ Mid:
   must not become selectable as a working practice path until Core 1000 is imported and validated
 ```
 
+Content readiness and import contract:
+
+```text
+Entry source: content/core_300_words.json
+Mid source:   content/core_1000_words.json
+
+Entry validation:
+  backend/scripts/validate_content.py content/core_300_words.json --content-level entry
+
+Mid validation:
+  backend/scripts/validate_content.py content/core_1000_words.json --content-level mid
+```
+
+Mid/Core1000 word IDs use a `mid_` namespace while preserving
+`source_word_id`, so a selected-level import can load Mid rows into the same
+SQLite database without replacing Entry/Core300 rows that share the same word
+string. `import_words.py --content-level entry|mid|auto` applies the matching
+readiness profile before import. Mid readiness reports Core1000 count, level
+counts, content statuses, syllable buckets, and multisyllable percentage.
+
+#125 promoted `content/core_1000_words.json` with the accepted #124 target split
+of 250 one-syllable, 500 two-syllable, and 250 three-plus-syllable words. The
+file includes `meaning_zh` values for runtime compatibility; entries marked
+`meaning_zh_review_status = placeholder` remain a human/Architect content
+acceptance risk before learner exposure. The curation script also reuses the
+accepted Core100 STRUT/r-colored phoneme overrides where matching words appear.
+
 Settings API contract:
 
 ```json
