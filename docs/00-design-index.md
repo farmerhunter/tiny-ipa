@@ -41,6 +41,9 @@
 9. [Role-Generic Agent Helper Model](09-role-generic-agent-helpers.md)
    定义面向多角色、多 agent session 的 GitHub helper 设计，把 `needs:*` inbox、handoff contract、pickup/handoff/audit 工具从双角色流程泛化为可配置模型。
 
+10. [UX Research and Practice Experience Optimization](10-ux-research-and-optimization.md)
+    定义面向青少年学习者的可重复 UX 研究、视觉探索、设计审查和浏览器走查方法，用于 M10 以及未来项目复用。
+
 ## 工程随笔
 
 1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)

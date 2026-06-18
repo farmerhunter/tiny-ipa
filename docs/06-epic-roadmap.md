@@ -12,12 +12,12 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M3 Core 100 Audio and Static MP3 Playback | #23 | Done |
 | M4 Progress and Settings | #24 | Done |
 | M5 Phoneme-Driven Scheduling | #25 | Done |
-| M6 Core 300 Content and Coverage | #26 | In progress |
-| M7 Practice Loop and Review UX | #114 | Backlog |
-| M8 Level-based Content Expansion and Core 1000 Rebalance | #108 | Backlog |
-| M9 VPS Deployment and Backup | #27 | Backlog |
-| M10 UK Accent Compare and Specialty Practice | #28 | Backlog |
-| M11 UX Research and Practice Experience Optimization | #102 | Backlog |
+| M6 Core 300 Content and Coverage | #26 | Done |
+| M7 Practice Loop and Review UX | #114 | Done |
+| M8 Level-based Content Expansion and Core 1000 Rebalance | #108 | Done |
+| M9 UK Accent Compare and Specialty Practice | #28 | Backlog |
+| M10 UX Research and Practice Experience Optimization | #102 | Backlog |
+| M11 VPS Deployment and Backup | #27 | Backlog |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -296,7 +296,51 @@ Dependency plan:
 #128 performs final M8 QA, user-facing usage note, and Epic readiness review.
 ```
 
-## M9：VPS Deployment and Backup
+## M9：UK Accent Compare and Specialty Practice
+
+Goal: open optional UK comparison and specialty practice without changing core boundaries.
+
+Expected child issue areas:
+
+```text
+UK reviewed subset
+show_accent_compare
+minimal pair practice
+target phoneme practice
+accent-specific stats checks
+```
+
+Acceptance:
+
+```text
+US and UK stats do not mix
+UK comparison appears only when enabled
+specialty practice reuses question/grading/progress boundaries
+```
+
+## M10：UX Research and Practice Experience Optimization
+
+Goal: improve the learning experience after the core practice loop, level model, and specialty practice foundations are in place.
+
+Expected child issue areas:
+
+```text
+manual observation of learner practice sessions
+question wording and feedback comprehension
+audio playback ergonomics
+mobile layout and child-friendly interaction checks
+progress motivation and fatigue controls
+```
+
+Acceptance:
+
+```text
+UX findings are recorded as evidence, not ad hoc redesign impulses
+high-impact interaction fixes are split into scoped child issues
+practice experience changes preserve existing scheduling and progress boundaries
+```
+
+## M11：VPS Deployment and Backup
 
 Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 
@@ -319,50 +363,6 @@ domain works over HTTPS
 /audio/ works
 service survives restart
 backup can restore learning data
-```
-
-## M10：UK Accent Compare and Specialty Practice
-
-Goal: open optional UK comparison and specialty practice without changing core boundaries.
-
-Expected child issue areas:
-
-```text
-UK reviewed subset
-show_accent_compare
-minimal pair practice
-target phoneme practice
-accent-specific stats checks
-```
-
-Acceptance:
-
-```text
-US and UK stats do not mix
-UK comparison appears only when enabled
-specialty practice reuses question/grading/progress boundaries
-```
-
-## M11：UX Research and Practice Experience Optimization
-
-Goal: improve the learning experience after the core practice loop, level model, deployment path, and specialty practice foundations are in place.
-
-Expected child issue areas:
-
-```text
-manual observation of learner practice sessions
-question wording and feedback comprehension
-audio playback ergonomics
-mobile layout and child-friendly interaction checks
-progress motivation and fatigue controls
-```
-
-Acceptance:
-
-```text
-UX findings are recorded as evidence, not ad hoc redesign impulses
-high-impact interaction fixes are split into scoped child issues
-practice experience changes preserve existing scheduling and progress boundaries
 ```
 
 ## Scope Control
