@@ -29,6 +29,7 @@ def test_curate_core_1000_filters_low_quality_and_replenishes_targets(monkeypatc
         candidates,
         pool,
         meaning_map={"cat": "猫"},
+        mid_meaning_map={"table": "桌子", "family": "家庭"},
     )
 
     assert [item["word"] for item in selected] == ["cat", "table", "family"]
@@ -36,6 +37,13 @@ def test_curate_core_1000_filters_low_quality_and_replenishes_targets(monkeypatc
     assert selected[0]["source_word_id"] == "cat"
     assert selected[0]["meaning_zh"] == "猫"
     assert selected[0]["meaning_zh_review_status"] == "inherited_core300"
+    assert selected[1]["meaning_zh"] == "桌子"
+    assert selected[1]["meaning_zh_review_status"] == "curated_mid"
+    assert selected[2]["meaning_zh"] == "家庭"
+    assert selected[2]["meaning_zh_review_status"] == "curated_mid"
+    assert report["meaning_zh_placeholder_count"] == 0
+    assert report["meaning_zh_inherited_core300_count"] == 1
+    assert report["meaning_zh_curated_mid_count"] == 2
     assert report["rejection_reasons"]["manual_quality_exclude"] == 1
     assert report["syllable_distribution_us"]["one"]["count"] == 1
     assert report["runtime_content_promoted"] is True

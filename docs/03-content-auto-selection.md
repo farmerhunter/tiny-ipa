@@ -425,6 +425,7 @@ uv run --project backend python backend/scripts/select_candidates.py \
 uv run --project backend python backend/scripts/curate_core_1000.py \
   --candidates /tmp/tiny-ipa-core1000/core_1000_candidates.json \
   --pool content/generated/candidate_words.json \
+  --mid-meanings content/core_1000_meanings_zh.json \
   --output content/core_1000_words.json \
   --report content/core_1000_curation_report.json
 
@@ -442,7 +443,8 @@ core_1000_count = 1000
 syllable distribution = one 250 / two 500 / three_plus 250
 multisyllable = 750 (75.0%)
 missing UK IPA = 53 warning-only entries
-meaning_zh placeholders = 845 pending human/Architect acceptance
+meaning_zh placeholders = 0
+meaning_zh curated Mid meanings = 845
 phoneme overrides = 13 accepted STRUT/r-colored overrides reused from Core100
 ```
 

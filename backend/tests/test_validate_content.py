@@ -311,6 +311,45 @@ def test_mid_core1000_level_mismatch_fails_closed():
     assert any("expected level 'intermediate'" in err for err in report["errors"])
 
 
+def test_mid_core1000_placeholder_meaning_fails_closed():
+    """Mid/Core1000 content must not ship learner-facing placeholder meanings."""
+    known = load_phoneme_set(PHONEMES_PATH)
+    words = []
+    for i in range(1000):
+        if i < 250:
+            ipa = "/kæt/"
+            tags = ["/k/", "/æ/", "/t/"]
+            syllables = 1
+        elif i < 750:
+            ipa = "/ˈteɪbəl/"
+            tags = ["/t/", "/eɪ/", "/b/", "/ə/", "/l/"]
+            syllables = 2
+        else:
+            ipa = "/ˈfæməli/"
+            tags = ["/f/", "/æ/", "/m/", "/ə/", "/l/", "/iː/"]
+            syllables = 3
+        words.append({
+            "word_id": f"mid_word_{i}",
+            "word": f"word{i}",
+            "level": "intermediate",
+            "ipa_us": ipa,
+            "ipa_uk": ipa,
+            "phoneme_tags_us": tags,
+            "phoneme_tags_uk": tags,
+            "meaning_zh": "待确认：word0" if i == 0 else f"词{i}",
+            "meaning_zh_review_status": "placeholder" if i == 0 else "curated_mid",
+            "content_status": "core_selected",
+            "syllable_count_us": syllables,
+        })
+
+    report = validate_words(words, known, content_level="mid")
+
+    assert report["meaning_zh_placeholders"] == [
+        "mid_word_0: Mid/Core1000 placeholder meaning_zh is not allowed"
+    ]
+    assert any("placeholder meaning_zh" in err for err in report["errors"])
+
+
 def test_unknown_difficulty_tag_is_blocking():
     """Unknown difficulty labels fail closed."""
     known = load_phoneme_set(PHONEMES_PATH)

@@ -28,8 +28,9 @@
   },
   "multisyllable_count": 750,
   "multisyllable_percent": 75.0,
-  "meaning_zh_placeholder_count": 845,
+  "meaning_zh_placeholder_count": 0,
   "meaning_zh_inherited_core300_count": 155,
+  "meaning_zh_curated_mid_count": 845,
   "phoneme_override_count": 13,
   "missing_uk_ipa_count": 53,
   "rejection_reasons": {
@@ -119,7 +120,7 @@
       "word": "ends",
       "ipa_us": "/ˈɛndz/",
       "syllable_bucket_us": "one",
-      "meaning_zh_review_status": "placeholder",
+      "meaning_zh_review_status": "curated_mid",
       "source_word_id": "ends"
     },
     {
@@ -182,7 +183,7 @@
       "word": "gym",
       "ipa_us": "/ˈdʒɪm/",
       "syllable_bucket_us": "one",
-      "meaning_zh_review_status": "placeholder",
+      "meaning_zh_review_status": "curated_mid",
       "source_word_id": "gym"
     },
     {
@@ -222,7 +223,6 @@
     }
   ],
   "residual_risks": [
-    "meaning_zh placeholders require human/Architect content acceptance before learner exposure",
     "missing UK IPA remains non-blocking and visible in validation warnings"
   ]
 }
