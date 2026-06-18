@@ -420,6 +420,36 @@ button {
   padding: 10px;
 }
 
+.today-hub {
+  display: grid;
+  gap: 14px;
+}
+
+.today-hub h1 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.hub-status-card,
+.level-progress-panel {
+  background: #f8fbff;
+  border: 1px solid #d6e4ff;
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+}
+
+.hub-status-card.pending {
+  background: #fff7ed;
+  border-color: #ffcc80;
+}
+
+.pending-copy {
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
 .active-focus-banner {
   font-size: 0.85rem;
 }
@@ -603,6 +633,46 @@ button {
   color: #999;
   font-size: 0.9rem;
   margin-top: 24px;
+}
+
+.level-progress-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.level-progress-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.level-progress-header h2 {
+  font-size: 1rem;
+}
+
+.level-scope-label {
+  background: #eef5fc;
+  border: 1px solid #d6e4ff;
+  border-radius: 4px;
+  color: #174ea6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 7px;
+}
+
+.level-stat-grid {
+  color: #555;
+  display: grid;
+  font-size: 0.85rem;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.level-progress-panel h3 {
+  font-size: 0.9rem;
+  margin-top: 4px;
 }
 
 /* ---------------------------------------------------------------------------

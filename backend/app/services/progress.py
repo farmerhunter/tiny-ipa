@@ -11,6 +11,7 @@ GET /api/progress reads ``phoneme_stats``, ``attempts``, and
 from __future__ import annotations
 
 import sqlite3
+import json
 from datetime import date, timedelta
 from typing import List, Optional, Tuple
 
@@ -185,6 +186,7 @@ def update_phoneme_stats(
 # ============================================================================
 
 _MIN_ATTEMPTS_FOR_PHONEME_LIST = 2
+_LEVEL_LABELS = {"entry": "Entry", "mid": "Mid"}
 
 
 def build_progress_response(
@@ -216,12 +218,22 @@ def build_progress_response(
     ).fetchone()
     total_sessions = sess_row["cnt"] if sess_row else 0
 
+    normal_row = conn.execute(
+        """
+        SELECT COUNT(*) AS cnt
+        FROM daily_sessions
+        WHERE user_id = ? AND group_type = 'normal'
+        """,
+        (user_id,),
+    ).fetchone()
+    total_normal_groups = normal_row["cnt"] if normal_row else 0
+
     # ---- today ---------------------------------------------------------------
     today_str = date.today().isoformat()
     today_rows = conn.execute(
         """
         SELECT status FROM daily_sessions
-        WHERE user_id = ? AND session_date = ?
+        WHERE user_id = ? AND session_date = ? AND group_type = 'normal'
         """,
         (user_id, today_str),
     ).fetchall()
@@ -241,6 +253,7 @@ def build_progress_response(
     weak_phonemes, strong_phonemes = _compute_phoneme_lists(
         conn, user_id, primary_accent
     )
+    level_stats = _compute_level_stats(conn, user_id, primary_accent, today_str)
 
     return {
         "today_completed": today_completed,
@@ -248,8 +261,11 @@ def build_progress_response(
         "streak_days": streak_days,
         "total_attempts": total_attempts,
         "total_sessions": total_sessions,
+        "total_normal_groups": total_normal_groups,
         "weak_phonemes": weak_phonemes,
         "strong_phonemes": strong_phonemes,
+        "stat_scope": "global",
+        "level_stats": level_stats,
     }
 
 
@@ -267,7 +283,7 @@ def _compute_streak(conn: sqlite3.Connection, user_id: str) -> int:
     rows = conn.execute(
         """
         SELECT session_date FROM daily_sessions
-        WHERE user_id = ? AND status = 'completed'
+        WHERE user_id = ? AND status = 'completed' AND group_type = 'normal'
         ORDER BY session_date DESC
         """,
         (user_id,),
@@ -290,6 +306,127 @@ def _compute_streak(conn: sqlite3.Connection, user_id: str) -> int:
             break
 
     return streak
+
+
+def _compute_level_stats(
+    conn: sqlite3.Connection,
+    user_id: str,
+    primary_accent: str,
+    today_str: str,
+) -> dict:
+    result = {
+        level: {
+            "learner_level": level,
+            "label": _LEVEL_LABELS[level],
+            "attempts": 0,
+            "correct_attempts": 0,
+            "accuracy": None,
+            "normal_groups": 0,
+            "completed_normal_groups": 0,
+            "completed_normal_groups_today": 0,
+            "weak_phonemes": [],
+            "strong_phonemes": [],
+        }
+        for level in ("entry", "mid")
+    }
+
+    group_rows = conn.execute(
+        """
+        SELECT learner_level, status, session_date, COUNT(*) AS cnt
+        FROM daily_sessions
+        WHERE user_id = ? AND group_type = 'normal'
+        GROUP BY learner_level, status, session_date
+        """,
+        (user_id,),
+    ).fetchall()
+    for row in group_rows:
+        level = row["learner_level"] if row["learner_level"] in result else "entry"
+        result[level]["normal_groups"] += int(row["cnt"])
+        if row["status"] == "completed":
+            result[level]["completed_normal_groups"] += int(row["cnt"])
+            if row["session_date"] == today_str:
+                result[level]["completed_normal_groups_today"] += int(row["cnt"])
+
+    attempt_rows = conn.execute(
+        """
+        SELECT
+          ds.learner_level,
+          a.is_correct,
+          si.target_phonemes
+        FROM attempts a
+        JOIN session_items si ON si.id = a.session_item_id
+        JOIN daily_sessions ds ON ds.id = si.session_id
+        WHERE a.user_id = ?
+          AND a.primary_accent = ?
+          AND ds.group_type = 'normal'
+        """,
+        (user_id, primary_accent),
+    ).fetchall()
+
+    phoneme_by_level: dict[str, dict[str, dict[str, int]]] = {
+        "entry": {},
+        "mid": {},
+    }
+    for row in attempt_rows:
+        level = row["learner_level"] if row["learner_level"] in result else "entry"
+        is_correct = bool(row["is_correct"])
+        result[level]["attempts"] += 1
+        if is_correct:
+            result[level]["correct_attempts"] += 1
+        for phoneme in _parse_target_phonemes(row["target_phonemes"]):
+            stat = phoneme_by_level[level].setdefault(phoneme, {"attempts": 0, "correct": 0})
+            stat["attempts"] += 1
+            if is_correct:
+                stat["correct"] += 1
+
+    for level, stats in phoneme_by_level.items():
+        attempts = result[level]["attempts"]
+        if attempts:
+            result[level]["accuracy"] = round(result[level]["correct_attempts"] / attempts, 2)
+        weak, strong = _phoneme_lists_from_counts(stats)
+        result[level]["weak_phonemes"] = weak
+        result[level]["strong_phonemes"] = strong
+
+    return result
+
+
+def _parse_target_phonemes(raw: Optional[str]) -> List[str]:
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(item) for item in parsed if item]
+
+
+def _phoneme_lists_from_counts(stats: dict[str, dict[str, int]]) -> Tuple[List[dict], List[dict]]:
+    entries: List[dict] = []
+    for phoneme, counts in stats.items():
+        attempts = counts["attempts"]
+        if attempts < _MIN_ATTEMPTS_FOR_PHONEME_LIST:
+            continue
+        correct = counts["correct"]
+        accuracy = correct / attempts if attempts else 0.0
+        entries.append({
+            "phoneme": phoneme,
+            "accuracy": round(accuracy, 2),
+            "attempt_count": attempts,
+            "correct_count": correct,
+            "mastery_status": _compute_mastery(attempts, correct),
+        })
+
+    weak = sorted(
+        [e for e in entries if e["accuracy"] < 0.70],
+        key=lambda e: (e["accuracy"], -e["attempt_count"]),
+    )
+    strong = sorted(
+        [e for e in entries if e["accuracy"] >= 0.85],
+        key=lambda e: (-e["accuracy"], -e["attempt_count"]),
+    )
+    return weak, strong
 
 
 # ---------------------------------------------------------------------------

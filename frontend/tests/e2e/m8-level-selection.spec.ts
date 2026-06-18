@@ -3,7 +3,9 @@ import { expect, type Page, type Route, test } from "@playwright/test";
 type LearnerLevel = "entry" | "mid";
 
 interface MockState {
-  learnerLevel: LearnerLevel;
+  selectedLevel: LearnerLevel;
+  activeLevel: LearnerLevel | null;
+  completed: Record<LearnerLevel, number>;
 }
 
 const items = {
@@ -31,15 +33,50 @@ function levelLabel(level: LearnerLevel) {
   return level === "mid" ? "Mid" : "Entry";
 }
 
-function todayResponse(level: LearnerLevel) {
-  const item = items[level];
+function todayResponse(state: MockState) {
+  if (state.activeLevel === null) {
+    return {
+      group_type: "normal",
+      learner_level: state.selectedLevel,
+      learner_level_label: levelLabel(state.selectedLevel),
+      selected_learner_level: state.selectedLevel,
+      selected_learner_level_label: levelLabel(state.selectedLevel),
+      pending_level_change: false,
+      completed_normal_groups_today: {
+        entry: state.completed.entry,
+        mid: state.completed.mid,
+        total: state.completed.entry + state.completed.mid,
+      },
+      date: "2026-06-18",
+      primary_accent: "US",
+      origin: "normal_empty",
+      source_scope: "normal_none",
+      focus_phonemes: [],
+      action_label: `Start ${levelLabel(state.selectedLevel)} group`,
+      daily_word_count: 1,
+      word_count: 0,
+      status: "idle",
+      source_session_item_ids: [],
+      items: [],
+    };
+  }
+  const item = items[state.activeLevel];
+  const pending = state.selectedLevel !== state.activeLevel;
   return {
-    session_id: `${level}-session-1`,
-    group_id: `${level}-group-1`,
+    session_id: `${state.activeLevel}-session-1`,
+    group_id: `${state.activeLevel}-group-1`,
     group_index: 1,
     group_type: "normal",
-    learner_level: level,
-    learner_level_label: levelLabel(level),
+    learner_level: state.activeLevel,
+    learner_level_label: levelLabel(state.activeLevel),
+    selected_learner_level: state.selectedLevel,
+    selected_learner_level_label: levelLabel(state.selectedLevel),
+    pending_level_change: pending,
+    completed_normal_groups_today: {
+      entry: state.completed.entry,
+      mid: state.completed.mid,
+      total: state.completed.entry + state.completed.mid,
+    },
     date: "2026-06-18",
     primary_accent: "US",
     origin: "normal_start",
@@ -71,13 +108,17 @@ function settingsResponse(state: MockState) {
     show_accent_compare: false,
     practice_mode: "ipa_first",
     review_strength: "normal",
-    learner_level: state.learnerLevel,
+    learner_level: state.selectedLevel,
     focus_phonemes: [],
   };
 }
 
 async function setupMockApi(page: Page): Promise<MockState> {
-  const state: MockState = { learnerLevel: "entry" };
+  const state: MockState = {
+    selectedLevel: "entry",
+    activeLevel: null,
+    completed: { entry: 0, mid: 0 },
+  };
   await page.route("**/api/**", async (route) => {
     await routeMock(route, state);
   });
@@ -99,7 +140,7 @@ async function routeMock(route: Route, state: MockState) {
     if (request.method() === "PUT") {
       const body = request.postDataJSON() as { learner_level?: LearnerLevel };
       if (body.learner_level === "entry" || body.learner_level === "mid") {
-        state.learnerLevel = body.learner_level;
+        state.selectedLevel = body.learner_level;
       }
     }
     await route.fulfill({ json: settingsResponse(state) });
@@ -107,7 +148,33 @@ async function routeMock(route: Route, state: MockState) {
   }
 
   if (path === "/today") {
-    await route.fulfill({ json: todayResponse(state.learnerLevel) });
+    await route.fulfill({ json: todayResponse(state) });
+    return;
+  }
+
+  if (path === "/practice/next-normal") {
+    state.activeLevel = state.selectedLevel;
+    await route.fulfill({
+      json: {
+        ...todayResponse(state),
+        origin: "normal_next",
+        source_scope: "normal_next",
+      },
+    });
+    return;
+  }
+
+  if (path === "/practice/abandon-current-and-next") {
+    state.activeLevel = state.selectedLevel;
+    await route.fulfill({
+      json: {
+        ...todayResponse(state),
+        origin: "normal_abandon_next",
+        source_scope: "normal_next",
+        abandoned_group_id: "entry-session-1",
+        detail: "Ended Entry Group 1 and started Mid Group 1.",
+      },
+    });
     return;
   }
 
@@ -117,8 +184,52 @@ async function routeMock(route: Route, state: MockState) {
         today_completed: false,
         today_status: "active",
         streak_days: 0,
-        total_attempts: 0,
-        total_sessions: 0,
+        total_attempts: 6,
+        total_sessions: 2,
+        total_normal_groups: 2,
+        stat_scope: "global",
+        level_stats: {
+          entry: {
+            learner_level: "entry",
+            label: "Entry",
+            attempts: 3,
+            correct_attempts: 1,
+            accuracy: 0.33,
+            normal_groups: 1,
+            completed_normal_groups: state.completed.entry,
+            completed_normal_groups_today: state.completed.entry,
+            weak_phonemes: [
+              {
+                phoneme: "/ʃ/",
+                accuracy: 0.33,
+                attempt_count: 3,
+                correct_count: 1,
+                mastery_status: "weak",
+              },
+            ],
+            strong_phonemes: [],
+          },
+          mid: {
+            learner_level: "mid",
+            label: "Mid",
+            attempts: 3,
+            correct_attempts: 3,
+            accuracy: 1,
+            normal_groups: 1,
+            completed_normal_groups: state.completed.mid,
+            completed_normal_groups_today: state.completed.mid,
+            weak_phonemes: [],
+            strong_phonemes: [
+              {
+                phoneme: "/r/",
+                accuracy: 1,
+                attempt_count: 3,
+                correct_count: 3,
+                mastery_status: "learning",
+              },
+            ],
+          },
+        },
         weak_phonemes: [],
         strong_phonemes: [],
       },
@@ -130,15 +241,18 @@ async function routeMock(route: Route, state: MockState) {
 }
 
 test.describe("M8 learner level selection walkthrough", () => {
-  test("Entry is default and Mid switching is visible in Settings and Today", async ({ page }) => {
+  test("Entry-to-Mid lifecycle is explicit from Today hub through Progress stats", async ({ page }) => {
     await setupMockApi(page);
 
-    await test.step("Entry default practice context", async () => {
+    await test.step("Entry default hub context", async () => {
       await page.goto("/");
+      await expect(page.getByText("Today practice hub")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Entry selected" })).toBeVisible();
+      await expect(page.getByText("0 normal groups completed today: Entry 0, Mid 0.")).toBeVisible();
+      await expect(page.getByText("No active group")).toBeVisible();
+      await page.getByRole("button", { name: "Start Entry group" }).click();
       await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
-      await expect(page.getByText("Entry practice group.")).toBeVisible();
       await expect(page.getByText("ship")).toBeVisible();
-      await expect(page.getByText("Mid")).toHaveCount(0);
     });
 
     await test.step("Settings exposes learner-facing level choices", async () => {
@@ -151,12 +265,26 @@ test.describe("M8 learner level selection walkthrough", () => {
       await expect(page.getByText(/core_1000_words|core_300_words/i)).toHaveCount(0);
     });
 
-    await test.step("Mid practice uses the Mid pool and visible context", async () => {
+    await test.step("Today explains pending level change and intentional switch", async () => {
       await page.getByRole("button", { name: "Today", exact: true }).click();
+      await expect(page.getByText("Today practice hub")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Mid selected" })).toBeVisible();
+      await expect(page.getByText("You selected Mid. This Entry group is still in progress.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Resume Entry group" })).toBeVisible();
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.getByRole("button", { name: "End this Entry group and start Mid" }).click();
       await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
       await expect(page.getByText("Mid practice group.")).toBeVisible();
       await expect(page.getByText("remember")).toBeVisible();
       await expect(page.getByText("ship")).toHaveCount(0);
+    });
+
+    await test.step("Progress distinguishes Entry and Mid statistics", async () => {
+      await page.getByRole("button", { name: "Progress" }).click();
+      await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Entry stats" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Mid stats" })).toBeVisible();
+      await expect(page.getByText("Global needs practice")).toHaveCount(0);
       const screenshotPath = test.info().outputPath("m8-mid-level-mobile.png");
       await page.screenshot({ fullPage: true, path: screenshotPath });
       await test.info().attach("m8-mid-level-mobile", {

@@ -5,7 +5,12 @@
  */
 
 import { useEffect, useState } from "react";
-import type { ProgressResponse, SettingsData, TodayResponse } from "../api";
+import type {
+  LevelProgressStats,
+  ProgressResponse,
+  SettingsData,
+  TodayResponse,
+} from "../api";
 import {
   clearPracticeFocus,
   fetchProgress,
@@ -18,6 +23,66 @@ interface Props {
   focusPhonemes: string[];
   onFocusChange: (focusPhonemes: string[]) => void;
   onStartPractice: (session: TodayResponse) => void;
+}
+
+function formatAccuracy(value: number | null): string {
+  if (value === null) return "No attempts";
+  return `${Math.round(value * 100)}% accuracy`;
+}
+
+function LevelStatsSection({
+  stats,
+  onFocus,
+  activeFocus,
+  savingFocus,
+}: {
+  stats: LevelProgressStats;
+  onFocus: (phoneme: string) => void;
+  activeFocus: string[];
+  savingFocus: string | null;
+}) {
+  return (
+    <section className="level-progress-panel">
+      <div className="level-progress-header">
+        <h2>{stats.label} stats</h2>
+        <span className="level-scope-label">{stats.label}</span>
+      </div>
+      <div className="level-stat-grid">
+        <span>{stats.completed_normal_groups_today} completed today</span>
+        <span>{stats.normal_groups} normal groups</span>
+        <span>{stats.attempts} attempts</span>
+        <span>{formatAccuracy(stats.accuracy)}</span>
+      </div>
+      {stats.weak_phonemes.length > 0 ? (
+        <>
+          <h3>Needs practice in {stats.label}</h3>
+          <ul className="phoneme-list">
+            {stats.weak_phonemes.map((p) => (
+              <li key={`${stats.learner_level}-${p.phoneme}`} className="phoneme-item weak">
+                <span className="phoneme-symbol">{p.phoneme}</span>
+                <span className="phoneme-acc">
+                  {Math.round(p.accuracy * 100)}% accuracy
+                </span>
+                <span className="phoneme-count">{p.attempt_count} attempts</span>
+                <button
+                  className="focus-action-btn"
+                  onClick={() => onFocus(p.phoneme)}
+                  disabled={savingFocus !== null}
+                >
+                  {activeFocus.includes(p.phoneme) ? "Resume focus" : `Focus ${p.phoneme}`}
+                </button>
+                <span className="phoneme-help">
+                  Focused practice starts at the selected level in Settings.
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="section-copy">No weak phoneme signal yet for {stats.label}.</p>
+      )}
+    </section>
+  );
 }
 
 export default function ProgressPage({
@@ -121,19 +186,37 @@ export default function ProgressPage({
         </div>
         <div className="stat-card">
           <span className="stat-number">{data.total_attempts}</span>
-          <span className="stat-label">attempts</span>
+          <span className="stat-label">global attempts</span>
         </div>
         <div className="stat-card">
-          <span className="stat-number">{data.total_sessions}</span>
-          <span className="stat-label">sessions</span>
+          <span className="stat-number">{data.total_normal_groups}</span>
+          <span className="stat-label">normal groups</span>
         </div>
       </div>
 
+      {data.level_stats && (
+        <div className="level-progress-list">
+          <LevelStatsSection
+            stats={data.level_stats.entry}
+            onFocus={focusOne}
+            activeFocus={activeFocus}
+            savingFocus={savingFocus}
+          />
+          <LevelStatsSection
+            stats={data.level_stats.mid}
+            onFocus={focusOne}
+            activeFocus={activeFocus}
+            savingFocus={savingFocus}
+          />
+        </div>
+      )}
+
       {data.weak_phonemes.length > 0 && (
         <section className="phoneme-section">
-          <h2>Needs practice</h2>
+          <h2>Global needs practice</h2>
           <p className="section-copy">
-            Start focused practice from a weak sound. No IPA typing needed.
+            All-level weak sounds from your complete history. Use the Entry/Mid
+            sections above when level context matters.
           </p>
           <ul className="phoneme-list">
             {data.weak_phonemes.map((p) => (
@@ -163,7 +246,7 @@ export default function ProgressPage({
 
       {data.strong_phonemes.length > 0 && (
         <section className="phoneme-section">
-          <h2>Strong</h2>
+          <h2>Global strong sounds</h2>
           <ul className="phoneme-list">
             {data.strong_phonemes.map((p) => (
               <li key={p.phoneme} className="phoneme-item strong">

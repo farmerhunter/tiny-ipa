@@ -191,7 +191,7 @@ class TestTodayAudioUrl:
         db_mod.DEFAULT_DB_PATH = self._orig_db
 
     def test_today_includes_audio_url(self):
-        resp = self.client.get("/api/today")
+        resp = self.client.post("/api/practice/next-normal")
         assert resp.status_code == 200
         data = resp.json()
         assert "error" not in data
@@ -201,7 +201,7 @@ class TestTodayAudioUrl:
         assert ship_item.get("audio_url") == "/audio/us/ship.mp3"
 
     def test_today_null_audio_url_when_missing(self):
-        resp = self.client.get("/api/today")
+        resp = self.client.post("/api/practice/next-normal")
         data = resp.json()
         # cat has audio_us=null in fixture
         cat_item = next((i for i in data["items"] if i["word"] == "cat"), None)

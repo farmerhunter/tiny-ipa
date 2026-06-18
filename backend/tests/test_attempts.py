@@ -51,8 +51,8 @@ def client_fixture(seeded_db: str) -> TestClient:
 
 
 def _get_first_item(client: TestClient) -> dict:
-    """Get today's session and return the first item."""
-    today = client.get("/api/today").json()
+    """Start today's normal session and return the first item."""
+    today = client.post("/api/practice/next-normal").json()
     assert "error" not in today, today
     items = today["items"]
     assert len(items) > 0
