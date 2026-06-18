@@ -68,12 +68,20 @@ export interface TodayItem {
 }
 
 export interface TodayResponse {
-  session_id: string;
+  session_id?: string;
   group_id?: string;
   group_index?: number;
   group_type?: string;
   learner_level?: "entry" | "mid";
   learner_level_label?: string;
+  selected_learner_level?: "entry" | "mid";
+  selected_learner_level_label?: string;
+  pending_level_change?: boolean;
+  completed_normal_groups_today?: {
+    entry: number;
+    mid: number;
+    total: number;
+  };
   origin?: string;
   source_scope?: string;
   source_group_id?: string;
@@ -101,6 +109,16 @@ export async function fetchToday(): Promise<TodayResponse> {
 
 export async function startNextNormalGroup(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/practice/next-normal`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function abandonCurrentAndStartNext(): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/practice/abandon-current-and-next`, {
     method: "POST",
   });
   if (!res.ok) {
@@ -187,14 +205,30 @@ export interface PhonemeStat {
   mastery_status: string;
 }
 
+export interface LevelProgressStats {
+  learner_level: "entry" | "mid";
+  label: string;
+  attempts: number;
+  correct_attempts: number;
+  accuracy: number | null;
+  normal_groups: number;
+  completed_normal_groups: number;
+  completed_normal_groups_today: number;
+  weak_phonemes: PhonemeStat[];
+  strong_phonemes: PhonemeStat[];
+}
+
 export interface ProgressResponse {
   today_completed: boolean;
   today_status: string;
   streak_days: number;
   total_attempts: number;
   total_sessions: number;
+  total_normal_groups: number;
   weak_phonemes: PhonemeStat[];
   strong_phonemes: PhonemeStat[];
+  stat_scope?: "global";
+  level_stats?: Record<"entry" | "mid", LevelProgressStats>;
 }
 
 export async function fetchProgress(): Promise<ProgressResponse> {

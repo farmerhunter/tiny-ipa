@@ -22,6 +22,7 @@ from app.services.db_store import (
     get_session_items,
     get_settings,
     get_word_by_id,
+    mark_session_abandoned,
     upsert_settings,
 )
 from app.services.questions import generate_question
@@ -72,6 +73,7 @@ def build_today_response(
         }
 
     daily_word_count = settings.daily_word_count
+    selected_level = settings.learner_level
 
     # ---- check for existing session -----------------------------------------
     existing = get_active_session_for_date(conn, user_id, session_date, accent, "normal")
@@ -86,15 +88,78 @@ def build_today_response(
             origin="normal_resume",
             source_scope="normal_current",
             focus_phonemes=existing.focus_phonemes or settings.focus_phonemes,
+            selected_learner_level=selected_level,
             action_label=f"Resume {learner_level_label(existing.learner_level)} Group {existing.group_index}",
         )
 
-    # ---- create new session -------------------------------------------------
+    return _normal_empty_response(
+        conn,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        daily_word_count=daily_word_count,
+        selected_level=selected_level,
+        focus_phonemes=settings.focus_phonemes,
+    )
+
+
+def build_next_normal_group_response(
+    conn,
+    *,
+    user_id: str = "default",
+    accent: str = "US",
+) -> dict:
+    """Resume the active normal group or explicitly create the next normal group."""
+    session_date = _today_date_str()
+    settings = get_settings(conn, user_id)
+    if settings is None:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Settings not initialised. Run import_words.py first.",
+        }
+
+    existing = get_active_session_for_date(conn, user_id, session_date, accent, "normal")
+    if existing is not None:
+        items = get_session_items(conn, existing.id)
+        return _build_response(
+            session=existing,
+            items=items,
+            daily_word_count=settings.daily_word_count,
+            conn=conn,
+            accent=accent,
+            origin="normal_resume",
+            source_scope="normal_current",
+            focus_phonemes=existing.focus_phonemes or settings.focus_phonemes,
+            selected_learner_level=settings.learner_level,
+            action_label=f"Resume {learner_level_label(existing.learner_level)} Group {existing.group_index}",
+        )
+
+    return _create_normal_group_response(
+        conn,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        settings=settings,
+        origin="normal_next",
+        source_scope="normal_next",
+    )
+
+
+def _create_normal_group_response(
+    conn,
+    *,
+    user_id: str,
+    session_date: str,
+    accent: str,
+    settings,
+    origin: str,
+    source_scope: str,
+) -> dict:
     group_index = get_next_session_group_index(conn, user_id, session_date, accent)
     seed = _seed_from_group(session_date, group_index, "normal")
     words = select_daily_words(
         conn,
-        daily_word_count,
+        settings.daily_word_count,
         accent,
         seed=seed,
         user_id=user_id,
@@ -127,33 +192,57 @@ def build_today_response(
     return _build_response(
         session=session,
         items=items,
-        daily_word_count=daily_word_count,
+        daily_word_count=settings.daily_word_count,
         conn=conn,
         accent=accent,
-        origin="normal_start",
-        source_scope="normal_current",
+        origin=origin,
+        source_scope=source_scope,
         focus_phonemes=settings.focus_phonemes,
+        selected_learner_level=settings.learner_level,
         action_label=f"Start {learner_level_label(session.learner_level)} Group {session.group_index}",
     )
 
 
-def build_next_normal_group_response(
+def build_abandon_current_and_next_response(
     conn,
     *,
     user_id: str = "default",
     accent: str = "US",
 ) -> dict:
-    """Resume the active normal group or create the next normal same-day group."""
-    response = build_today_response(conn, user_id=user_id, accent=accent)
-    if "error" in response:
-        return response
-    if response.get("origin") == "normal_start":
-        response["origin"] = "normal_next"
-    response["source_scope"] = "normal_next"
-    if response.get("origin") == "normal_next":
+    """Abandon the active normal group and create the next selected-level group."""
+    session_date = _today_date_str()
+    existing = get_active_session_for_date(conn, user_id, session_date, accent, "normal")
+    if existing is None:
+        return build_next_normal_group_response(conn, user_id=user_id, accent=accent)
+
+    settings = get_settings(conn, user_id)
+    if settings is None:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Settings not initialised. Run import_words.py first.",
+        }
+
+    mark_session_abandoned(conn, existing.id, _now_iso())
+    response = _create_normal_group_response(
+        conn,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        settings=settings,
+        origin="normal_abandon_next",
+        source_scope="normal_next",
+    )
+    if "error" not in response:
+        response["abandoned_group_id"] = existing.id
+        response["detail"] = (
+            f"Ended {learner_level_label(existing.learner_level)} Group "
+            f"{existing.group_index} and started "
+            f"{learner_level_label(response.get('learner_level'))} Group "
+            f"{response.get('group_index')}."
+        )
         response["action_label"] = (
             f"Start {learner_level_label(response.get('learner_level'))} "
-            f"Group {response['group_index']}"
+            f"Group {response.get('group_index')}"
         )
     return response
 
@@ -415,6 +504,7 @@ def build_focused_group_response(
             origin="focus_resume",
             source_scope="focus_selection",
             focus_phonemes=focus_phonemes,
+            selected_learner_level=settings.learner_level,
             action_label=f"Resume {learner_level_label(existing.learner_level)} Focus Group {existing.group_index}",
         )
 
@@ -460,6 +550,7 @@ def build_focused_group_response(
         origin="focus_start",
         source_scope="focus_selection",
         focus_phonemes=focus_phonemes,
+        selected_learner_level=settings.learner_level,
         action_label=f"Start {learner_level_label(session.learner_level)} Focus Group {session.group_index}",
     )
 
@@ -484,7 +575,9 @@ def build_clear_focus_response(
     response = build_today_response(conn, user_id=user_id, accent=accent)
     if "error" not in response:
         response["origin"] = "focus_clear"
-        response["source_scope"] = "normal_current"
+        response["source_scope"] = (
+            "normal_current" if response.get("group_id") else "normal_none"
+        )
         response["focus_phonemes"] = []
         response["detail"] = "Focus selection cleared."
     return response
@@ -556,6 +649,64 @@ def _build_distractor_pool(conn, accent: str) -> List[str]:
     return [r[0] for r in rows if r[0]]
 
 
+def _completed_normal_groups_today(conn, user_id: str, session_date: str) -> dict:
+    rows = conn.execute(
+        """
+        SELECT learner_level, COUNT(*) AS cnt
+        FROM daily_sessions
+        WHERE user_id = ?
+          AND session_date = ?
+          AND group_type = 'normal'
+          AND status = 'completed'
+        GROUP BY learner_level
+        """,
+        (user_id, session_date),
+    ).fetchall()
+    by_level = {"entry": 0, "mid": 0}
+    for row in rows:
+        level = row["learner_level"] if row["learner_level"] in by_level else "entry"
+        by_level[level] = int(row["cnt"])
+    return {
+        "entry": by_level["entry"],
+        "mid": by_level["mid"],
+        "total": by_level["entry"] + by_level["mid"],
+    }
+
+
+def _normal_empty_response(
+    conn,
+    *,
+    user_id: str,
+    session_date: str,
+    accent: str,
+    daily_word_count: int,
+    selected_level: str,
+    focus_phonemes: Optional[List[str]],
+) -> dict:
+    return {
+        "group_type": "normal",
+        "learner_level": selected_level,
+        "learner_level_label": learner_level_label(selected_level),
+        "selected_learner_level": selected_level,
+        "selected_learner_level_label": learner_level_label(selected_level),
+        "pending_level_change": False,
+        "completed_normal_groups_today": _completed_normal_groups_today(
+            conn, user_id, session_date
+        ),
+        "date": session_date,
+        "primary_accent": accent,
+        "daily_word_count": daily_word_count,
+        "word_count": 0,
+        "status": "idle",
+        "origin": "normal_empty",
+        "source_scope": "normal_none",
+        "source_session_item_ids": [],
+        "focus_phonemes": focus_phonemes or [],
+        "action_label": f"Start {learner_level_label(selected_level)} group",
+        "items": [],
+    }
+
+
 def learner_level_label(learner_level: Optional[str]) -> str:
     return _LEARNER_LEVEL_LABELS.get(learner_level or "entry", "Entry")
 
@@ -571,6 +722,7 @@ def _build_response(
     source_scope: Optional[str] = None,
     source_group_id: Optional[str] = None,
     focus_phonemes: Optional[List[str]] = None,
+    selected_learner_level: Optional[str] = None,
     action_label: Optional[str] = None,
 ) -> dict:
     """Assemble the /api/today JSON response from session + items."""
@@ -608,6 +760,17 @@ def _build_response(
         "group_type": session.group_type,
         "learner_level": session.learner_level,
         "learner_level_label": learner_level_label(session.learner_level),
+        "selected_learner_level": selected_learner_level or session.learner_level,
+        "selected_learner_level_label": learner_level_label(
+            selected_learner_level or session.learner_level
+        ),
+        "pending_level_change": (
+            session.group_type == "normal"
+            and (selected_learner_level or session.learner_level) != session.learner_level
+        ),
+        "completed_normal_groups_today": _completed_normal_groups_today(
+            conn, session.user_id, session.session_date
+        ),
         "date": session.session_date,
         "primary_accent": session.primary_accent,
         "daily_word_count": daily_word_count,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -62,6 +63,10 @@ class TestProgressApi:
         data = resp.json()
         assert data["total_attempts"] == 0
         assert data["total_sessions"] == 0
+        assert data["total_normal_groups"] == 0
+        assert data["stat_scope"] == "global"
+        assert data["level_stats"]["entry"]["label"] == "Entry"
+        assert data["level_stats"]["mid"]["label"] == "Mid"
         assert data["today_completed"] is False
         assert data["streak_days"] == 0
         assert data["weak_phonemes"] == []
@@ -70,7 +75,7 @@ class TestProgressApi:
     def test_today_status_reflects_session(self, client, seeded_db):
         """After creating today's session, progress reflects it."""
         # Create today's session
-        client.get("/api/today")
+        client.post("/api/practice/next-normal")
         resp = client.get("/api/progress")
         data = resp.json()
         assert data["today_status"] == "in_progress"
@@ -79,7 +84,7 @@ class TestProgressApi:
     def test_total_attempts_counted(self, client, seeded_db):
         """After submitting attempts, total_attempts increases."""
         # Get a session item
-        today = client.get("/api/today").json()
+        today = client.post("/api/practice/next-normal").json()
         item = today["items"][0]
 
         # Submit one attempt
@@ -95,7 +100,7 @@ class TestProgressApi:
 
     def test_phoneme_lists_after_attempts(self, client, seeded_db):
         """After several attempts across phonemes, weak/strong lists appear."""
-        today = client.get("/api/today").json()
+        today = client.post("/api/practice/next-normal").json()
 
         # Submit 3 wrong answers for first item
         for _ in range(3):
@@ -141,10 +146,101 @@ class TestProgressApi:
         data = resp.json()
         for key in (
             "today_completed", "today_status", "streak_days",
-            "total_attempts", "total_sessions",
-            "weak_phonemes", "strong_phonemes",
+            "total_attempts", "total_sessions", "total_normal_groups",
+            "weak_phonemes", "strong_phonemes", "stat_scope", "level_stats",
         ):
             assert key in data, f"missing key: {key}"
+
+    def test_level_stats_scope_normal_practice_by_entry_and_mid(self, seeded_db):
+        conn = get_connection(seeded_db)
+        today = date.today().isoformat()
+        sessions = [
+            ("entry-normal", "normal", "entry", "completed"),
+            ("mid-normal", "normal", "mid", "completed"),
+            ("mid-focus", "weak_focus", "mid", "completed"),
+        ]
+        for session_id, group_type, level, status in sessions:
+            conn.execute(
+                """
+                INSERT INTO daily_sessions (
+                    id, user_id, session_date, primary_accent,
+                    status, created_at, completed_at, group_index,
+                    group_type, learner_level
+                ) VALUES (?, 'default', ?, 'US', ?, ?, ?, 1, ?, ?)
+                """,
+                (
+                    session_id,
+                    today,
+                    status,
+                    f"{today}T10:00:00Z",
+                    f"{today}T10:05:00Z",
+                    group_type,
+                    level,
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO session_items (
+                    id, session_id, word_id, order_index, target_phonemes,
+                    question_type, status
+                ) VALUES (?, ?, ?, 0, ?, 'choose_ipa', 'complete')
+                """,
+                (
+                    f"{session_id}-item",
+                    session_id,
+                    "cat",
+                    json.dumps(["/æ/"] if level == "entry" else ["/ʃ/"]),
+                ),
+            )
+
+        for index in range(3):
+            conn.execute(
+                """
+                INSERT INTO attempts (
+                    id, user_id, session_item_id, word_id, primary_accent,
+                    question_type, selected_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, 'default', 'entry-normal-item', 'cat', 'US',
+                    'choose_ipa', '/wrong/', '/kæt/', 0, ?)
+                """,
+                (f"entry-attempt-{index}", f"{today}T10:0{index}:00Z"),
+            )
+        for index in range(3):
+            conn.execute(
+                """
+                INSERT INTO attempts (
+                    id, user_id, session_item_id, word_id, primary_accent,
+                    question_type, selected_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, 'default', 'mid-normal-item', 'cat', 'US',
+                    'choose_ipa', '/ʃɪp/', '/ʃɪp/', 1, ?)
+                """,
+                (f"mid-attempt-{index}", f"{today}T11:0{index}:00Z"),
+            )
+        conn.execute(
+            """
+            INSERT INTO attempts (
+                id, user_id, session_item_id, word_id, primary_accent,
+                question_type, selected_answer, correct_answer, is_correct, created_at
+            ) VALUES ('focus-attempt', 'default', 'mid-focus-item', 'cat', 'US',
+                'choose_ipa', '/ʃɪp/', '/ʃɪp/', 1, ?)
+            """,
+            (f"{today}T12:00:00Z",),
+        )
+        conn.commit()
+        conn.close()
+
+        conn = get_connection(seeded_db)
+        resp = build_progress_response(conn)
+        conn.close()
+
+        assert resp["total_attempts"] == 7
+        assert resp["total_sessions"] == 3
+        assert resp["total_normal_groups"] == 2
+        assert resp["level_stats"]["entry"]["completed_normal_groups_today"] == 1
+        assert resp["level_stats"]["mid"]["completed_normal_groups_today"] == 1
+        assert resp["level_stats"]["entry"]["attempts"] == 3
+        assert resp["level_stats"]["mid"]["attempts"] == 3
+        assert resp["level_stats"]["entry"]["weak_phonemes"][0]["phoneme"] == "/æ/"
+        assert resp["level_stats"]["mid"]["strong_phonemes"][0]["phoneme"] == "/ʃ/"
 
 
 # ---------------------------------------------------------------------------

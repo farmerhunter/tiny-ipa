@@ -418,6 +418,23 @@ def mark_session_completed(
     )
 
 
+def mark_session_abandoned(
+    conn: sqlite3.Connection,
+    session_id: str,
+    completed_at: str,
+) -> None:
+    """Mark a practice group abandoned without counting it as completed."""
+    ensure_daily_sessions_schema(conn)
+    conn.execute(
+        """
+        UPDATE daily_sessions
+        SET status = 'abandoned', completed_at = ?
+        WHERE id = ? AND status = 'in_progress'
+        """,
+        (completed_at, session_id),
+    )
+
+
 def create_session_item(conn: sqlite3.Connection, item: SessionItem) -> str:
     """Insert a session item row. Returns the item id."""
     conn.execute(
