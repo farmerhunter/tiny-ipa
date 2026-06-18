@@ -212,6 +212,7 @@ def validate_words(
         "unknown_phoneme_tags_uk": [],
         "unsupported_ipa_symbols": [],
         "missing_meaning_zh": 0,
+        "meaning_zh_placeholders": [],
         "missing_audio_us": 0,
         "unknown_difficulty_tags": [],
         "blocked_words": [],
@@ -307,6 +308,13 @@ def validate_words(
         if "meaning_zh" not in w or not w.get("meaning_zh"):
             report["missing_meaning_zh"] += 1
             report["errors"].append(f"{word_id}: missing required Core 300 field 'meaning_zh'")
+        elif content_level == "mid" and (
+            str(w.get("meaning_zh", "")).startswith("待确认：")
+            or w.get("meaning_zh_review_status") == "placeholder"
+        ):
+            entry = f"{word_id}: Mid/Core1000 placeholder meaning_zh is not allowed"
+            report["meaning_zh_placeholders"].append(entry)
+            report["errors"].append(entry)
 
         if not w.get("audio_us"):
             report["missing_audio_us"] += 1

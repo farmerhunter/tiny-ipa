@@ -614,9 +614,11 @@ counts, content statuses, syllable buckets, and multisyllable percentage.
 #125 promoted `content/core_1000_words.json` with the accepted #124 target split
 of 250 one-syllable, 500 two-syllable, and 250 three-plus-syllable words. The
 file includes `meaning_zh` values for runtime compatibility; entries marked
-`meaning_zh_review_status = placeholder` remain a human/Architect content
-acceptance risk before learner exposure. The curation script also reuses the
-accepted Core100 STRUT/r-colored phoneme overrides where matching words appear.
+`meaning_zh_review_status = inherited_core300` reuse accepted Entry meanings,
+while `meaning_zh_review_status = curated_mid` comes from
+`content/core_1000_meanings_zh.json`. Mid validation fails closed if placeholder
+meanings remain. The curation script also reuses the accepted Core100
+STRUT/r-colored phoneme overrides where matching words appear.
 
 Settings API contract:
 

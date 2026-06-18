@@ -22,6 +22,7 @@ from select_candidates import estimate_syllable_count, syllable_bucket  # noqa: 
 DEFAULT_CANDIDATES = _REPO / "content" / "generated" / "core_1000_candidates.json"
 DEFAULT_POOL = _REPO / "content" / "generated" / "candidate_words.json"
 DEFAULT_CORE300 = _REPO / "content" / "core_300_words.json"
+DEFAULT_MID_MEANINGS = _REPO / "content" / "core_1000_meanings_zh.json"
 DEFAULT_OUTPUT = _REPO / "content" / "core_1000_words.json"
 DEFAULT_REPORT = _REPO / "content" / "core_1000_curation_report.json"
 
@@ -59,9 +60,23 @@ def load_word_entries(path: Path) -> list[dict]:
 def load_meaning_map(path: Path) -> dict[str, str]:
     if not path.exists():
         return {}
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    if isinstance(data, dict) and isinstance(data.get("meanings"), dict):
+        return {
+            str(word).strip().lower(): str(meaning).strip()
+            for word, meaning in data["meanings"].items()
+            if str(word).strip() and str(meaning).strip()
+        }
+    if isinstance(data, dict) and isinstance(data.get("words"), list):
+        entries = data["words"]
+    elif isinstance(data, list):
+        entries = data
+    else:
+        raise ValueError(f"{path} must be a JSON array, words object, or meanings object")
     return {
-        str(entry.get("word", "")).lower(): entry["meaning_zh"]
-        for entry in load_word_entries(path)
+        str(entry.get("word", "")).strip().lower(): str(entry["meaning_zh"]).strip()
+        for entry in entries
         if entry.get("word") and entry.get("meaning_zh")
     }
 
@@ -113,7 +128,9 @@ def curate_core_1000(
     candidates: list[dict],
     pool: list[dict],
     meaning_map: dict[str, str],
+    mid_meaning_map: dict[str, str] | None = None,
 ) -> tuple[list[dict], dict]:
+    mid_meaning_map = mid_meaning_map or {}
     source = _unique_source(sorted(candidates, key=_sort_key))
     fallback = _unique_source(sorted(pool, key=_sort_key))
     selected: list[dict] = []
@@ -139,7 +156,9 @@ def curate_core_1000(
             if len(rejection_samples[reason]) < 10:
                 rejection_samples[reason].append(word)
             return False
-        selected.append(_runtime_entry(entry, len(selected) + 1, meaning_map))
+        selected.append(
+            _runtime_entry(entry, len(selected) + 1, meaning_map, mid_meaning_map)
+        )
         selected_words.add(word)
         return True
 
@@ -158,11 +177,27 @@ def curate_core_1000(
     return selected, report
 
 
-def _runtime_entry(src: dict, rank: int, meaning_map: dict[str, str]) -> dict:
+def _runtime_entry(
+    src: dict,
+    rank: int,
+    meaning_map: dict[str, str],
+    mid_meaning_map: dict[str, str],
+) -> dict:
     entry = dict(src)
     word = str(entry.get("word", "")).strip().lower()
     source_word_id = str(entry.get("word_id") or word)
-    meaning = meaning_map.get(word) or entry.get("meaning_zh") or f"待确认：{word}"
+    if word in meaning_map:
+        meaning = meaning_map[word]
+        meaning_status = "inherited_core300"
+    elif word in mid_meaning_map:
+        meaning = mid_meaning_map[word]
+        meaning_status = "curated_mid"
+    elif entry.get("meaning_zh"):
+        meaning = entry["meaning_zh"]
+        meaning_status = str(entry.get("meaning_zh_review_status") or "source")
+    else:
+        meaning = f"待确认：{word}"
+        meaning_status = "placeholder"
     entry["source_word_id"] = source_word_id
     entry["word_id"] = f"mid_{source_word_id}"
     entry["word"] = word
@@ -173,9 +208,7 @@ def _runtime_entry(src: dict, rank: int, meaning_map: dict[str, str]) -> dict:
         "auto_checked" if entry.get("ipa_uk") else "draft"
     )
     entry["meaning_zh"] = meaning
-    entry["meaning_zh_review_status"] = (
-        "inherited_core300" if word in meaning_map else "placeholder"
-    )
+    entry["meaning_zh_review_status"] = meaning_status
     if word in PHONEME_OVERRIDES:
         entry["phoneme_tags_us"] = PHONEME_OVERRIDES[word]
         entry["phoneme_override_note"] = (
@@ -212,6 +245,14 @@ def build_report(
     placeholder_count = sum(
         1 for item in selected if item.get("meaning_zh_review_status") == "placeholder"
     )
+    inherited_count = sum(
+        1
+        for item in selected
+        if item.get("meaning_zh_review_status") == "inherited_core300"
+    )
+    curated_mid_count = sum(
+        1 for item in selected if item.get("meaning_zh_review_status") == "curated_mid"
+    )
     override_count = sum(1 for item in selected if item.get("phoneme_override_note"))
     missing_uk_count = sum(1 for item in selected if not item.get("ipa_uk"))
     source_summary = Counter(str(item.get("source_ipa_us", "unknown")) for item in selected)
@@ -230,7 +271,8 @@ def build_report(
             1,
         ),
         "meaning_zh_placeholder_count": placeholder_count,
-        "meaning_zh_inherited_core300_count": len(selected) - placeholder_count,
+        "meaning_zh_inherited_core300_count": inherited_count,
+        "meaning_zh_curated_mid_count": curated_mid_count,
         "phoneme_override_count": override_count,
         "missing_uk_ipa_count": missing_uk_count,
         "rejection_reasons": dict(rejection_counts),
@@ -248,10 +290,6 @@ def build_report(
             for item in selected[:20]
         ],
         "residual_risks": [
-            (
-                "meaning_zh placeholders require human/Architect content "
-                "acceptance before learner exposure"
-            ),
             "missing UK IPA remains non-blocking and visible in validation warnings",
         ],
     }
@@ -280,6 +318,7 @@ def main() -> None:
     parser.add_argument("--candidates", default=str(DEFAULT_CANDIDATES))
     parser.add_argument("--pool", default=str(DEFAULT_POOL))
     parser.add_argument("--core-300", default=str(DEFAULT_CORE300))
+    parser.add_argument("--mid-meanings", default=str(DEFAULT_MID_MEANINGS))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--report", default=str(DEFAULT_REPORT))
     parser.add_argument("--json", action="store_true", help="Print the compact report as JSON")
@@ -288,9 +327,16 @@ def main() -> None:
     candidates = load_word_entries(Path(args.candidates))
     pool = load_word_entries(Path(args.pool)) if Path(args.pool).exists() else candidates
     meaning_map = load_meaning_map(Path(args.core_300))
-    words, report = curate_core_1000(candidates, pool, meaning_map)
+    mid_meaning_map = load_meaning_map(Path(args.mid_meanings))
+    words, report = curate_core_1000(candidates, pool, meaning_map, mid_meaning_map)
     if len(words) != 1000:
         raise SystemExit(f"Expected 1000 curated words, produced {len(words)}")
+    if report["meaning_zh_placeholder_count"]:
+        raise SystemExit(
+            "Mid/Core1000 curation produced "
+            f"{report['meaning_zh_placeholder_count']} placeholder meaning_zh "
+            f"entries; update {args.mid_meanings}"
+        )
 
     output_path = Path(args.output)
     report_path = Path(args.report)
