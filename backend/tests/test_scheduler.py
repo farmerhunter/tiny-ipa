@@ -42,17 +42,19 @@ def _insert_word(
     *,
     status: str = "core_selected",
     ipa: Optional[str] = None,
+    level: str = "beginner",
 ) -> None:
     conn.execute(
         """
         INSERT INTO words (
             id, word, level, ipa_us, ipa_uk, phoneme_tags_us, phoneme_tags_uk,
             content_status
-        ) VALUES (?, ?, 'beginner', ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             word_id,
             word_id,
+            level,
             ipa or f"/{word_id}/",
             ipa or f"/{word_id}/",
             _json(tags),
@@ -138,6 +140,19 @@ def test_disabled_words_are_never_selected(conn):
     selected = select_daily_words(conn, daily_word_count=2, seed=7)
 
     assert _ids(selected) == ["active"]
+
+
+def test_learner_level_filters_entry_and_mid_pools(conn):
+    _insert_word(conn, "entry_one", ["/e/"], level="beginner")
+    _insert_word(conn, "entry_two", ["/e2/"], level="beginner")
+    _insert_word(conn, "mid_one", ["/m/"], level="intermediate")
+    _insert_word(conn, "mid_two", ["/m2/"], level="intermediate")
+
+    entry = select_daily_words(conn, daily_word_count=10, seed=4, learner_level="entry")
+    mid = select_daily_words(conn, daily_word_count=10, seed=4, learner_level="mid")
+
+    assert set(_ids(entry)) == {"entry_one", "entry_two"}
+    assert set(_ids(mid)) == {"mid_one", "mid_two"}
 
 
 def test_recent_words_are_suppressed_when_alternatives_exist(conn):

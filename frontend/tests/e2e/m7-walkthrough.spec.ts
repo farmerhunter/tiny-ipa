@@ -146,6 +146,8 @@ function toTodayResponse(group: MockGroup) {
     group_id: group.group_id,
     group_index: group.group_index,
     group_type: group.group_type,
+    learner_level: "entry",
+    learner_level_label: "Entry",
     date: "2026-06-17",
     primary_accent: group.primary_accent,
     origin:
@@ -190,6 +192,7 @@ function settingsResponse(state: MockState) {
     show_accent_compare: false,
     practice_mode: "adaptive",
     review_strength: "normal",
+    learner_level: "entry",
     focus_phonemes: state.focusPhonemes,
   };
 }
@@ -254,7 +257,10 @@ async function routeMock(route: Route, state: MockState) {
 
   if (path === "/settings") {
     if (request.method() === "PUT") {
-      const body = request.postDataJSON() as { focus_phonemes?: string[] };
+      const body = request.postDataJSON() as {
+        focus_phonemes?: string[];
+        learner_level?: "entry" | "mid";
+      };
       if (Array.isArray(body.focus_phonemes)) {
         state.focusPhonemes = body.focus_phonemes;
       }
@@ -402,7 +408,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
       await expect(page.getByText("ship")).toBeVisible();
       await expect(page.getByText("picked")).toBeVisible();
       await expect(page.getByText("Target sound: /ʃ/")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Start next 10-word group" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Start next Entry group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Return to Progress" })).toBeVisible();
@@ -414,9 +420,9 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await openWalkthrough(page);
     await completeFirstGroupWithOneMiss(page);
 
-    await page.getByRole("button", { name: "Start next 10-word group" }).click();
+    await page.getByRole("button", { name: "Start next Entry group" }).click();
     await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
-    await expect(page.getByText("A new normal practice group.")).toBeVisible();
+    await expect(page.getByText("A new Entry practice group.")).toBeVisible();
     await expect(page.getByText("cheese")).toBeVisible();
     await expect(page.getByText(/Group 6/)).toHaveCount(0);
   });
@@ -466,7 +472,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
 
     await expect(page.getByText("Focused group: 1 / 1")).toBeVisible();
     await expect(page.getByText(/Group 8/)).toHaveCount(0);
-    await expect(page.getByText("Focused practice for /ʃ/.")).toBeVisible();
+    await expect(page.getByText("Entry focused practice for /ʃ/.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Clear focus" })).toBeVisible();
     await page.getByRole("button", { name: "Clear focus" }).click();
     await expect(page.getByText("Focus cleared. Back to normal practice.")).toBeVisible();

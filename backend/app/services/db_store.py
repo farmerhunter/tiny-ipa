@@ -89,6 +89,7 @@ def _settings_from_row(row: sqlite3.Row) -> Settings:
         show_accent_compare=bool(row["show_accent_compare"]),
         practice_mode=row["practice_mode"],
         review_strength=row["review_strength"],
+        learner_level=row["learner_level"],
         focus_phonemes=_parse_list(row["focus_phonemes"]) or [],
         updated_at=row["updated_at"],
     )
@@ -209,11 +210,11 @@ def upsert_settings(conn: sqlite3.Connection, settings: Settings) -> None:
         INSERT OR REPLACE INTO settings (
             user_id, primary_accent, daily_word_count,
             show_translation, show_accent_compare,
-            practice_mode, review_strength, focus_phonemes, updated_at
+            practice_mode, review_strength, learner_level, focus_phonemes, updated_at
         ) VALUES (
             :user_id, :primary_accent, :daily_word_count,
             :show_translation, :show_accent_compare,
-            :practice_mode, :review_strength, :focus_phonemes, :updated_at
+            :practice_mode, :review_strength, :learner_level, :focus_phonemes, :updated_at
         )
         """,
         {
@@ -224,6 +225,7 @@ def upsert_settings(conn: sqlite3.Connection, settings: Settings) -> None:
             "show_accent_compare": int(settings.show_accent_compare),
             "practice_mode": settings.practice_mode,
             "review_strength": settings.review_strength,
+            "learner_level": settings.learner_level,
             "focus_phonemes": _to_json(settings.focus_phonemes),
             "updated_at": settings.updated_at,
         },
@@ -256,6 +258,7 @@ def _session_from_row(row: sqlite3.Row) -> DailySession:
         completed_at=row["completed_at"],
         group_index=row["group_index"],
         group_type=row["group_type"],
+        learner_level=row["learner_level"],
         source_session_item_ids=_parse_list(row["source_session_item_ids"]) or [],
         source_scope=row["source_scope"],
         source_group_id=row["source_group_id"],
@@ -282,11 +285,11 @@ def create_session(conn: sqlite3.Connection, session: DailySession) -> str:
         """
         INSERT INTO daily_sessions (
             id, user_id, session_date, primary_accent, status, created_at, completed_at,
-            group_index, group_type, source_session_item_ids,
+            group_index, group_type, learner_level, source_session_item_ids,
             source_scope, source_group_id, focus_phonemes
         ) VALUES (
             :id, :user_id, :session_date, :primary_accent, :status, :created_at,
-            :completed_at, :group_index, :group_type, :source_session_item_ids,
+            :completed_at, :group_index, :group_type, :learner_level, :source_session_item_ids,
             :source_scope, :source_group_id, :focus_phonemes
         )
         """,
@@ -300,6 +303,7 @@ def create_session(conn: sqlite3.Connection, session: DailySession) -> str:
             "completed_at": session.completed_at,
             "group_index": session.group_index,
             "group_type": session.group_type,
+            "learner_level": session.learner_level,
             "source_session_item_ids": _to_json(session.source_session_item_ids),
             "source_scope": session.source_scope,
             "source_group_id": session.source_group_id,
@@ -318,6 +322,7 @@ def get_active_session_for_date(
     source_scope: Optional[str] = None,
     source_group_id: Optional[str] = None,
     focus_phonemes: Optional[List[str]] = None,
+    learner_level: Optional[str] = None,
 ) -> Optional[DailySession]:
     """Return the active same-day group for the given type, if one exists."""
     ensure_daily_sessions_schema(conn)
@@ -338,6 +343,9 @@ def get_active_session_for_date(
     if focus_phonemes is not None:
         filters.append("focus_phonemes = ?")
         params.append(_to_json(focus_phonemes))
+    if learner_level is not None:
+        filters.append("learner_level = ?")
+        params.append(learner_level)
     row = conn.execute(
         f"""
         SELECT * FROM daily_sessions

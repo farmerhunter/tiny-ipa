@@ -37,6 +37,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CONTENT_SAMPLE = FIXTURES / "content_sample.json"
 PHONEMES_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "phonemes.json"
 CORE_300_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "core_300_words.json"
+CORE_1000_PATH = Path(__file__).resolve().parent.parent.parent / "content" / "core_1000_words.json"
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +92,36 @@ def core_300_client_fixture(seeded_db_core_300: str) -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture(name="seeded_db_entry_mid")
+def seeded_db_entry_mid_fixture(tmp_path: Path) -> str:
+    """Create a database with both Entry/Core300 and Mid/Core1000 content."""
+    db_path = str(tmp_path / "entry_mid.sqlite")
+    import_words(
+        source_path=CORE_300_PATH,
+        phonemes_path=PHONEMES_PATH,
+        db_path=db_path,
+        content_level="entry",
+    )
+    import_words(
+        source_path=CORE_1000_PATH,
+        phonemes_path=PHONEMES_PATH,
+        db_path=db_path,
+        content_level="mid",
+    )
+
+    import app.db as db_mod
+
+    orig = db_mod.DEFAULT_DB_PATH
+    db_mod.DEFAULT_DB_PATH = db_path
+    yield db_path
+    db_mod.DEFAULT_DB_PATH = orig
+
+
+@pytest.fixture(name="entry_mid_client")
+def entry_mid_client_fixture(seeded_db_entry_mid: str) -> TestClient:
+    return TestClient(app)
+
+
 # ---------------------------------------------------------------------------
 # Session persistence tests
 # ---------------------------------------------------------------------------
@@ -108,6 +139,8 @@ class TestTodayPersistence:
         assert data["group_id"] == data["session_id"]
         assert data["group_index"] == 1
         assert data["group_type"] == "normal"
+        assert data["learner_level"] == "entry"
+        assert data["learner_level_label"] == "Entry"
         assert data["word_count"] == len(data["items"])
         assert data["source_session_item_ids"] == []
         assert data["date"] == date.today().isoformat()
@@ -268,9 +301,10 @@ class TestTodayPersistence:
         assert data["session_id"] != first["session_id"]
         assert data["group_index"] == 2
         assert data["group_type"] == "normal"
+        assert data["learner_level"] == "entry"
         assert data["origin"] == "normal_next"
         assert data["source_scope"] == "normal_next"
-        assert data["action_label"] == "Start Group 2"
+        assert data["action_label"] == "Start Entry Group 2"
 
     def test_recent_mistake_review_empty_queue_is_stable(self, client):
         resp = client.post("/api/review/recent-mistakes")
@@ -682,6 +716,87 @@ class TestCore300TodayReadiness:
         assert focus_id[0] in {item["word_id"] for item in data["items"]}
 
 
+class TestLevelAwareToday:
+    """Regression coverage for M8 learner-level scheduling semantics."""
+
+    def test_entry_is_default_and_uses_core300_pool(self, entry_mid_client):
+        resp = entry_mid_client.get("/api/today")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["learner_level"] == "entry"
+        assert data["learner_level_label"] == "Entry"
+        assert data["group_type"] == "normal"
+        assert data["items"]
+        assert all(not item["word_id"].startswith("mid_") for item in data["items"])
+
+    def test_mid_setting_uses_core1000_pool_without_entry_mix(self, entry_mid_client):
+        settings_resp = entry_mid_client.put("/api/settings", json={
+            "learner_level": "mid",
+            "daily_word_count": 6,
+        })
+        assert settings_resp.status_code == 200
+
+        resp = entry_mid_client.get("/api/today")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["learner_level"] == "mid"
+        assert data["learner_level_label"] == "Mid"
+        assert data["items"]
+        assert all(item["word_id"].startswith("mid_") for item in data["items"])
+
+    def test_level_change_keeps_active_group_and_affects_next_group(
+        self, entry_mid_client, seeded_db_entry_mid
+    ):
+        entry_mid_client.put("/api/settings", json={
+            "learner_level": "entry",
+            "daily_word_count": 2,
+        })
+        first = entry_mid_client.get("/api/today").json()
+        assert first["learner_level"] == "entry"
+        assert all(not item["word_id"].startswith("mid_") for item in first["items"])
+
+        entry_mid_client.put("/api/settings", json={"learner_level": "mid"})
+        resumed = entry_mid_client.get("/api/today").json()
+        assert resumed["session_id"] == first["session_id"]
+        assert resumed["learner_level"] == "entry"
+
+        conn = get_connection(seeded_db_entry_mid)
+        conn.execute(
+            """
+            UPDATE daily_sessions
+            SET status = 'completed', completed_at = '2026-06-17T00:00:00Z'
+            WHERE id = ?
+            """,
+            (first["session_id"],),
+        )
+        conn.commit()
+        conn.close()
+
+        next_group = entry_mid_client.post("/api/practice/next-normal").json()
+        assert next_group["group_index"] == first["group_index"] + 1
+        assert next_group["learner_level"] == "mid"
+        assert next_group["source_scope"] == "normal_next"
+        assert all(item["word_id"].startswith("mid_") for item in next_group["items"])
+
+    def test_focused_practice_uses_active_learner_level_pool(self, entry_mid_client):
+        entry_mid_client.put("/api/settings", json={
+            "learner_level": "mid",
+            "daily_word_count": 5,
+        })
+
+        focused = entry_mid_client.post("/api/practice/focus", json={
+            "focus_phonemes": ["/ʃ/"],
+        }).json()
+
+        assert focused["group_type"] == "weak_focus"
+        assert focused["learner_level"] == "mid"
+        assert focused["focus_phonemes"] == ["/ʃ/"]
+        assert focused["items"]
+        assert all(item["word_id"].startswith("mid_") for item in focused["items"])
+
+
 # ---------------------------------------------------------------------------
 # Session store tests (unit-level)
 # ---------------------------------------------------------------------------
@@ -730,6 +845,7 @@ class TestSessionStore:
         assert got is not None
         assert got.id == "2026-06-06-default"
         assert got.status == "in_progress"
+        assert got.learner_level == "entry"
 
     def test_get_missing_session(self):
         assert (

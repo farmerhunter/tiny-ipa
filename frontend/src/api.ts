@@ -72,6 +72,8 @@ export interface TodayResponse {
   group_id?: string;
   group_index?: number;
   group_type?: string;
+  learner_level?: "entry" | "mid";
+  learner_level_label?: string;
   origin?: string;
   source_scope?: string;
   source_group_id?: string;
@@ -236,6 +238,7 @@ export interface SettingsData {
   show_accent_compare: boolean;
   practice_mode: string;
   review_strength: string;
+  learner_level: "entry" | "mid";
   focus_phonemes: string[];
 }
 

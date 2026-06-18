@@ -63,6 +63,7 @@ class Settings:
     show_accent_compare: bool = False
     practice_mode: str = "ipa_first"
     review_strength: str = "normal"
+    learner_level: str = "entry"
     focus_phonemes: List[str] = field(default_factory=list)
     updated_at: str = ""
 
@@ -82,6 +83,7 @@ class DailySession:
     completed_at: Optional[str] = None
     group_index: int = 1
     group_type: str = "normal"
+    learner_level: str = "entry"
     source_session_item_ids: List[str] = field(default_factory=list)
     source_scope: Optional[str] = None
     source_group_id: Optional[str] = None

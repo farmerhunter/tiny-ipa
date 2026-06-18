@@ -50,10 +50,14 @@ function groupLabel(session: TodayResponse): string {
   return "Practice group";
 }
 
+function learnerLevelLabel(session: TodayResponse): string {
+  return session.learner_level_label ?? (session.learner_level === "mid" ? "Mid" : "Entry");
+}
+
 function groupReason(session: TodayResponse): string {
   if (session.group_type === "weak_focus") {
     const focus = session.focus_phonemes?.join(" ") || "selected sounds";
-    return `Focused practice for ${focus}.`;
+    return `${learnerLevelLabel(session)} focused practice for ${focus}.`;
   }
   if (session.source_scope === "current_group") {
     return "Reviewing misses from the group you just finished.";
@@ -62,12 +66,12 @@ function groupReason(session: TodayResponse): string {
     return "Reviewing recent mistakes from earlier practice.";
   }
   if (session.source_scope === "normal_next") {
-    return "A new normal practice group.";
+    return `A new ${learnerLevelLabel(session)} practice group.`;
   }
   if (session.origin === "normal_resume") {
-    return "Resuming your current normal group.";
+    return `Resuming your current ${learnerLevelLabel(session)} group.`;
   }
-  return "Normal practice group.";
+  return `${learnerLevelLabel(session)} practice group.`;
 }
 
 function buildFocusHint(targetPhonemes: string[]): string {
@@ -82,6 +86,11 @@ function currentReviewActionLabel(session: TodayResponse): string {
     return "Review misses from this review";
   }
   return "Review misses from this group";
+}
+
+function nextNormalActionLabel(session: TodayResponse): string {
+  const level = learnerLevelLabel(session);
+  return `Start next ${level} group`;
 }
 
 export default function TodayPractice({
@@ -369,7 +378,7 @@ export default function TodayPractice({
               onClick={handleNextNormal}
               disabled={actionLoading !== null}
             >
-              {actionLoading === "continue" ? "Loading…" : "Start next 10-word group"}
+              {actionLoading === "continue" ? "Loading…" : nextNormalActionLabel(summarySession)}
             </button>
             {hasCurrentGroupMisses && (
               <button
@@ -406,7 +415,10 @@ export default function TodayPractice({
     <main className="practice-container">
       <div className="practice-header">
         <span className="progress-label">{groupLabel(session)}: {progress}</span>
-        <span className="accent-label">{session.primary_accent}</span>
+        <span className="practice-context">
+          <span className="level-label">{learnerLevelLabel(session)}</span>
+          <span className="accent-label">{session.primary_accent}</span>
+        </span>
       </div>
       <div className="mode-panel">
         <strong>{groupLabel(session)}</strong>
