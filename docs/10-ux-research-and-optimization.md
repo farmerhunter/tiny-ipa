@@ -208,6 +208,42 @@ failure states covered
 
 If the flow cannot be automated yet, record the manual path and the reason automation is deferred.
 
+## Repeatable M10 Walkthrough Harness
+
+Issue #176 adds a repeatable browser harness for M10 UX observations:
+
+```bash
+cd frontend
+pnpm test:e2e:m10
+```
+
+The harness runs desktop Chromium and Pixel 5 Chromium projects with disposable route-mocked API data. It does not connect to the local backend and does not mutate `backend/tiny_ipa.sqlite`.
+
+Evidence output:
+
+```text
+frontend/test-results/m10-walkthrough/
+frontend/playwright-report/m10/
+```
+
+Scenario matrix:
+
+| Flow | Viewport | Seed state | Entry URL | Expected visible copy | Expected actions | Hidden or blocked actions | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Today start | desktop and mobile | no active group; Entry selected; no completed groups | `/` | `Today practice hub`, `Entry selected`, `No active group` | `Start Entry group`, `Review recent mistakes`, `View Progress` | no practice question before start | `m10-today-start` screenshot attachment |
+| Wrong answer feedback | desktop and mobile | Entry group with `ship` then `thin`; first answer deliberately wrong | `/` then `Start Entry group` | `Not quite`, `You picked`, `Correct IPA`, `Target sound` | IPA choices remain visible until auto-advance | current-group review is unavailable before summary | `m10-wrong-answer-feedback` screenshot attachment |
+| Completion recovery | desktop and mobile | Entry group completed with one miss | same session | `Practice group complete`, `Misses from this group` | `Review misses from this group`, `Review recent mistakes`, `Start next Entry group`, `Return to Progress` | no current-review action when no miss exists in later review summary | `m10-completion-recovery-actions` screenshot attachment |
+| Current-group review | desktop and mobile | source group has one missed item | summary action | `Current-group review: 1 / 1`, `Reviewing misses from the group you just finished.` | answer review item | raw group ids are not exposed | `m10-current-group-review` screenshot attachment |
+| Recent mistake review | desktop and mobile | recent review source has one item | summary action | `Recent mistake review: 1 / 1`, `Reviewing recent mistakes from earlier practice.` | answer review item | current-group source copy is not reused | `m10-recent-review` screenshot attachment |
+| Progress focus entry | desktop and mobile | Entry weak phoneme `/ʃ/` | Progress tab | `Progress`, `Needs practice in Entry`, `day streak` | `Focus /ʃ/`, `Clear focus` after focused practice starts | manual IPA entry is not required | `m10-progress-focus-entry` screenshot attachment |
+| Settings level switch | desktop and mobile | active Entry group; selected level changes to Mid | Settings tab | `Saved`, `Mid selected`, `You selected Mid. This Entry group is still in progress.` | `Resume Entry group`, `End this Entry group and start Mid` | Mid content does not replace the active Entry group without explicit action | `m10-settings-mid-pending` screenshot attachment |
+| Mid transition | desktop and mobile | active Entry group; Mid selected; confirmation accepted | Today hub action | `Practice group: 1 / 1`, `Mid practice group.`, `remember` | answer Mid item | old Entry item is no longer shown after the intentional switch | `m10-mid-active` screenshot attachment |
+| Recent-review empty state | desktop and mobile | no active group; Mid selected; recent-review queue empty | Today hub | `No recent incorrect attempts are available for review.` | `Start Mid group` remains available | empty review does not replace the hub with a fatal error | `m10-recent-review-empty` screenshot attachment |
+| Audio confidence signal | desktop and mobile | first Entry item has no static audio URL | active Entry group | audio button exposes `Play pronunciation (TTS)` | TTS-labeled audio button is visible | static-audio-only assumption is not required | covered in wrong-answer flow |
+| Mobile Today and Settings | Pixel 5 Chromium | same mocked learner states as above | `/` and Settings tab | hub/settings copy remains visible; `Advanced/debug: manual IPA focus entry` remains observable | same actions as desktop | mobile does not hide core actions | `m10-mobile-today`, `m10-mobile-settings` screenshot attachments |
+
+The M10 harness is a workflow-evidence harness, not a production API contract test. Backend scheduling, persistence, and import behavior remain covered by backend tests and by the live manual audit path recorded on #174.
+
 ## M10 Child Issue Pattern
 
 Each M10 child issue should include:
