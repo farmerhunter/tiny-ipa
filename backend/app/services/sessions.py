@@ -27,6 +27,11 @@ from app.services.db_store import (
 from app.services.questions import generate_question
 from app.services.scheduler import select_daily_words
 
+_LEARNER_LEVEL_LABELS = {
+    "entry": "Entry",
+    "mid": "Mid",
+}
+
 
 def _today_date_str() -> str:
     return date.today().isoformat()
@@ -80,8 +85,8 @@ def build_today_response(
             accent=accent,
             origin="normal_resume",
             source_scope="normal_current",
-            focus_phonemes=settings.focus_phonemes,
-            action_label=f"Resume Group {existing.group_index}",
+            focus_phonemes=existing.focus_phonemes or settings.focus_phonemes,
+            action_label=f"Resume {learner_level_label(existing.learner_level)} Group {existing.group_index}",
         )
 
     # ---- create new session -------------------------------------------------
@@ -94,13 +99,17 @@ def build_today_response(
         seed=seed,
         user_id=user_id,
         review_strength=settings.review_strength,
+        learner_level=settings.learner_level,
         focus_phonemes=settings.focus_phonemes,
     )
 
     if not words:
         return {
             "error": "CONTENT_NOT_READY",
-            "detail": "No usable words found. Run import_words.py first.",
+            "detail": (
+                f"No usable {learner_level_label(settings.learner_level)} words found. "
+                "Run the level content import first."
+            ),
         }
 
     session, items = _create_group_from_words(
@@ -111,6 +120,8 @@ def build_today_response(
         accent=accent,
         group_index=group_index,
         group_type="normal",
+        learner_level=settings.learner_level,
+        focus_phonemes=settings.focus_phonemes,
     )
 
     return _build_response(
@@ -122,7 +133,7 @@ def build_today_response(
         origin="normal_start",
         source_scope="normal_current",
         focus_phonemes=settings.focus_phonemes,
-        action_label=f"Start Group {session.group_index}",
+        action_label=f"Start {learner_level_label(session.learner_level)} Group {session.group_index}",
     )
 
 
@@ -140,7 +151,10 @@ def build_next_normal_group_response(
         response["origin"] = "normal_next"
     response["source_scope"] = "normal_next"
     if response.get("origin") == "normal_next":
-        response["action_label"] = f"Start Group {response['group_index']}"
+        response["action_label"] = (
+            f"Start {learner_level_label(response.get('learner_level'))} "
+            f"Group {response['group_index']}"
+        )
     return response
 
 
@@ -226,6 +240,7 @@ def build_recent_mistake_review_response(
         accent=accent,
         group_index=group_index,
         group_type="mistake_review",
+        learner_level=settings.learner_level,
         source_session_item_ids=source_item_ids,
         source_scope="recent_global",
     )
@@ -340,6 +355,7 @@ def build_current_group_review_response(
         accent=accent,
         group_index=group_index,
         group_type="mistake_review",
+        learner_level=source_session.learner_level,
         source_session_item_ids=source_item_ids,
         source_scope="current_group",
         source_group_id=source_group_id,
@@ -386,6 +402,7 @@ def build_focused_group_response(
         "weak_focus",
         source_scope="focus_selection",
         focus_phonemes=focus_phonemes,
+        learner_level=settings.learner_level,
     )
     if existing is not None:
         items = get_session_items(conn, existing.id)
@@ -398,7 +415,7 @@ def build_focused_group_response(
             origin="focus_resume",
             source_scope="focus_selection",
             focus_phonemes=focus_phonemes,
-            action_label=f"Resume Focus Group {existing.group_index}",
+            action_label=f"Resume {learner_level_label(existing.learner_level)} Focus Group {existing.group_index}",
         )
 
     group_index = get_next_session_group_index(conn, user_id, session_date, accent)
@@ -410,12 +427,16 @@ def build_focused_group_response(
         seed=seed,
         user_id=user_id,
         review_strength=settings.review_strength,
+        learner_level=settings.learner_level,
         focus_phonemes=focus_phonemes,
     )
     if not words:
         return {
             "error": "CONTENT_NOT_READY",
-            "detail": "No usable words found. Run import_words.py first.",
+            "detail": (
+                f"No usable {learner_level_label(settings.learner_level)} words found. "
+                "Run the level content import first."
+            ),
         }
 
     session, items = _create_group_from_words(
@@ -426,6 +447,7 @@ def build_focused_group_response(
         accent=accent,
         group_index=group_index,
         group_type="weak_focus",
+        learner_level=settings.learner_level,
         source_scope="focus_selection",
         focus_phonemes=focus_phonemes,
     )
@@ -438,7 +460,7 @@ def build_focused_group_response(
         origin="focus_start",
         source_scope="focus_selection",
         focus_phonemes=focus_phonemes,
-        action_label=f"Start Focus Group {session.group_index}",
+        action_label=f"Start {learner_level_label(session.learner_level)} Focus Group {session.group_index}",
     )
 
 
@@ -477,6 +499,7 @@ def _create_group_from_words(
     accent: str,
     group_index: int,
     group_type: str,
+    learner_level: str,
     source_session_item_ids: Optional[List[str]] = None,
     source_scope: Optional[str] = None,
     source_group_id: Optional[str] = None,
@@ -493,6 +516,7 @@ def _create_group_from_words(
         completed_at=None,
         group_index=group_index,
         group_type=group_type,
+        learner_level=learner_level,
         source_session_item_ids=source_session_item_ids or [],
         source_scope=source_scope,
         source_group_id=source_group_id,
@@ -530,6 +554,10 @@ def _build_distractor_pool(conn, accent: str) -> List[str]:
         """
     ).fetchall()
     return [r[0] for r in rows if r[0]]
+
+
+def learner_level_label(learner_level: Optional[str]) -> str:
+    return _LEARNER_LEVEL_LABELS.get(learner_level or "entry", "Entry")
 
 
 def _build_response(
@@ -578,6 +606,8 @@ def _build_response(
         "group_id": session.id,
         "group_index": session.group_index,
         "group_type": session.group_type,
+        "learner_level": session.learner_level,
+        "learner_level_label": learner_level_label(session.learner_level),
         "date": session.session_date,
         "primary_accent": session.primary_accent,
         "daily_word_count": daily_word_count,

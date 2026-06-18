@@ -84,6 +84,8 @@ settings(
   show_accent_compare INTEGER NOT NULL,
   practice_mode TEXT NOT NULL,
   review_strength TEXT NOT NULL,
+  learner_level TEXT NOT NULL DEFAULT 'entry',
+  focus_phonemes TEXT NOT NULL DEFAULT '[]',
   updated_at TEXT NOT NULL
 )
 
@@ -97,6 +99,7 @@ daily_sessions(
   completed_at TEXT,
   group_index INTEGER NOT NULL DEFAULT 1,
   group_type TEXT NOT NULL DEFAULT 'normal',
+  learner_level TEXT NOT NULL DEFAULT 'entry',
   source_session_item_ids TEXT NOT NULL DEFAULT '[]'
 )
 
@@ -255,6 +258,8 @@ GET /api/today
 - `group_index` 是同一 `user_id`/`date`/`primary_accent` 下的递增序号；
 - `group_type` 当前实现 `normal`、`mistake_review` 和 `weak_focus`，均复用
   同一 session_items/attempts/phoneme_stats 路径；
+- `learner_level` 和 `learner_level_label` 记录创建该 group 时使用的
+  learner-facing level，active group 恢复时不随 settings 切换而改写；
 - `origin` 说明 action reason，例如 `normal_start`、`normal_resume`、
   `normal_next`、`current_group_review_start`、`recent_review_start`、
   `focus_start`、`focus_clear`；
@@ -280,6 +285,8 @@ active normal group，则创建下一个 normal group。不同 group 共用
   "group_id": "2026-06-06-default-g001-normal",
   "group_index": 1,
   "group_type": "normal",
+  "learner_level": "entry",
+  "learner_level_label": "Entry",
   "date": "2026-06-06",
   "primary_accent": "US",
   "origin": "normal_start",
@@ -568,8 +575,8 @@ Mid normal groups select only Mid/Core 1000 runtime content.
 Current-group review reuses the source group's items regardless of later level changes.
 Recent-mistake review may include previously missed words from the user's history,
 but its UI must label it as review rather than as a fresh Entry/Mid group.
-Focused practice uses the active learner_level pool unless the focus action is
-explicitly derived from a source review group.
+Focused practice uses the active learner_level pool; the same focus selection
+resumes only an active focused group with the same learner_level.
 ```
 
 Frontend workflow contract:
@@ -602,6 +609,12 @@ Closure:
   M8 cannot close without a final-user note or trial path describing Entry,
   Mid, how to switch, what changed, verification evidence, exclusions, and
   whether human trial is required.
+
+Route-mocked browser command:
+
+```text
+cd frontend && pnpm test:e2e:m8
+```
 ```
 
 ## 服务端领域规则
