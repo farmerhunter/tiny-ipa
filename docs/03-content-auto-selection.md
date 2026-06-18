@@ -411,3 +411,42 @@ Review acronym-like/no-vowel words, very short words, missing UK IPA entries,
 missing meaning_zh, child/learner appropriateness, and known STRUT/r-colored
 vowel override risks before promoting any runtime Core 1000 file.
 ```
+
+#125/#126 Mid runtime curation and level-aware validation:
+
+```bash
+uv run --project backend python backend/scripts/select_candidates.py \
+  --top-n 5000 \
+  --ipa-dict-dir content/sources/ipa-dict \
+  --selection-config content/selection_config.json \
+  --core-300-reference content/core_300_words.json \
+  --output-dir /tmp/tiny-ipa-core1000
+
+uv run --project backend python backend/scripts/curate_core_1000.py \
+  --candidates /tmp/tiny-ipa-core1000/core_1000_candidates.json \
+  --pool content/generated/candidate_words.json \
+  --output content/core_1000_words.json \
+  --report content/core_1000_curation_report.json
+
+uv run --project backend python backend/scripts/validate_content.py \
+  content/core_1000_words.json --content-level mid
+```
+
+The promoted Mid runtime file uses `mid_<source_word_id>` IDs so importing
+Core1000 does not overwrite existing Entry/Core300 rows. The compact curation
+report records:
+
+```text
+runtime_content_promoted = true
+core_1000_count = 1000
+syllable distribution = one 250 / two 500 / three_plus 250
+multisyllable = 750 (75.0%)
+missing UK IPA = 53 warning-only entries
+meaning_zh placeholders = 845 pending human/Architect acceptance
+phoneme overrides = 13 accepted STRUT/r-colored overrides reused from Core100
+```
+
+`content/core_1000_words.json` is a runtime/source artifact for Mid import.
+`content/core_1000_curation_report.json` is intentionally compact review
+evidence, not the raw generated candidate report. #127 still owns runtime
+settings/scheduler/API/UI level selection.

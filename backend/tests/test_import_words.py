@@ -383,6 +383,59 @@ class TestImportWords:
         assert count_words(conn) == 3
         conn.close()
 
+    def test_level_specific_imports_do_not_clobber_other_level(
+        self, temp_db, tmp_path
+    ):
+        """Entry and Mid imports can share word strings when word_id namespaces differ."""
+        entry_file = tmp_path / "core_300_words.json"
+        mid_file = tmp_path / "core_1000_words.json"
+
+        entry_words = [
+            _fixture_word(
+                word_id=("shared" if i == 0 else f"entry_word_{i}"),
+                word=("shared" if i == 0 else f"entryword{i}"),
+                level="beginner",
+                syllable_count=1,
+            )
+            for i in range(300)
+        ]
+        mid_words = []
+        for i in range(1000):
+            syllable_count = 1 if i < 250 else 2 if i < 750 else 3
+            mid_words.append(
+                _fixture_word(
+                    word_id=("mid_shared" if i == 0 else f"mid_word_{i}"),
+                    word=("shared" if i == 0 else f"midword{i}"),
+                    level="intermediate",
+                    syllable_count=syllable_count,
+                )
+            )
+
+        entry_file.write_text(json.dumps({"words": entry_words}), encoding="utf-8")
+        mid_file.write_text(json.dumps({"words": mid_words}), encoding="utf-8")
+
+        entry_report = import_words(
+            entry_file, PHONEMES_PATH, temp_db, content_level="entry"
+        )
+        mid_report = import_words(
+            mid_file, PHONEMES_PATH, temp_db, content_level="mid"
+        )
+
+        conn = get_connection(temp_db)
+        entry_shared = get_word_by_id(conn, "shared")
+        mid_shared = get_word_by_id(conn, "mid_shared")
+        total = count_words(conn)
+        conn.close()
+
+        assert entry_report["validation_passed"] is True
+        assert mid_report["validation_passed"] is True
+        assert total == 1300
+        assert entry_shared is not None
+        assert entry_shared.level == "beginner"
+        assert mid_shared is not None
+        assert mid_shared.level == "intermediate"
+        assert mid_report["syllable_distribution_us"]["two"]["count"] == 500
+
 
 # ---------------------------------------------------------------------------
 # Phoneme inventory
@@ -402,3 +455,33 @@ class TestPhonemeRows:
             assert r["id"]
             assert r["symbol"]
             assert r["accent_scope"] in ("US", "UK", "both")
+
+
+def _fixture_word(
+    *,
+    word_id: str,
+    word: str,
+    level: str,
+    syllable_count: int,
+) -> dict:
+    if syllable_count == 1:
+        ipa = "/kæt/"
+        tags = ["/k/", "/æ/", "/t/"]
+    elif syllable_count == 2:
+        ipa = "/ˈteɪbəl/"
+        tags = ["/t/", "/eɪ/", "/b/", "/ə/", "/l/"]
+    else:
+        ipa = "/ˈfæməli/"
+        tags = ["/f/", "/æ/", "/m/", "/ə/", "/l/", "/iː/"]
+    return {
+        "word_id": word_id,
+        "word": word,
+        "level": level,
+        "ipa_us": ipa,
+        "ipa_uk": ipa,
+        "phoneme_tags_us": tags,
+        "phoneme_tags_uk": tags,
+        "meaning_zh": f"词 {word}",
+        "content_status": "core_selected",
+        "syllable_count_us": syllable_count,
+    }
