@@ -7,16 +7,16 @@
   <style>
     :root {
       color-scheme: light;
-      --page: #f6f7fb;
-      --ink: #161a22;
-      --muted: #657084;
-      --line: #d9deea;
+      --page: #f3f6f6;
+      --ink: #253238;
+      --muted: #65777d;
+      --line: #d7e1e2;
       --panel: #ffffff;
-      --focus: #2563eb;
+      --focus: #6f9fb2;
       --radius: 8px;
-      --shadow: 0 18px 45px rgba(18, 24, 38, 0.12);
+      --shadow: 0 18px 45px rgba(56, 76, 82, 0.1);
       --cn-ui-font: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
-      --cn-brand-font: "TsangerYuYangT W05", "HYQiHei 60S", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      --cn-brand-font: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
       font-family: var(--cn-ui-font);
     }
 
@@ -90,7 +90,7 @@
     }
 
     .segmented button[aria-pressed="true"] {
-      background: var(--ink);
+      background: #415e68;
       color: #fff;
     }
 
@@ -144,13 +144,13 @@
       text-align: left;
       padding: 8px 10px;
       cursor: pointer;
-      font-weight: 800;
+      font-weight: 700;
     }
 
     .vote-list button[aria-pressed="true"] {
       border-color: var(--focus);
-      background: #eff6ff;
-      color: #1d4ed8;
+      background: #edf5f6;
+      color: #415e68;
     }
 
     .vote-output {
@@ -178,8 +178,8 @@
     }
 
     .direction-card.is-selected {
-      border-color: #2f78e8;
-      box-shadow: 0 22px 56px rgba(47, 120, 232, 0.2);
+      border-color: #8ab4bd;
+      box-shadow: 0 22px 56px rgba(87, 121, 129, 0.16);
     }
 
     .direction-header {
@@ -257,14 +257,14 @@
     }
 
     .proto-screen::after {
-      content: "小  /ʃ/  /θ/  /ɪ/";
+      content: "/ʃ/  /θ/  /ɪ/";
       position: absolute;
       right: 12px;
       bottom: 10px;
       color: var(--pattern-ink, rgba(47, 120, 232, 0.2));
       font-family: var(--cn-brand-font);
       font-size: 0.78rem;
-      font-weight: 900;
+      font-weight: 700;
       letter-spacing: 0;
       pointer-events: none;
     }
@@ -276,7 +276,7 @@
       min-height: inherit;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
     .brand-strip {
@@ -284,32 +284,33 @@
       grid-template-columns: auto 1fr;
       gap: 12px;
       align-items: center;
-      padding: 12px;
+      padding: 10px;
       border-radius: var(--card-radius);
       border: var(--card-border);
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(236, 254, 255, 0.86));
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 245, 0.92));
       box-shadow: var(--card-shadow);
     }
 
     .brand-mark {
       display: grid;
       place-items: center;
-      width: 56px;
-      height: 56px;
+      width: 48px;
+      height: 48px;
       border-radius: 8px;
-      background: #172033;
-      color: #fffefa;
+      background: #415e68;
+      color: #f7fbfb;
       font-family: var(--cn-brand-font);
-      font-size: 1.65rem;
-      font-weight: 950;
+      font-size: 1.45rem;
+      font-weight: 700;
       line-height: 1;
-      box-shadow: inset 0 -6px 0 rgba(6, 182, 212, 0.26);
+      box-shadow: inset 0 -5px 0 rgba(174, 207, 209, 0.34);
     }
 
     .brand-copy strong {
       display: block;
       font-family: var(--cn-brand-font);
-      font-size: 1.28rem;
+      font-size: 1.16rem;
+      font-weight: 800;
       line-height: 1.1;
     }
 
@@ -318,6 +319,76 @@
       margin-top: 4px;
       color: var(--muted-copy);
       font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .brand-copy .quiet-note {
+      display: inline;
+      color: #7d8d91;
+    }
+
+    .home-topline {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .home-brand {
+      grid-template-columns: auto 1fr auto;
+    }
+
+    .home-brand .brand-copy span {
+      display: none;
+    }
+
+    .login-entry {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid #cbdcde;
+      background: rgba(255, 255, 255, 0.72);
+      color: #526a72;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .account-box {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border-radius: var(--card-radius);
+      border: 1px dashed #b9cdd1;
+      background: rgba(246, 250, 250, 0.82);
+    }
+
+    .account-icon {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      color: #607982;
+      background: #e8f1f2;
+      font-weight: 800;
+    }
+
+    .account-box strong {
+      display: block;
+      font-size: 0.95rem;
+    }
+
+    .account-box span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted-copy);
+      font-size: 0.8rem;
       line-height: 1.35;
     }
 
@@ -375,8 +446,8 @@
       border-radius: var(--pill-radius);
       background: var(--pill-bg);
       color: var(--pill-ink);
-      font-weight: 900;
-      font-size: 0.78rem;
+      font-weight: 700;
+      font-size: 0.76rem;
       border: var(--pill-border);
     }
 
@@ -393,9 +464,9 @@
     }
 
     .info-box {
-      padding: 14px;
+      padding: 12px;
       display: grid;
-      gap: 8px;
+      gap: 6px;
     }
 
     .info-box strong {
@@ -413,7 +484,7 @@
       min-height: 46px;
       border-radius: var(--button-radius);
       border: 0;
-      font-weight: 900;
+      font-weight: 800;
       cursor: default;
     }
 
@@ -433,12 +504,12 @@
       display: grid;
       justify-items: center;
       gap: 8px;
-      padding: 18px 0 6px;
+      padding: 14px 0 4px;
     }
 
     .word {
       font-size: var(--word-size);
-      font-weight: 950;
+      font-weight: 850;
       line-height: 1;
       letter-spacing: 0;
       color: var(--word-ink);
@@ -446,8 +517,8 @@
 
     .meaning {
       color: var(--muted-copy);
-      font-size: 1.1rem;
-      font-weight: 800;
+      font-size: 1rem;
+      font-weight: 700;
     }
 
     .audio-mark {
@@ -461,7 +532,7 @@
       background: var(--audio-bg);
       border: var(--audio-border);
       font-size: 0.72rem;
-      font-weight: 950;
+      font-weight: 800;
       vertical-align: middle;
     }
 
@@ -473,16 +544,16 @@
       height: 34px;
       padding: 8px 10px;
       border-radius: var(--button-radius);
-      background: #ecfeff;
-      border: 1px solid #a5f3fc;
+      background: #edf5f6;
+      border: 1px solid #c5dadd;
     }
 
     .signal-ribbon span {
       display: block;
       min-height: 7px;
       border-radius: 999px;
-      background: linear-gradient(180deg, #06b6d4, #2f78e8);
-      opacity: 0.82;
+      background: linear-gradient(180deg, #aecfd1, #6f9fb2);
+      opacity: 0.7;
     }
 
     .signal-ribbon span:nth-child(2n) {
@@ -491,7 +562,7 @@
 
     .signal-ribbon span:nth-child(3n) {
       min-height: 25px;
-      background: linear-gradient(180deg, #f9736b, #2f78e8);
+      background: linear-gradient(180deg, #c7d9d2, #6f9fb2);
     }
 
     .brand-preview-gap {
@@ -802,51 +873,51 @@
     }
 
     .direction-card[data-direction="hybrid"] {
-      --proto-bg: #f1fbff;
-      --screen-bg: #fffefa;
-      --screen-ink: #172033;
+      --proto-bg: #edf4f5;
+      --screen-bg: #fbfdfc;
+      --screen-ink: #253238;
       --screen-radius: 8px;
-      --screen-border: 1px solid #d6e7ef;
-      --screen-shadow: 0 24px 48px rgba(23, 32, 51, 0.14);
-      --screen-pad: 18px;
-      --accent: #2f78e8;
+      --screen-border: 1px solid #cadbdd;
+      --screen-shadow: 0 24px 48px rgba(71, 91, 96, 0.13);
+      --screen-pad: 16px;
+      --accent: #6f9fb2;
       --accent-ink: #ffffff;
-      --muted-copy: #66717e;
-      --nav-muted: #7c8490;
-      --chip-bg: #ecfeff;
+      --muted-copy: #68797d;
+      --nav-muted: #819094;
+      --chip-bg: #edf5f6;
       --chip-radius: 999px;
-      --chip-shadow: inset 0 0 0 1px #a5f3fc;
-      --pill-bg: #fff7ed;
-      --pill-ink: #c2410c;
-      --pill-border: 1px solid #fed7aa;
+      --chip-shadow: inset 0 0 0 1px #c5dadd;
+      --pill-bg: #edf5f6;
+      --pill-ink: #526a72;
+      --pill-border: 1px solid #cbdcde;
       --pill-radius: 999px;
-      --card-bg: rgba(255, 255, 255, 0.94);
-      --card-border: 1px solid #dbeafe;
-      --card-shadow: 0 8px 20px rgba(23, 32, 51, 0.08);
+      --card-bg: rgba(255, 255, 255, 0.9);
+      --card-border: 1px solid #d9e5e5;
+      --card-shadow: 0 8px 20px rgba(71, 91, 96, 0.07);
       --card-radius: 8px;
       --button-radius: 8px;
-      --button-shadow: 0 10px 18px rgba(47, 120, 232, 0.22);
-      --secondary-bg: #f8fafc;
-      --secondary-ink: #2563eb;
-      --secondary-border: 1px solid #cfe3f5;
-      --word-size: 3.15rem;
-      --word-ink: #172033;
-      --audio-bg: #ecfeff;
-      --audio-border: 1px solid #67e8f9;
-      --wrong: #e11d48;
-      --wrong-bg: #fff7ed;
-      --correct: #16a34a;
-      --correct-bg: #ecfdf5;
-      --feedback-bg: #fff7ed;
-      --feedback-border: #fdba74;
-      --feedback-ink: #c2410c;
-      --row-bg: #fffefa;
-      --title-size: 1.75rem;
+      --button-shadow: 0 10px 18px rgba(111, 159, 178, 0.2);
+      --secondary-bg: #f7fbfb;
+      --secondary-ink: #55727b;
+      --secondary-border: 1px solid #d1e0e2;
+      --word-size: 3rem;
+      --word-ink: #253238;
+      --audio-bg: #edf5f6;
+      --audio-border: 1px solid #c5dadd;
+      --wrong: #a76660;
+      --wrong-bg: #fbf0ee;
+      --correct: #5f907b;
+      --correct-bg: #eef6f1;
+      --feedback-bg: #f7f1ec;
+      --feedback-border: #d8c2b5;
+      --feedback-ink: #8a5d50;
+      --row-bg: #fbfdfc;
+      --title-size: 1.58rem;
       --label-transform: none;
       --label-spacing: 0;
-      --texture-opacity: 0.16;
-      --texture: radial-gradient(circle at 16% 10%, rgba(249, 115, 107, 0.42) 0 5px, transparent 6px), radial-gradient(circle at 86% 16%, rgba(6, 182, 212, 0.3) 0 7px, transparent 8px), repeating-linear-gradient(90deg, transparent 0 18px, rgba(6, 182, 212, 0.16) 18px 20px);
-      --pattern-ink: rgba(47, 120, 232, 0.24);
+      --texture-opacity: 0.1;
+      --texture: repeating-linear-gradient(90deg, transparent 0 22px, rgba(141, 177, 184, 0.14) 22px 23px), radial-gradient(circle at 86% 14%, rgba(174, 207, 209, 0.32) 0 8px, transparent 9px);
+      --pattern-ink: rgba(96, 121, 130, 0.18);
     }
 
     @media (max-width: 1100px) {
@@ -891,7 +962,7 @@
     <header class="review-top">
       <div>
         <h1>小音标 M10 视觉方向原型</h1>
-        <p>#175 评审用交互原型。已按选择聚焦 B+A：用 B 的温和练习室作为整体体验，再引入 A 的音频信号与 IPA 清晰度。A/B/C 保留作对照。</p>
+              <p>#175 评审用交互原型。已按反馈收敛 B+A：更克制的莫兰迪淡青蓝色系、统一中文字体层级，并预留登录入口。</p>
       </div>
       <div class="controls" aria-label="原型控制">
         <div class="segmented" aria-label="视觉方向筛选">
@@ -1029,11 +1100,11 @@
               <p>已选方向：B 的温和练习体验 + A 的声波/音标信号语言。中文产品名为“小音标”。</p>
             </div>
             <div class="swatches" aria-label="小音标练习室配色">
-              <span class="swatch" style="background:#172033"></span>
-              <span class="swatch" style="background:#2f78e8"></span>
-              <span class="swatch" style="background:#06b6d4"></span>
-              <span class="swatch" style="background:#f9736b"></span>
-              <span class="swatch" style="background:#31b981"></span>
+              <span class="swatch" style="background:#253238"></span>
+              <span class="swatch" style="background:#6f9fb2"></span>
+              <span class="swatch" style="background:#aecfd1"></span>
+              <span class="swatch" style="background:#d8c2b5"></span>
+              <span class="swatch" style="background:#5f907b"></span>
             </div>
           </div>
           <div class="proto-wrap">
@@ -1041,7 +1112,7 @@
               <div class="brand-mark">小</div>
               <div class="brand-copy">
                 <strong>小音标</strong>
-                <span>把 IPA 变成每天几分钟的声音练习。字形方向：圆润、有手写感，但 IPA 使用等宽清晰字形。</span>
+                <span>把 IPA 变成每天几分钟的声音练习。字形方向：统一、清爽、稍带圆润；图案只保留轻声纹。</span>
               </div>
             </div>
             <div class="brand-preview-gap" aria-hidden="true"></div>
@@ -1055,7 +1126,7 @@
           <div class="notes">
             <div><h3>强项</h3><p>青少年吸引力、IPA 可信度、答错后可恢复感之间最平衡。</p></div>
             <div><h3>风险</h3><p>图案必须克制：一个核心声音信号，而不是到处装饰。</p></div>
-            <div><h3>视觉母题</h3><p>“小”字标、声波条、音标碎片、圆角练习卡。</p></div>
+            <div><h3>视觉母题</h3><p>“小”字标、轻声纹、淡青蓝卡片、登录入口占位。</p></div>
           </div>
         </article>
       </section>
@@ -1064,16 +1135,16 @@
 
   <template id="today-template">
     <nav class="proto-nav"><span class="active">今日</span><span>进度</span><span>设置</span></nav>
-    <div class="brand-strip">
-      <div class="brand-mark">小</div>
-      <div class="brand-copy"><strong>小音标</strong><span>每天几分钟，把声音和 IPA 对上号。</span></div>
+    <div class="home-topline">
+      <div class="brand-strip home-brand">
+        <div class="brand-mark">小</div>
+        <div class="brand-copy"><strong>小音标</strong><span>每天几分钟，把声音和 IPA 对上号。</span></div>
+        <span class="login-entry">登录</span>
+      </div>
     </div>
-    <span class="mini-label">今日练习</span>
     <div class="hero-line"><h3>入门已选</h3><span class="status-pill">美式发音</span></div>
-    <div class="info-box"><strong>准备开始入门</strong><span>今天 2 个词。有值得回放的错题时，复习入口会自动出现。</span></div>
-    <div class="signal-ribbon" aria-label="声音信号图案"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="info-box"><strong>今天 2 个词</strong><span>先听，再选音标。登录后可同步进度和错题。</span></div>
     <button class="primary-action">开始入门练习</button>
-    <button class="secondary-action">复习最近错题</button>
     <button class="secondary-action">查看进度</button>
   </template>
 
@@ -1097,6 +1168,7 @@
   <template id="settings-template">
     <nav class="proto-nav"><span>今日</span><span>进度</span><span class="active">设置</span></nav>
     <span class="mini-label">设置</span>
+    <div class="account-box"><div class="account-icon">人</div><div><strong>登录后同步练习</strong><span>预留账号入口：保存进度、错题和设备间同步。</span></div></div>
     <div class="settings-box"><strong>练习级别</strong><div class="level-choice"><strong>入门</strong><span>短练习组，先掌握最常见的 IPA 对比。</span></div><div class="level-choice"><strong>进阶</strong><span>更长单词，从下一组开始生效。</span></div></div>
     <div class="settings-box"><strong>专注练习</strong><div class="phoneme-row"><span class="phoneme-symbol">/ʃ/</span><span>ship, shoe, special</span><button class="secondary-action">开始专注</button></div></div>
   </template>
