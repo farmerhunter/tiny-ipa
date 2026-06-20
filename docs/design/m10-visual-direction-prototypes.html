@@ -7,16 +7,17 @@
   <style>
     :root {
       color-scheme: light;
-      --page: #f3f6f6;
-      --ink: #253238;
-      --muted: #65777d;
-      --line: #d7e1e2;
+      --page: #f1eee8;
+      --ink: #2f3533;
+      --muted: #746f68;
+      --line: #d9d2c7;
       --panel: #ffffff;
-      --focus: #6f9fb2;
+      --focus: #8aa0a3;
       --radius: 8px;
-      --shadow: 0 18px 45px rgba(56, 76, 82, 0.1);
+      --shadow: 0 18px 45px rgba(72, 63, 54, 0.11);
       --cn-ui-font: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
-      --cn-brand-font: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+      --cn-brand-font: "Kaiti SC", "STKaiti", "LXGW WenKai Screen", "Songti SC", "Noto Serif CJK SC", serif;
+      --cn-display-font: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "PingFang SC", serif;
       font-family: var(--cn-ui-font);
     }
 
@@ -26,9 +27,37 @@
 
     body {
       margin: 0;
-      background: var(--page);
+      background:
+        linear-gradient(130deg, rgba(255, 255, 255, 0.56), transparent 42%),
+        linear-gradient(180deg, #f4f1eb 0%, var(--page) 54%, #ebe7df 100%);
       color: var(--ink);
       min-height: 100vh;
+    }
+
+    @keyframes tonalDrift {
+      0% {
+        transform: translateX(-34%) skewX(-10deg);
+        opacity: 0.2;
+      }
+
+      48% {
+        opacity: 0.34;
+      }
+
+      100% {
+        transform: translateX(34%) skewX(-10deg);
+        opacity: 0.2;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
     }
 
     button {
@@ -51,7 +80,9 @@
 
     .review-top h1 {
       margin: 0 0 6px;
+      font-family: var(--cn-display-font);
       font-size: clamp(1.35rem, 2vw, 2rem);
+      font-weight: 760;
       letter-spacing: 0;
     }
 
@@ -90,7 +121,7 @@
     }
 
     .segmented button[aria-pressed="true"] {
-      background: #415e68;
+      background: #5f6762;
       color: #fff;
     }
 
@@ -149,8 +180,8 @@
 
     .vote-list button[aria-pressed="true"] {
       border-color: var(--focus);
-      background: #edf5f6;
-      color: #415e68;
+      background: #eeebe5;
+      color: #5f6762;
     }
 
     .vote-output {
@@ -178,8 +209,8 @@
     }
 
     .direction-card.is-selected {
-      border-color: #8ab4bd;
-      box-shadow: 0 22px 56px rgba(87, 121, 129, 0.16);
+      border-color: #b9b0a3;
+      box-shadow: 0 22px 56px rgba(72, 63, 54, 0.16);
     }
 
     .direction-header {
@@ -193,7 +224,9 @@
 
     .direction-header h2 {
       margin: 0 0 4px;
+      font-family: var(--cn-display-font);
       font-size: 1.2rem;
+      font-weight: 760;
     }
 
     .direction-header p {
@@ -218,6 +251,23 @@
     .proto-wrap {
       padding: 18px;
       background: var(--proto-bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .direction-card[data-direction="hybrid"] .proto-wrap::before {
+      content: "";
+      position: absolute;
+      inset: -30% -18%;
+      pointer-events: none;
+      background: linear-gradient(105deg, transparent 24%, rgba(255, 255, 255, 0.54) 43%, rgba(211, 197, 180, 0.18) 56%, transparent 72%);
+      filter: blur(18px);
+      animation: tonalDrift 10s ease-in-out infinite alternate;
+    }
+
+    .proto-wrap > * {
+      position: relative;
+      z-index: 1;
     }
 
     .screen-grid {
@@ -287,7 +337,7 @@
       padding: 10px;
       border-radius: var(--card-radius);
       border: var(--card-border);
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 245, 0.92));
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(235, 229, 219, 0.92));
       box-shadow: var(--card-shadow);
     }
 
@@ -297,20 +347,20 @@
       width: 48px;
       height: 48px;
       border-radius: 8px;
-      background: #415e68;
-      color: #f7fbfb;
+      background: #5f6762;
+      color: #fbf9f3;
       font-family: var(--cn-brand-font);
-      font-size: 1.45rem;
-      font-weight: 700;
+      font-size: 1.62rem;
+      font-weight: 600;
       line-height: 1;
-      box-shadow: inset 0 -5px 0 rgba(174, 207, 209, 0.34);
+      box-shadow: inset 0 -5px 0 rgba(205, 189, 171, 0.34);
     }
 
     .brand-copy strong {
       display: block;
       font-family: var(--cn-brand-font);
-      font-size: 1.16rem;
-      font-weight: 800;
+      font-size: 1.3rem;
+      font-weight: 600;
       line-height: 1.1;
     }
 
@@ -349,9 +399,9 @@
       min-height: 32px;
       padding: 0 10px;
       border-radius: 999px;
-      border: 1px solid #cbdcde;
-      background: rgba(255, 255, 255, 0.72);
-      color: #526a72;
+      border: 1px solid #d2c9bd;
+      background: rgba(255, 255, 255, 0.62);
+      color: #665f57;
       font-size: 0.78rem;
       font-weight: 700;
       white-space: nowrap;
@@ -364,8 +414,8 @@
       align-items: center;
       padding: 12px;
       border-radius: var(--card-radius);
-      border: 1px dashed #b9cdd1;
-      background: rgba(246, 250, 250, 0.82);
+      border: 1px dashed #cbbfb1;
+      background: rgba(250, 248, 243, 0.82);
     }
 
     .account-icon {
@@ -374,8 +424,8 @@
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      color: #607982;
-      background: #e8f1f2;
+      color: #70685f;
+      background: #eee8dd;
       font-weight: 800;
     }
 
@@ -432,7 +482,9 @@
 
     .hero-line h3 {
       margin: 0;
+      font-family: var(--cn-display-font);
       font-size: var(--title-size);
+      font-weight: 760;
       letter-spacing: 0;
       line-height: 1;
     }
@@ -873,51 +925,51 @@
     }
 
     .direction-card[data-direction="hybrid"] {
-      --proto-bg: #edf4f5;
-      --screen-bg: #fbfdfc;
-      --screen-ink: #253238;
+      --proto-bg: #ebe7df;
+      --screen-bg: #fbfaf6;
+      --screen-ink: #2f3533;
       --screen-radius: 8px;
-      --screen-border: 1px solid #cadbdd;
-      --screen-shadow: 0 24px 48px rgba(71, 91, 96, 0.13);
+      --screen-border: 1px solid #d7cfc4;
+      --screen-shadow: 0 24px 48px rgba(72, 63, 54, 0.14);
       --screen-pad: 16px;
-      --accent: #6f9fb2;
+      --accent: #82999d;
       --accent-ink: #ffffff;
-      --muted-copy: #68797d;
-      --nav-muted: #819094;
-      --chip-bg: #edf5f6;
+      --muted-copy: #746f68;
+      --nav-muted: #8b857d;
+      --chip-bg: #eee9df;
       --chip-radius: 999px;
-      --chip-shadow: inset 0 0 0 1px #c5dadd;
-      --pill-bg: #edf5f6;
-      --pill-ink: #526a72;
-      --pill-border: 1px solid #cbdcde;
+      --chip-shadow: inset 0 0 0 1px #d8cfc2;
+      --pill-bg: #eee9df;
+      --pill-ink: #665f57;
+      --pill-border: 1px solid #d2c9bd;
       --pill-radius: 999px;
-      --card-bg: rgba(255, 255, 255, 0.9);
-      --card-border: 1px solid #d9e5e5;
-      --card-shadow: 0 8px 20px rgba(71, 91, 96, 0.07);
+      --card-bg: rgba(255, 255, 255, 0.86);
+      --card-border: 1px solid #dfd8ce;
+      --card-shadow: 0 8px 20px rgba(72, 63, 54, 0.07);
       --card-radius: 8px;
       --button-radius: 8px;
-      --button-shadow: 0 10px 18px rgba(111, 159, 178, 0.2);
-      --secondary-bg: #f7fbfb;
-      --secondary-ink: #55727b;
-      --secondary-border: 1px solid #d1e0e2;
+      --button-shadow: 0 10px 18px rgba(130, 153, 157, 0.22);
+      --secondary-bg: #fbfaf6;
+      --secondary-ink: #665f57;
+      --secondary-border: 1px solid #d9d0c4;
       --word-size: 3rem;
-      --word-ink: #253238;
-      --audio-bg: #edf5f6;
-      --audio-border: 1px solid #c5dadd;
-      --wrong: #a76660;
-      --wrong-bg: #fbf0ee;
-      --correct: #5f907b;
-      --correct-bg: #eef6f1;
-      --feedback-bg: #f7f1ec;
-      --feedback-border: #d8c2b5;
-      --feedback-ink: #8a5d50;
-      --row-bg: #fbfdfc;
+      --word-ink: #2f3533;
+      --audio-bg: #eef1ee;
+      --audio-border: 1px solid #ccd6d3;
+      --wrong: #9b6f66;
+      --wrong-bg: #f6ece8;
+      --correct: #6f8372;
+      --correct-bg: #eef1ea;
+      --feedback-bg: #f3ede5;
+      --feedback-border: #d4c3b4;
+      --feedback-ink: #7d6357;
+      --row-bg: #fbfaf6;
       --title-size: 1.58rem;
       --label-transform: none;
       --label-spacing: 0;
-      --texture-opacity: 0.1;
-      --texture: repeating-linear-gradient(90deg, transparent 0 22px, rgba(141, 177, 184, 0.14) 22px 23px), radial-gradient(circle at 86% 14%, rgba(174, 207, 209, 0.32) 0 8px, transparent 9px);
-      --pattern-ink: rgba(96, 121, 130, 0.18);
+      --texture-opacity: 0.16;
+      --texture: linear-gradient(90deg, rgba(194, 184, 169, 0.18) 0 1px, transparent 1px 22px), linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 38%, rgba(173, 154, 137, 0.08));
+      --pattern-ink: rgba(111, 103, 94, 0.18);
     }
 
     @media (max-width: 1100px) {
@@ -962,7 +1014,7 @@
     <header class="review-top">
       <div>
         <h1>小音标 M10 视觉方向原型</h1>
-              <p>#175 评审用交互原型。已按反馈收敛 B+A：更克制的莫兰迪淡青蓝色系、统一中文字体层级，并预留登录入口。</p>
+        <p>#175 评审用交互原型。已按 Morandi 风格重做 B+A：灰调近似色、静物式留白、轻微流动光影，以及更有性格的中文标题/品牌字体。</p>
       </div>
       <div class="controls" aria-label="原型控制">
         <div class="segmented" aria-label="视觉方向筛选">
@@ -984,7 +1036,7 @@
         <h2>视觉评审门</h2>
         <p>这不是生产 UI，是用于判断方向的 HTML 原型。当前默认展示已选择的 B+A 方向。</p>
         <h3>当前选择</h3>
-        <p><strong>B+A 小音标练习室</strong>：整体温和、有练习陪伴感，同时用声波、音标碎片和“小”字标识建立记忆点。</p>
+        <p><strong>B+A 小音标练习室</strong>：整体温和、有练习陪伴感，用灰调空气感、轻光影和“小”字标识建立记忆点。</p>
         <h3>评审结论</h3>
         <div class="vote-list">
           <button type="button" data-vote="认可 B+A 小音标练习室" aria-pressed="true">认可 B+A</button>
@@ -1100,11 +1152,11 @@
               <p>已选方向：B 的温和练习体验 + A 的声波/音标信号语言。中文产品名为“小音标”。</p>
             </div>
             <div class="swatches" aria-label="小音标练习室配色">
-              <span class="swatch" style="background:#253238"></span>
-              <span class="swatch" style="background:#6f9fb2"></span>
-              <span class="swatch" style="background:#aecfd1"></span>
-              <span class="swatch" style="background:#d8c2b5"></span>
-              <span class="swatch" style="background:#5f907b"></span>
+              <span class="swatch" style="background:#2f3533"></span>
+              <span class="swatch" style="background:#82999d"></span>
+              <span class="swatch" style="background:#d7cfc4"></span>
+              <span class="swatch" style="background:#c2b8a9"></span>
+              <span class="swatch" style="background:#6f8372"></span>
             </div>
           </div>
           <div class="proto-wrap">
@@ -1112,7 +1164,7 @@
               <div class="brand-mark">小</div>
               <div class="brand-copy">
                 <strong>小音标</strong>
-                <span>把 IPA 变成每天几分钟的声音练习。字形方向：统一、清爽、稍带圆润；图案只保留轻声纹。</span>
+                <span>把 IPA 变成每天几分钟的声音练习。字形方向：标题有宋楷气质，正文保持清晰；图案只保留轻声纹和流动光影。</span>
               </div>
             </div>
             <div class="brand-preview-gap" aria-hidden="true"></div>
@@ -1126,7 +1178,7 @@
           <div class="notes">
             <div><h3>强项</h3><p>青少年吸引力、IPA 可信度、答错后可恢复感之间最平衡。</p></div>
             <div><h3>风险</h3><p>图案必须克制：一个核心声音信号，而不是到处装饰。</p></div>
-            <div><h3>视觉母题</h3><p>“小”字标、轻声纹、淡青蓝卡片、登录入口占位。</p></div>
+            <div><h3>视觉母题</h3><p>“小”字标、静物灰调、轻声纹、流动光影、登录入口占位。</p></div>
           </div>
         </article>
       </section>
