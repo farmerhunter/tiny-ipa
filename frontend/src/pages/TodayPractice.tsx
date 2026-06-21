@@ -106,7 +106,29 @@ function resumeActionLabel(session: TodayResponse): string {
 
 function completedGroupsCopy(session: TodayResponse): string {
   const counts = session.completed_normal_groups_today ?? { entry: 0, mid: 0, total: 0 };
-  return `${counts.total} normal groups completed today: Entry ${counts.entry}, Mid ${counts.mid}.`;
+  return `Completed today: Entry ${counts.entry}, Mid ${counts.mid}.`;
+}
+
+function completedGroupCount(session: TodayResponse): number {
+  return session.completed_normal_groups_today?.total ?? 0;
+}
+
+function todayHubHeading(session: TodayResponse, hasActiveGroup: boolean): string {
+  if (hasActiveGroup) return `${learnerLevelLabel(session)} practice in progress`;
+  return `Start ${selectedLevelLabel(session)} practice`;
+}
+
+function todayHubCopy(hasActiveGroup: boolean): string {
+  if (hasActiveGroup) {
+    return "Pick up where you left off, or switch intentionally when you are ready.";
+  }
+  return "A short listening group is ready. Listen first, then choose the IPA that matches.";
+}
+
+function recentReviewLabel(session: TodayResponse): string {
+  const count = session.recent_mistake_count ?? 0;
+  if (count <= 0) return "No recent mistakes to review";
+  return count === 1 ? "Review 1 recent mistake" : `Review ${count} recent mistakes`;
 }
 
 export default function TodayPractice({
@@ -358,9 +380,9 @@ export default function TodayPractice({
       <main className="practice-container">
         <section className="today-hub">
           <p className="workflow-kicker">Today practice hub</p>
-          <h1>{selectedLevelLabel(session)} selected</h1>
+          <h1>{todayHubHeading(session, hasActiveGroup)}</h1>
           <p className="section-copy">
-            {completedGroupsCopy(session)}
+            {todayHubCopy(hasActiveGroup)}
           </p>
 
           <div className={`hub-status-card ${pendingLevelChange ? "pending" : ""}`}>
@@ -379,14 +401,18 @@ export default function TodayPractice({
               </>
             ) : (
               <>
-                <span className="focus-panel-label">No active group</span>
-                <strong>Ready to start {selectedLevelLabel(session)}</strong>
+                <span className="focus-panel-label">Ready when you are</span>
+                <strong>{selectedLevelLabel(session)} listening group</strong>
                 <span>
                   {session.daily_word_count} words per normal group · {session.primary_accent}
                 </span>
               </>
             )}
           </div>
+
+          {completedGroupCount(session) > 0 && (
+            <p className="empty-hint">{completedGroupsCopy(session)}</p>
+          )}
 
           {notice && <p className="empty-hint">{notice}</p>}
           {error && <p className="save-error">{error}</p>}
@@ -426,9 +452,9 @@ export default function TodayPractice({
             <button
               className="secondary-action-btn"
               onClick={handleRecentReview}
-              disabled={actionLoading !== null}
+              disabled={actionLoading !== null || (session.recent_mistake_count ?? 0) <= 0}
             >
-              {actionLoading === "recent-review" ? "Loading…" : "Review recent mistakes"}
+              {actionLoading === "recent-review" ? "Loading…" : recentReviewLabel(session)}
             </button>
             <button className="secondary-action-btn" onClick={onOpenProgress}>
               View Progress
@@ -446,6 +472,10 @@ export default function TodayPractice({
     const wrongResults = results.filter((r) => !r.isCorrect);
     const summarySession = lastSummarySession ?? session;
     const hasCurrentGroupMisses = wrongResults.length > 0;
+    const summaryRecentMistakeCount = Math.max(
+      summarySession.recent_mistake_count ?? 0,
+      wrongResults.length,
+    );
     const focusSuggestions = canonicalFocus(
       wrongResults.flatMap((result) => result.targetPhonemes),
     ).slice(0, 3);
@@ -530,7 +560,12 @@ export default function TodayPractice({
               onClick={handleRecentReview}
               disabled={actionLoading !== null}
             >
-              {actionLoading === "recent-review" ? "Loading…" : "Review recent mistakes"}
+              {actionLoading === "recent-review"
+                ? "Loading…"
+                : recentReviewLabel({
+                    ...summarySession,
+                    recent_mistake_count: summaryRecentMistakeCount,
+                  })}
             </button>
             <button className="secondary-action-btn" onClick={onOpenProgress}>
               Return to Progress

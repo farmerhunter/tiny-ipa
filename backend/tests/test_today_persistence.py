@@ -150,6 +150,7 @@ class TestTodayPersistence:
         assert data["date"] == date.today().isoformat()
         assert data["primary_accent"] == "US"
         assert data["daily_word_count"] == 10
+        assert data["recent_mistake_count"] == 0
         assert data["items"] == []
         assert data["action_label"] == "Start Entry group"
         conn = get_connection(seeded_db)
@@ -336,6 +337,9 @@ class TestTodayPersistence:
         })
         assert miss_resp.status_code == 200
         assert miss_resp.json()["is_correct"] is False
+
+        refreshed_today = client.get("/api/today").json()
+        assert refreshed_today["recent_mistake_count"] == 1
 
         review_resp = client.post("/api/review/recent-mistakes")
         assert review_resp.status_code == 200

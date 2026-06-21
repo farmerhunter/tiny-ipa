@@ -170,6 +170,7 @@ function toTodayResponse(group: MockGroup) {
     action_label:
       sourceScope === "normal_next" ? `Start Group ${group.group_index}` : undefined,
     daily_word_count: group.items.length,
+    recent_mistake_count: group.group_type === "mistake_review" ? 1 : 0,
     word_count: group.items.length,
     status: "active",
     source_session_item_ids:
@@ -212,6 +213,7 @@ function noActiveTodayResponse() {
     focus_phonemes: [],
     action_label: "Start Entry group",
     daily_word_count: groups.group1.items.length,
+    recent_mistake_count: 0,
     word_count: 0,
     status: "idle",
     source_session_item_ids: [],
@@ -453,7 +455,9 @@ async function routeMock(route: Route, state: MockState) {
 async function openWalkthrough(page: Page) {
   await page.goto("/");
   await expect(page.getByText("Today practice hub")).toBeVisible();
-  await expect(page.getByText("No active group")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Start Entry practice" })).toBeVisible();
+  await expect(page.getByText("Ready when you are")).toBeVisible();
+  await expect(page.getByRole("button", { name: "No recent mistakes to review" })).toBeDisabled();
   await page.getByRole("button", { name: "Start Entry group" }).click();
   await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
 }
@@ -492,7 +496,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
       await expect(page.getByText("Target sound: /ʃ/")).toBeVisible();
       await expect(page.getByRole("button", { name: "Start next Entry group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review 1 recent mistake" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Return to Progress" })).toBeVisible();
     });
   });
@@ -515,7 +519,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await completeFirstGroupWithOneMiss(page);
 
     await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review 1 recent mistake" })).toBeVisible();
     await page.getByRole("button", { name: "Review misses from this group" }).click();
     await expect(page.getByText("Reviewing misses from the group you just finished.")).toBeVisible();
     await expect(page.getByText("Current-group review: 1 / 1")).toBeVisible();
@@ -533,9 +537,9 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await expect(page.getByRole("heading", { name: "Current-group review complete" })).toBeVisible();
     await expect(page.getByText("No misses in this group.")).toBeVisible();
     await expect(page.getByRole("button", { name: /Review misses from/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review 1 recent mistake" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Review recent mistakes" }).click();
+    await page.getByRole("button", { name: "Review 1 recent mistake" }).click();
     await expect(page.getByText("Recent mistake review: 1 / 1")).toBeVisible();
     await answerVisibleItem(page, "/ʃɪp/");
     await expect(page.getByRole("heading", { name: "Recent mistake review complete" })).toBeVisible();
@@ -583,10 +587,10 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await setupMockApi(page, { failRecentReview: true });
     await openWalkthrough(page);
     await completeFirstGroupWithOneMiss(page);
-    await page.getByRole("button", { name: "Review recent mistakes" }).click();
+    await page.getByRole("button", { name: "Review 1 recent mistake" }).click();
 
     await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible();
     await expect(page.getByText("REVIEW_FAILED: Review unavailable")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review 1 recent mistake" })).toBeVisible();
   });
 });

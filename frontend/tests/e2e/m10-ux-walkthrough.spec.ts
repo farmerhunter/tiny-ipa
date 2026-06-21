@@ -20,6 +20,7 @@ interface MockState {
   activeGroup: GroupKey;
   completed: Record<LearnerLevel, number>;
   focusPhonemes: string[];
+  recentMistakeCount: number;
   recentReviewEmpty: boolean;
 }
 
@@ -131,6 +132,7 @@ function todayResponse(state: MockState) {
       focus_phonemes: state.focusPhonemes,
       action_label: `Start ${levelLabel(state.selectedLevel)} group`,
       daily_word_count: 2,
+      recent_mistake_count: state.recentMistakeCount,
       word_count: 0,
       status: "idle",
       source_session_item_ids: [],
@@ -170,6 +172,7 @@ function todayResponse(state: MockState) {
     source_group_id: review ? "entry-group" : undefined,
     focus_phonemes: focus ? state.focusPhonemes : [],
     daily_word_count: items[state.activeGroup].length,
+    recent_mistake_count: state.recentMistakeCount,
     word_count: items[state.activeGroup].length,
     status: "active",
     source_session_item_ids: review ? ["entry-ship"] : [],
@@ -266,6 +269,7 @@ async function setupM10Api(page: Page, options: Partial<MockState> = {}) {
     activeGroup: options.activeGroup ?? "none",
     completed: options.completed ?? { entry: 0, mid: 0 },
     focusPhonemes: options.focusPhonemes ?? [],
+    recentMistakeCount: options.recentMistakeCount ?? 0,
     recentReviewEmpty: options.recentReviewEmpty ?? false,
   };
 
@@ -344,6 +348,9 @@ async function routeMock(route: Route, state: MockState) {
       if (state.activeGroup === "entry") state.completed.entry += 1;
       if (state.activeGroup === "mid") state.completed.mid += 1;
     }
+    if (body.selected_answer !== item.display_ipa) {
+      state.recentMistakeCount = Math.max(state.recentMistakeCount, 1);
+    }
     await route.fulfill({
       json: {
         is_correct: body.selected_answer === item.display_ipa,
@@ -367,7 +374,7 @@ async function routeMock(route: Route, state: MockState) {
   }
 
   if (path === "/review/recent-mistakes") {
-    if (state.recentReviewEmpty) {
+    if (state.recentReviewEmpty || state.recentMistakeCount === 0) {
       await route.fulfill({
         json: {
           ...todayResponse(state),
@@ -423,10 +430,11 @@ test.describe("M10 UX walkthrough evidence", () => {
     await test.step("Today start orientation", async () => {
       await page.goto("/");
       await expect(page.getByText("Today practice hub")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Entry selected" })).toBeVisible();
-      await expect(page.getByText("No active group")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Start Entry practice" })).toBeVisible();
+      await expect(page.getByText("Ready when you are")).toBeVisible();
+      await expect(page.getByText("A short listening group is ready.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Start Entry group" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "No recent mistakes to review" })).toBeDisabled();
       await attachScreenshot(page, "m10-today-start");
     });
 
@@ -453,7 +461,7 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("1 / 2 correct")).toBeVisible();
       await expect(page.getByRole("heading", { name: "Misses from this group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review recent mistakes" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review 1 recent mistake" })).toBeVisible();
       await attachScreenshot(page, "m10-completion-recovery-actions");
     });
 
@@ -464,7 +472,7 @@ test.describe("M10 UX walkthrough evidence", () => {
       await attachScreenshot(page, "m10-current-group-review");
       await answer(page, "/ʃɪp/");
       await expect(page.getByRole("heading", { name: "Current-group review complete" })).toBeVisible();
-      await page.getByRole("button", { name: "Review recent mistakes" }).click();
+      await page.getByRole("button", { name: "Review 1 recent mistake" }).click();
       await expect(page.getByText("Recent mistake review: 1 / 1")).toBeVisible();
       await expect(page.getByText("Reviewing recent mistakes from earlier practice.")).toBeVisible();
       await attachScreenshot(page, "m10-recent-review");
@@ -499,7 +507,7 @@ test.describe("M10 UX walkthrough evidence", () => {
       await page.getByRole("button", { name: /Mid\s+Broader word practice/ }).click();
       await expect(page.getByText("Saved")).toBeVisible();
       await page.getByRole("button", { name: "Today", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "Mid selected" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Entry practice in progress" })).toBeVisible();
       await expect(page.getByText("You selected Mid. This Entry group is still in progress.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Resume Entry group" })).toBeVisible();
       await attachScreenshot(page, "m10-settings-mid-pending");
@@ -516,9 +524,10 @@ test.describe("M10 UX walkthrough evidence", () => {
 
     await test.step("Recent-review empty state keeps the hub actionable", async () => {
       state.activeGroup = "none";
+      state.recentMistakeCount = 1;
       await page.goto("/");
       await expect(page.getByText("Today practice hub")).toBeVisible();
-      await page.getByRole("button", { name: "Review recent mistakes" }).click();
+      await page.getByRole("button", { name: "Review 1 recent mistake" }).click();
       await expect(page.getByText("No recent incorrect attempts are available for review.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Start Mid group" })).toBeVisible();
       await attachScreenshot(page, "m10-recent-review-empty");

@@ -673,6 +673,22 @@ def _completed_normal_groups_today(conn, user_id: str, session_date: str) -> dic
     }
 
 
+def _recent_mistake_count(
+    conn,
+    *,
+    user_id: str,
+    accent: str,
+    daily_word_count: int,
+) -> int:
+    sources = get_recent_incorrect_attempt_sources(
+        conn,
+        user_id=user_id,
+        primary_accent=accent,
+        limit=max(daily_word_count, 1),
+    )
+    return len(sources)
+
+
 def _normal_empty_response(
     conn,
     *,
@@ -696,6 +712,12 @@ def _normal_empty_response(
         "date": session_date,
         "primary_accent": accent,
         "daily_word_count": daily_word_count,
+        "recent_mistake_count": _recent_mistake_count(
+            conn,
+            user_id=user_id,
+            accent=accent,
+            daily_word_count=daily_word_count,
+        ),
         "word_count": 0,
         "status": "idle",
         "origin": "normal_empty",
@@ -774,6 +796,12 @@ def _build_response(
         "date": session.session_date,
         "primary_accent": session.primary_accent,
         "daily_word_count": daily_word_count,
+        "recent_mistake_count": _recent_mistake_count(
+            conn,
+            user_id=session.user_id,
+            accent=session.primary_accent,
+            daily_word_count=daily_word_count,
+        ),
         "word_count": len(item_dicts),
         "status": session.status,
         "source_session_item_ids": session.source_session_item_ids,
