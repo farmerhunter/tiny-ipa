@@ -442,13 +442,15 @@ test.describe("M10 UX walkthrough evidence", () => {
     await test.step("Wrong answer feedback remains inspectable until learner continues", async () => {
       await page.getByRole("button", { name: "Start Entry group" }).click();
       await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Play pronunciation (TTS)" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Play pronunciation with browser voice" })).toBeVisible();
+      await expect(page.getByText("Browser voice")).toBeVisible();
       await answer(page, "/sɪp/");
       await expect(page.getByText("Not quite")).toBeVisible();
       await expect(page.getByText("You picked")).toBeVisible();
       await expect(page.getByText("Correct IPA")).toBeVisible();
       await expect(page.getByText("Target sound")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Play pronunciation (TTS)" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Play pronunciation with browser voice" })).toBeVisible();
+      await expect(page.getByText("Browser voice")).toBeVisible();
       await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
       await attachScreenshot(page, "m10-wrong-answer-feedback");
       await page.waitForTimeout(1_800);
@@ -456,6 +458,8 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("Not quite")).toBeVisible();
       await page.getByRole("button", { name: "Continue" }).click();
       await expect(page.getByRole("button", { name: "Select /θɪn/" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Play recorded pronunciation" })).toBeVisible();
+      await expect(page.getByText("Recorded audio")).toBeVisible();
     });
 
     await test.step("Completion summary exposes current-group recovery and next choices", async () => {
@@ -557,5 +561,22 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByRole("heading", { name: "Sounds to revisit in Entry" })).toBeVisible();
       await attachScreenshot(page, "m10-mobile-progress");
     });
+  });
+
+  test("Audio confidence state explains unavailable playback", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "speechSynthesis", {
+        configurable: true,
+        value: undefined,
+      });
+    });
+    await setupM10Api(page, { activeGroup: "entry" });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Resume Entry group" }).click();
+    await expect(page.getByText("Browser voice")).toBeVisible();
+    await page.getByRole("button", { name: "Play pronunciation with browser voice" }).click();
+    await expect(page.getByText("Audio unavailable")).toBeVisible();
+    await attachScreenshot(page, "m10-audio-unavailable-state");
   });
 });
