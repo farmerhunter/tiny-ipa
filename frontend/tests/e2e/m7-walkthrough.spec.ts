@@ -553,9 +553,9 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await setupMockApi(page);
     await openWalkthrough(page);
     await page.getByRole("button", { name: "Progress" }).click();
-    await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Needs practice in Entry" })).toBeVisible();
-    await expect(page.getByText("Focused practice starts at the selected level in Settings.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sounds to revisit in Entry" })).toBeVisible();
+    await expect(page.getByText("Focused practice uses the level selected in Settings.")).toBeVisible();
     await page.getByRole("button", { name: "Focus /ʃ/" }).first().click();
 
     await expect(page.getByText("Focused group: 1 / 1")).toBeVisible();
@@ -578,9 +578,9 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await completeFirstGroupWithOneMiss(page);
     await page.getByRole("button", { name: "Return to Progress" }).click();
 
-    await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Needs practice in Entry" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Global needs practice" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sounds to revisit in Entry" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sounds to revisit overall" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Today", exact: true })).toBeVisible();
   });
 

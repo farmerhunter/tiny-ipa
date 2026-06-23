@@ -283,10 +283,12 @@ test.describe("M8 learner level selection walkthrough", () => {
 
     await test.step("Progress distinguishes Entry and Mid statistics", async () => {
       await page.getByRole("button", { name: "Progress" }).click();
-      await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Entry stats" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Mid stats" })).toBeVisible();
-      await expect(page.getByText("Global needs practice")).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Entry progress" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Mid progress" })).toBeVisible();
+      await expect(page.getByText("Sounds to revisit overall")).toHaveCount(0);
+      await expect(page.getByText("Entry has sounds ready for focused practice.")).toBeVisible();
+      await expect(page.getByText("Mid is looking steady so far. Keep practicing to confirm strong sounds.")).toBeVisible();
       const screenshotPath = test.info().outputPath("m8-mid-level-mobile.png");
       await page.screenshot({ fullPage: true, path: screenshotPath });
       await test.info().attach("m8-mid-level-mobile", {
