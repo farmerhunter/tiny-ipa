@@ -471,9 +471,10 @@ async function completeFirstGroupWithOneMiss(page: Page) {
   await expect(page.getByText("Not quite")).toBeVisible();
   await expect(page.getByText("Target sound")).toBeVisible();
   await page.getByText("Focus on /ʃ/ before choosing.").waitFor();
-  await expect(page.getByRole("button", { name: "Select /θɪn/" })).toBeVisible({
-    timeout: 6_000,
-  });
+  await page.waitForTimeout(1_800);
+  await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("button", { name: "Select /θɪn/" })).toBeVisible();
 
   await answerVisibleItem(page, "/θɪn/");
   await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({

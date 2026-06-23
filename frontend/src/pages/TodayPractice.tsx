@@ -619,9 +619,12 @@ export default function TodayPractice({
         item={currentItem}
         onResult={(result) => {
           handleResult(currentItem, result);
-          // Auto-advance after a short delay so the user can read feedback.
-          setTimeout(() => handleNext(), 1500);
+          if (result.isCorrect) {
+            // Correct answers keep the quick flow; misses stay visible until acknowledged.
+            setTimeout(() => handleNext(), 1500);
+          }
         }}
+        onContinue={handleNext}
       />
     </main>
   );
