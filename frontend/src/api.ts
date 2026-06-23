@@ -90,6 +90,7 @@ export interface TodayResponse {
   date: string;
   primary_accent: string;
   daily_word_count: number;
+  recent_mistake_count?: number;
   word_count?: number;
   status: string;
   source_session_item_ids?: string[];

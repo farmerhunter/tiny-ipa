@@ -54,6 +54,7 @@ function todayResponse(state: MockState) {
       focus_phonemes: [],
       action_label: `Start ${levelLabel(state.selectedLevel)} group`,
       daily_word_count: 1,
+      recent_mistake_count: 0,
       word_count: 0,
       status: "idle",
       source_session_item_ids: [],
@@ -83,6 +84,7 @@ function todayResponse(state: MockState) {
     source_scope: "normal_current",
     focus_phonemes: [],
     daily_word_count: 1,
+    recent_mistake_count: 0,
     word_count: 1,
     status: "active",
     source_session_item_ids: [],
@@ -247,9 +249,9 @@ test.describe("M8 learner level selection walkthrough", () => {
     await test.step("Entry default hub context", async () => {
       await page.goto("/");
       await expect(page.getByText("Today practice hub")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Entry selected" })).toBeVisible();
-      await expect(page.getByText("0 normal groups completed today: Entry 0, Mid 0.")).toBeVisible();
-      await expect(page.getByText("No active group")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Start Entry practice" })).toBeVisible();
+      await expect(page.getByText("Ready when you are")).toBeVisible();
+      await expect(page.getByRole("button", { name: "No recent mistakes to review" })).toBeDisabled();
       await page.getByRole("button", { name: "Start Entry group" }).click();
       await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
       await expect(page.getByText("ship")).toBeVisible();
@@ -268,7 +270,7 @@ test.describe("M8 learner level selection walkthrough", () => {
     await test.step("Today explains pending level change and intentional switch", async () => {
       await page.getByRole("button", { name: "Today", exact: true }).click();
       await expect(page.getByText("Today practice hub")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Mid selected" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Entry practice in progress" })).toBeVisible();
       await expect(page.getByText("You selected Mid. This Entry group is still in progress.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Resume Entry group" })).toBeVisible();
       page.once("dialog", (dialog) => dialog.accept());
