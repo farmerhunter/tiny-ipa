@@ -434,7 +434,8 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("Ready when you are")).toBeVisible();
       await expect(page.getByText("A short listening group is ready.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Start Entry group" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "No recent mistakes to review" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "No older mistakes to review" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "End this group and start fresh Entry" })).toHaveCount(0);
       await attachScreenshot(page, "m10-today-start");
     });
 
@@ -463,22 +464,22 @@ test.describe("M10 UX walkthrough evidence", () => {
         timeout: 4_000,
       });
       await expect(page.getByText("1 / 2 correct")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Misses from this group" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review misses from this group" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review 1 recent mistake" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "This group's misses" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review this group's misses" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review 1 older mistake" })).toBeVisible();
       await attachScreenshot(page, "m10-completion-recovery-actions");
     });
 
     await test.step("Current-group review and recent review use different source copy", async () => {
-      await page.getByRole("button", { name: "Review misses from this group" }).click();
+      await page.getByRole("button", { name: "Review this group's misses" }).click();
       await expect(page.getByText("Current-group review: 1 / 1")).toBeVisible();
-      await expect(page.getByText("Reviewing misses from the group you just finished.")).toBeVisible();
+      await expect(page.getByText("Reviewing misses from the group you just finished, before older mistakes.")).toBeVisible();
       await attachScreenshot(page, "m10-current-group-review");
       await answer(page, "/ʃɪp/");
       await expect(page.getByRole("heading", { name: "Current-group review complete" })).toBeVisible();
-      await page.getByRole("button", { name: "Review 1 recent mistake" }).click();
+      await page.getByRole("button", { name: "Review 1 older mistake" }).click();
       await expect(page.getByText("Recent mistake review: 1 / 1")).toBeVisible();
-      await expect(page.getByText("Reviewing recent mistakes from earlier practice.")).toBeVisible();
+      await expect(page.getByText("Reviewing older mistakes from earlier practice.")).toBeVisible();
       await attachScreenshot(page, "m10-recent-review");
     });
 
@@ -507,19 +508,21 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
       await page.getByRole("button", { name: "Settings" }).click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-      await expect(page.getByRole("button", { name: /Mid\s+Broader word practice/ })).toBeVisible();
-      await page.getByRole("button", { name: /Mid\s+Broader word practice/ }).click();
+      await expect(page.getByText("Choose the level for the next new normal group.")).toBeVisible();
+      await expect(page.getByRole("button", { name: /Mid\s+Broader word pool/ })).toBeVisible();
+      await page.getByRole("button", { name: /Mid\s+Broader word pool/ }).click();
       await expect(page.getByText("Saved")).toBeVisible();
       await page.getByRole("button", { name: "Today", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Entry practice in progress" })).toBeVisible();
-      await expect(page.getByText("You selected Mid. This Entry group is still in progress.")).toBeVisible();
+      await expect(page.getByText("Mid is selected for your next new group. Your current Entry group stays active until you finish it or switch now.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Resume Entry group" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Switch to Mid now" })).toBeVisible();
       await attachScreenshot(page, "m10-settings-mid-pending");
     });
 
     await test.step("Intentional switch starts Mid and keeps level-specific copy visible", async () => {
       page.once("dialog", (dialog) => dialog.accept());
-      await page.getByRole("button", { name: "End this Entry group and start Mid" }).click();
+      await page.getByRole("button", { name: "Switch to Mid now" }).click();
       await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
       await expect(page.getByText("Mid practice group.")).toBeVisible();
       await expect(page.getByText("remember")).toBeVisible();
@@ -531,7 +534,7 @@ test.describe("M10 UX walkthrough evidence", () => {
       state.recentMistakeCount = 1;
       await page.goto("/");
       await expect(page.getByText("Today practice hub")).toBeVisible();
-      await page.getByRole("button", { name: "Review 1 recent mistake" }).click();
+      await page.getByRole("button", { name: "Review 1 older mistake" }).click();
       await expect(page.getByText("No recent incorrect attempts are available for review.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Start Mid group" })).toBeVisible();
       await attachScreenshot(page, "m10-recent-review-empty");

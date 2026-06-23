@@ -251,7 +251,7 @@ test.describe("M8 learner level selection walkthrough", () => {
       await expect(page.getByText("Today practice hub")).toBeVisible();
       await expect(page.getByRole("heading", { name: "Start Entry practice" })).toBeVisible();
       await expect(page.getByText("Ready when you are")).toBeVisible();
-      await expect(page.getByRole("button", { name: "No recent mistakes to review" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "No older mistakes to review" })).toBeDisabled();
       await page.getByRole("button", { name: "Start Entry group" }).click();
       await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
       await expect(page.getByText("ship")).toBeVisible();
@@ -271,10 +271,10 @@ test.describe("M8 learner level selection walkthrough", () => {
       await page.getByRole("button", { name: "Today", exact: true }).click();
       await expect(page.getByText("Today practice hub")).toBeVisible();
       await expect(page.getByRole("heading", { name: "Entry practice in progress" })).toBeVisible();
-      await expect(page.getByText("You selected Mid. This Entry group is still in progress.")).toBeVisible();
+      await expect(page.getByText("Mid is selected for your next new group. Your current Entry group stays active until you finish it or switch now.")).toBeVisible();
       await expect(page.getByRole("button", { name: "Resume Entry group" })).toBeVisible();
       page.once("dialog", (dialog) => dialog.accept());
-      await page.getByRole("button", { name: "End this Entry group and start Mid" }).click();
+      await page.getByRole("button", { name: "Switch to Mid now" }).click();
       await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
       await expect(page.getByText("Mid practice group.")).toBeVisible();
       await expect(page.getByText("remember")).toBeVisible();
