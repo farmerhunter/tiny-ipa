@@ -485,10 +485,13 @@ test.describe("M10 UX walkthrough evidence", () => {
 
     await test.step("Progress focus entry can launch and clear focused practice", async () => {
       await page.getByRole("button", { name: "Progress" }).click();
-      await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Needs practice in Entry" })).toBeVisible();
-      await expect(page.getByText("day streak")).toBeVisible();
-      await expect(page.locator(".stat-card").filter({ hasText: "day streak" }).getByText("0")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sounds to revisit in Entry" })).toBeVisible();
+      await expect(page.getByText("practice underway today")).toBeVisible();
+      await expect(page.getByText("answered items", { exact: true })).toBeVisible();
+      await expect(page.getByText("completed groups", { exact: true })).toBeVisible();
+      await expect(page.getByText("Entry has sounds ready for focused practice.")).toBeVisible();
+      await expect(page.getByText("Mid has no answered items yet. Start a group when this level is selected.")).toBeVisible();
       await page.getByRole("button", { name: "Focus /ʃ/" }).first().click();
       await expect(page.getByText("Focused group: 1 / 1")).toBeVisible();
       await expect(page.getByText("Entry focused practice for /ʃ/.")).toBeVisible();
@@ -548,6 +551,11 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
       await expect(page.getByText("Advanced/debug: manual IPA focus entry")).toBeVisible();
       await attachScreenshot(page, "m10-mobile-settings");
+      await page.getByRole("button", { name: "Progress" }).click();
+      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+      await expect(page.getByText("start today's practice")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sounds to revisit in Entry" })).toBeVisible();
+      await attachScreenshot(page, "m10-mobile-progress");
     });
   });
 });

@@ -26,8 +26,46 @@ interface Props {
 }
 
 function formatAccuracy(value: number | null): string {
-  if (value === null) return "No attempts";
+  if (value === null) return "Accuracy appears after answers";
   return `${Math.round(value * 100)}% accuracy`;
+}
+
+function todayMotivation(data: ProgressResponse): { value: string; label: string } {
+  if (data.today_completed) {
+    return { value: "Done", label: "practice completed today" };
+  }
+  if (data.today_status !== "none" || data.total_attempts > 0) {
+    return { value: "Started", label: "practice underway today" };
+  }
+  if (data.streak_days > 0) {
+    return { value: String(data.streak_days), label: "day streak" };
+  }
+  return { value: "Ready", label: "start today's practice" };
+}
+
+function activeGroupCount(stats: LevelProgressStats): number {
+  return Math.max(0, stats.normal_groups - stats.completed_normal_groups);
+}
+
+function levelProgressHint(stats: LevelProgressStats): string {
+  const activeGroups = activeGroupCount(stats);
+  if (stats.attempts === 0 && activeGroups > 0) {
+    return `${stats.label} has an active group. Answer a few items to unlock accuracy and sound signals.`;
+  }
+  if (stats.attempts === 0) {
+    return `${stats.label} has no answered items yet. Start a group when this level is selected.`;
+  }
+  if (stats.weak_phonemes.length > 0) {
+    return `${stats.label} has sounds ready for focused practice.`;
+  }
+  return `${stats.label} is looking steady so far. Keep practicing to confirm strong sounds.`;
+}
+
+function levelWeakEmptyCopy(stats: LevelProgressStats): string {
+  if (stats.attempts === 0) {
+    return `No weak sound signal yet for ${stats.label}; it appears after answered items.`;
+  }
+  return `No weak sound signal right now for ${stats.label}.`;
 }
 
 function LevelStatsSection({
@@ -44,18 +82,20 @@ function LevelStatsSection({
   return (
     <section className="level-progress-panel">
       <div className="level-progress-header">
-        <h2>{stats.label} stats</h2>
+        <h2>{stats.label} progress</h2>
         <span className="level-scope-label">{stats.label}</span>
       </div>
+      <p className="section-copy">{levelProgressHint(stats)}</p>
       <div className="level-stat-grid">
         <span>{stats.completed_normal_groups_today} completed today</span>
-        <span>{stats.normal_groups} normal groups</span>
-        <span>{stats.attempts} attempts</span>
+        <span>{stats.completed_normal_groups} completed groups</span>
+        <span>{activeGroupCount(stats)} active groups</span>
+        <span>{stats.attempts} answered items</span>
         <span>{formatAccuracy(stats.accuracy)}</span>
       </div>
       {stats.weak_phonemes.length > 0 ? (
         <>
-          <h3>Needs practice in {stats.label}</h3>
+          <h3>Sounds to revisit in {stats.label}</h3>
           <ul className="phoneme-list">
             {stats.weak_phonemes.map((p) => (
               <li key={`${stats.learner_level}-${p.phoneme}`} className="phoneme-item weak">
@@ -63,7 +103,7 @@ function LevelStatsSection({
                 <span className="phoneme-acc">
                   {Math.round(p.accuracy * 100)}% accuracy
                 </span>
-                <span className="phoneme-count">{p.attempt_count} attempts</span>
+                <span className="phoneme-count">{p.attempt_count} answered</span>
                 <button
                   className="focus-action-btn"
                   onClick={() => onFocus(p.phoneme)}
@@ -72,14 +112,14 @@ function LevelStatsSection({
                   {activeFocus.includes(p.phoneme) ? "Resume focus" : `Focus ${p.phoneme}`}
                 </button>
                 <span className="phoneme-help">
-                  Focused practice starts at the selected level in Settings.
+                  Focused practice uses the level selected in Settings.
                 </span>
               </li>
             ))}
           </ul>
         </>
       ) : (
-        <p className="section-copy">No weak phoneme signal yet for {stats.label}.</p>
+        <p className="section-copy">{levelWeakEmptyCopy(stats)}</p>
       )}
     </section>
   );
@@ -149,6 +189,13 @@ export default function ProgressPage({
   if (loading) return <main className="practice-container"><p>Loading progress…</p></main>;
   if (error && !data) return <main className="practice-container"><p className="error">Failed: {error}</p></main>;
   if (!data) return null;
+  const todayCard = todayMotivation(data);
+  const completedGroups = data.level_stats
+    ? data.level_stats.entry.completed_normal_groups + data.level_stats.mid.completed_normal_groups
+    : data.total_normal_groups;
+  const activeGroups = data.level_stats
+    ? activeGroupCount(data.level_stats.entry) + activeGroupCount(data.level_stats.mid)
+    : 0;
 
   return (
     <main className="practice-container">
@@ -181,16 +228,19 @@ export default function ProgressPage({
 
       <div className="progress-stats">
         <div className="stat-card">
-          <span className="stat-number">{data.streak_days}</span>
-          <span className="stat-label">day streak</span>
+          <span className="stat-number stat-word">{todayCard.value}</span>
+          <span className="stat-label">{todayCard.label}</span>
         </div>
         <div className="stat-card">
           <span className="stat-number">{data.total_attempts}</span>
-          <span className="stat-label">global attempts</span>
+          <span className="stat-label">answered items</span>
         </div>
         <div className="stat-card">
-          <span className="stat-number">{data.total_normal_groups}</span>
-          <span className="stat-label">normal groups</span>
+          <span className="stat-number">{completedGroups}</span>
+          <span className="stat-label">completed groups</span>
+          {activeGroups > 0 && (
+            <span className="stat-subtext">{activeGroups} active</span>
+          )}
         </div>
       </div>
 
@@ -213,9 +263,9 @@ export default function ProgressPage({
 
       {data.weak_phonemes.length > 0 && (
         <section className="phoneme-section">
-          <h2>Global needs practice</h2>
+          <h2>Sounds to revisit overall</h2>
           <p className="section-copy">
-            All-level weak sounds from your complete history. Use the Entry/Mid
+            Sounds that need more reps across your complete history. Use the Entry/Mid
             sections above when level context matters.
           </p>
           <ul className="phoneme-list">
@@ -226,7 +276,7 @@ export default function ProgressPage({
                   {Math.round(p.accuracy * 100)}% accuracy
                 </span>
                 <span className="phoneme-count">
-                  {p.attempt_count} attempts
+                  {p.attempt_count} answered
                 </span>
                 <button
                   className="focus-action-btn"
@@ -246,13 +296,13 @@ export default function ProgressPage({
 
       {data.strong_phonemes.length > 0 && (
         <section className="phoneme-section">
-          <h2>Global strong sounds</h2>
+          <h2>Sounds going well overall</h2>
           <ul className="phoneme-list">
             {data.strong_phonemes.map((p) => (
               <li key={p.phoneme} className="phoneme-item strong">
                 <span className="phoneme-symbol">{p.phoneme}</span>
                 <span className="phoneme-acc">{Math.round(p.accuracy * 100)}%</span>
-                <span className="phoneme-count">{p.attempt_count} att.</span>
+                <span className="phoneme-count">{p.attempt_count} answered</span>
               </li>
             ))}
           </ul>
@@ -260,7 +310,7 @@ export default function ProgressPage({
       )}
 
       {data.weak_phonemes.length === 0 && data.strong_phonemes.length === 0 && (
-        <p className="empty-hint">Complete some practice to see your phoneme stats.</p>
+        <p className="empty-hint">Answer a few items to see sound-level progress.</p>
       )}
     </main>
   );
