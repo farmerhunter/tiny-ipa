@@ -3,12 +3,12 @@
  * falls back to browser speechSynthesis otherwise.
  *
  * Finger-friendly, no layout shift, handles overlapping taps.
- * Shows a visible indicator when TTS fallback is active.
+ * Shows learner-visible audio source and fallback state.
  */
 
 import { useState, useEffect } from "react";
 
-type PlayStatus = "idle" | "playing" | "fallback" | "error";
+type PlayStatus = "idle" | "playing" | "tts" | "fallback" | "error";
 
 interface Props {
   audioUrl: string | null;
@@ -29,7 +29,7 @@ export function AudioButton({ audioUrl, word, disabled = false }: Props) {
   }, []);
 
   const handleClick = () => {
-    if (disabled || status === "playing" || status === "fallback") return;
+    if (disabled || isBusy(status)) return;
 
     if (audioUrl) {
       // Try static mp3 first; fall back to TTS on failure
@@ -39,21 +39,20 @@ export function AudioButton({ audioUrl, word, disabled = false }: Props) {
         setStatus,
       );
     } else {
-      playTTS(word, () => setStatus("idle"), setStatus);
+      playTTS(word, () => setStatus("tts"), setStatus);
     }
   };
 
-  const disabled_ = disabled || status === "playing" || status === "fallback";
+  const disabled_ = disabled || isBusy(status);
 
   const icon =
     status === "playing" ? "🔊" :
-    status === "fallback" ? "🔈" :
+    status === "fallback" || status === "tts" ? "🔈" :
     status === "error" ? "⚠️" :
     "🔈";
 
-  const ttsLabel = audioUrl
-    ? (status === "fallback" ? "Static audio unavailable — using TTS" : "Play audio")
-    : "Play pronunciation (TTS)";
+  const sourceLabel = getSourceLabel(audioUrl, status);
+  const actionLabel = getActionLabel(audioUrl, status);
 
   return (
     <span className="audio-btn-wrapper">
@@ -61,17 +60,17 @@ export function AudioButton({ audioUrl, word, disabled = false }: Props) {
         className="audio-btn"
         onClick={handleClick}
         disabled={disabled_}
-        aria-label={ttsLabel}
-        title={ttsLabel}
+        aria-label={actionLabel}
+        title={actionLabel}
       >
         {icon}
       </button>
-      {status === "fallback" && (
-        <span className="audio-fallback-badge" aria-live="polite">TTS</span>
-      )}
-      {status === "error" && (
-        <span className="audio-error-badge" aria-live="polite">!</span>
-      )}
+      <span
+        className={`audio-source-label ${status === "error" ? "audio-source-label--error" : ""}`}
+        aria-live="polite"
+      >
+        {sourceLabel}
+      </span>
     </span>
   );
 }
@@ -134,4 +133,28 @@ function playTTS(
   };
 
   speechSynthesis.speak(utterance);
+}
+
+function isBusy(status: PlayStatus) {
+  return status === "playing" || status === "fallback" || status === "tts";
+}
+
+function getActionLabel(audioUrl: string | null, status: PlayStatus) {
+  if (status === "error") return "Audio unavailable";
+  if (audioUrl) {
+    return status === "fallback"
+      ? "Static audio unavailable; using browser voice"
+      : "Play recorded pronunciation";
+  }
+  return status === "tts" ? "Playing browser voice" : "Play pronunciation with browser voice";
+}
+
+function getSourceLabel(audioUrl: string | null, status: PlayStatus) {
+  if (status === "error") return "Audio unavailable";
+  if (audioUrl) {
+    if (status === "playing") return "Playing recorded audio";
+    if (status === "fallback") return "Recorded audio unavailable; using browser voice";
+    return "Recorded audio";
+  }
+  return status === "tts" ? "Playing browser voice" : "Browser voice";
 }

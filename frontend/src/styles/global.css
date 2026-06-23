@@ -145,29 +145,21 @@ button {
 .audio-btn-wrapper {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   vertical-align: middle;
 }
 
-.audio-fallback-badge {
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #e65100;
-  background: #fff3e0;
-  border-radius: 3px;
-  padding: 1px 4px;
-  margin-left: 2px;
-  line-height: 1.2;
+.audio-source-label {
+  max-width: 190px;
+  color: #555;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
 }
 
-.audio-error-badge {
-  font-size: 0.6rem;
-  font-weight: 700;
+.audio-source-label--error {
   color: #c62828;
-  background: #ffebee;
-  border-radius: 3px;
-  padding: 1px 4px;
-  margin-left: 2px;
-  line-height: 1.2;
 }
 
 .question-prompt {
