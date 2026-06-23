@@ -32,12 +32,12 @@ const LEVEL_OPTIONS: Array<{
   {
     value: "entry",
     title: "Entry",
-    description: "Starter practice with the current core word set.",
+    description: "Starter word pool for the next new normal group.",
   },
   {
     value: "mid",
     title: "Mid",
-    description: "Broader word practice for longer words; translations and audio are still under review.",
+    description: "Broader word pool for the next new normal group.",
   },
 ];
 
@@ -162,8 +162,8 @@ export default function SettingsPage({
         <section className="settings-panel">
           <h2>Practice level</h2>
           <p className="section-copy">
-            Choose the word pool for the next new normal group. Your current group
-            stays unchanged until you finish it.
+            Choose the level for the next new normal group. If a group is already
+            in progress, Today will keep it active and offer an explicit switch.
           </p>
           <div className="level-choice-list">
             {LEVEL_OPTIONS.map((option) => (

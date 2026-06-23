@@ -66,10 +66,10 @@ function groupReason(session: TodayResponse): string {
     return `${learnerLevelLabel(session)} focused practice for ${focus}.`;
   }
   if (session.source_scope === "current_group") {
-    return "Reviewing misses from the group you just finished.";
+    return "Reviewing misses from the group you just finished, before older mistakes.";
   }
   if (session.source_scope === "recent_global") {
-    return "Reviewing recent mistakes from earlier practice.";
+    return "Reviewing older mistakes from earlier practice.";
   }
   if (session.source_scope === "normal_next") {
     return `A new ${learnerLevelLabel(session)} practice group.`;
@@ -89,9 +89,9 @@ function buildFocusHint(targetPhonemes: string[]): string {
 
 function currentReviewActionLabel(session: TodayResponse): string {
   if (session.group_type === "mistake_review") {
-    return "Review misses from this review";
+    return "Review this review's misses";
   }
-  return "Review misses from this group";
+  return "Review this group's misses";
 }
 
 function nextNormalActionLabel(session: TodayResponse): string {
@@ -127,8 +127,8 @@ function todayHubCopy(hasActiveGroup: boolean): string {
 
 function recentReviewLabel(session: TodayResponse): string {
   const count = session.recent_mistake_count ?? 0;
-  if (count <= 0) return "No recent mistakes to review";
-  return count === 1 ? "Review 1 recent mistake" : `Review ${count} recent mistakes`;
+  if (count <= 0) return "No older mistakes to review";
+  return count === 1 ? "Review 1 older mistake" : `Review ${count} older mistakes`;
 }
 
 export default function TodayPractice({
@@ -247,8 +247,8 @@ export default function TodayPractice({
     const isPending = Boolean(session.pending_level_change);
     const ok = window.confirm(
       isPending
-        ? `End this ${learnerLevelLabel(session)} group and start ${selectedLevelLabel(session)}?`
-        : `End this ${learnerLevelLabel(session)} group and start a fresh ${selectedLevelLabel(session)} group?`,
+        ? `End this ${learnerLevelLabel(session)} group and switch to ${selectedLevelLabel(session)} now?`
+        : `End this ${learnerLevelLabel(session)} group and start another ${selectedLevelLabel(session)} group?`,
     );
     if (!ok) return;
     setActionLoading("abandon-next");
@@ -376,6 +376,7 @@ export default function TodayPractice({
       session.group_id && session.items.length > 0 && session.status !== "idle",
     );
     const pendingLevelChange = hasActiveGroup && Boolean(session.pending_level_change);
+    const showSwitchAction = hasActiveGroup && pendingLevelChange;
     return (
       <main className="practice-container">
         <section className="today-hub">
@@ -395,7 +396,7 @@ export default function TodayPractice({
                 </span>
                 {pendingLevelChange && (
                   <p className="pending-copy">
-                    You selected {selectedLevelLabel(session)}. This {learnerLevelLabel(session)} group is still in progress.
+                    {selectedLevelLabel(session)} is selected for your next new group. Your current {learnerLevelLabel(session)} group stays active until you finish it or switch now.
                   </p>
                 )}
               </>
@@ -436,7 +437,7 @@ export default function TodayPractice({
                   ? resumeActionLabel(session)
                   : session.action_label ?? `Start ${selectedLevelLabel(session)} group`}
             </button>
-            {hasActiveGroup && (
+            {showSwitchAction && (
               <button
                 className="secondary-action-btn"
                 onClick={() => void handleAbandonAndNext()}
@@ -444,9 +445,7 @@ export default function TodayPractice({
               >
                 {actionLoading === "abandon-next"
                   ? "Loading…"
-                  : pendingLevelChange
-                    ? `End this ${learnerLevelLabel(session)} group and start ${selectedLevelLabel(session)}`
-                    : `End this group and start fresh ${selectedLevelLabel(session)}`}
+                  : `Switch to ${selectedLevelLabel(session)} now`}
               </button>
             )}
             <button
@@ -489,7 +488,7 @@ export default function TodayPractice({
           </p>
           {wrongResults.length > 0 ? (
             <section className="summary-section">
-              <h3>Misses from this group</h3>
+              <h3>This group's misses</h3>
               <ul className="summary-list">
                 {wrongResults.map((r) => (
                   <li key={r.sessionItemId} className="summary-wrong">
@@ -517,7 +516,7 @@ export default function TodayPractice({
             <section className="summary-section focus-choice-panel">
               <h3>Focus a weak sound next</h3>
               <p className="section-copy">
-                Start a focused group weighted toward one of the sounds missed here.
+                Start a focused group weighted toward one of the sounds missed in this group.
               </p>
               <div className="phoneme-chip-list">
                 {focusSuggestions.map((phoneme) => (
