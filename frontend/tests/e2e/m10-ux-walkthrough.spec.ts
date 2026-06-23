@@ -438,7 +438,7 @@ test.describe("M10 UX walkthrough evidence", () => {
       await attachScreenshot(page, "m10-today-start");
     });
 
-    await test.step("Wrong answer feedback remains inspectable before auto-advance", async () => {
+    await test.step("Wrong answer feedback remains inspectable until learner continues", async () => {
       await page.getByRole("button", { name: "Start Entry group" }).click();
       await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
       await expect(page.getByRole("button", { name: "Play pronunciation (TTS)" })).toBeVisible();
@@ -447,10 +447,14 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("You picked")).toBeVisible();
       await expect(page.getByText("Correct IPA")).toBeVisible();
       await expect(page.getByText("Target sound")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Play pronunciation (TTS)" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
       await attachScreenshot(page, "m10-wrong-answer-feedback");
-      await expect(page.getByRole("button", { name: "Select /θɪn/" })).toBeVisible({
-        timeout: 6_000,
-      });
+      await page.waitForTimeout(1_800);
+      await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
+      await expect(page.getByText("Not quite")).toBeVisible();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await expect(page.getByRole("button", { name: "Select /θɪn/" })).toBeVisible();
     });
 
     await test.step("Completion summary exposes current-group recovery and next choices", async () => {

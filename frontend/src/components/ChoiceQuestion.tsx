@@ -28,9 +28,10 @@ function buildFocusHint(targetPhonemes: string[]): string {
 interface Props {
   item: TodayItem;
   onResult: (result: ChoiceResult) => void;
+  onContinue?: () => void;
 }
 
-export function ChoiceQuestion({ item, onResult }: Props) {
+export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -138,6 +139,15 @@ export function ChoiceQuestion({ item, onResult }: Props) {
                 <strong>{item.target_phonemes.join(" ") || "IPA contrast"}</strong>
               </div>
               <p className="focus-hint">{buildFocusHint(item.target_phonemes)}</p>
+              {onContinue && (
+                <button
+                  className="feedback-continue-btn"
+                  onClick={onContinue}
+                  type="button"
+                >
+                  Continue
+                </button>
+              )}
             </div>
           )}
         </div>

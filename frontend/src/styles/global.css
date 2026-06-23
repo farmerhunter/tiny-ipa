@@ -280,6 +280,21 @@ button {
   font-size: 0.85rem;
 }
 
+.feedback-continue-btn {
+  background: #1f6fb2;
+  border: 1px solid #174f80;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  margin-top: 4px;
+  padding: 10px 16px;
+  width: 100%;
+}
+
+.feedback-continue-btn:hover {
+  background: #174f80;
+}
+
 /* ---------------------------------------------------------------------------
  * Summary
  * --------------------------------------------------------------------------- */
