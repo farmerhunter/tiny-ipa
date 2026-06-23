@@ -553,7 +553,7 @@ test.describe("M10 UX walkthrough evidence", () => {
       await attachScreenshot(page, "m10-mobile-today");
       await page.getByRole("button", { name: "Settings" }).click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-      await expect(page.getByText("Advanced/debug: manual IPA focus entry")).toBeVisible();
+      await expect(page.getByText("Manual IPA focus entry")).toBeVisible();
       await attachScreenshot(page, "m10-mobile-settings");
       await page.getByRole("button", { name: "Progress" }).click();
       await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();

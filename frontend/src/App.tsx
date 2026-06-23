@@ -21,7 +21,7 @@ function App() {
   if (checking) {
     return (
       <main className="practice-container">
-        <h1>Tiny IPA</h1>
+        <h1>小音标</h1>
         <p>Connecting to backend…</p>
       </main>
     );
@@ -30,7 +30,7 @@ function App() {
   if (!backendReady) {
     return (
       <main className="practice-container">
-        <h1>Tiny IPA</h1>
+        <h1>小音标</h1>
         <p style={{ color: "#c00" }}>
           Cannot reach backend. Make sure it is running on port 8010.
         </p>
@@ -39,7 +39,17 @@ function App() {
   }
 
   return (
-    <div>
+    <div className="app-shell">
+      <header className="app-brand" aria-label="小音标">
+        <div className="brand-mark" aria-hidden="true">小</div>
+        <div className="brand-copy">
+          <strong>小音标</strong>
+          <span>每天几分钟，把声音和 IPA 对上号。</span>
+        </div>
+        <button className="login-placeholder" type="button" disabled>
+          登录
+        </button>
+      </header>
       <nav className="nav-bar">
         <button className={`nav-tab ${page === "today" ? "nav-active" : ""}`}
           onClick={() => setPage("today")}>Today</button>
