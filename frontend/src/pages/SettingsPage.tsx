@@ -160,6 +160,14 @@ export default function SettingsPage({
         </label>
 
         <section className="settings-panel">
+          <div className="account-box">
+            <div className="account-icon" aria-hidden="true">人</div>
+            <div>
+              <strong>登录后同步练习</strong>
+              <span>账号入口暂未启用；后续可用于同步进度和错题。</span>
+            </div>
+          </div>
+
           <h2>Practice level</h2>
           <p className="section-copy">
             Choose the level for the next new normal group. If a group is already
@@ -201,7 +209,7 @@ export default function SettingsPage({
         </section>
 
         <details className="advanced-focus">
-          <summary>Advanced/debug: manual IPA focus entry</summary>
+          <summary>Manual IPA focus entry</summary>
           <label className="setting-row setting-row-stacked">
             <span>Comma-separated IPA symbols</span>
             <input
