@@ -47,6 +47,9 @@
 11. [M9 UK Accent Compare and Specialty Practice Contract](11-m9-accent-specialty-contract.md)
     定义 M9 的 UK 对照、主口音、判题/统计、音频、specialty practice 与下游质量 gate。
 
+12. [M9 UK-Ready Content Subset and Accent Coverage Report](12-m9-uk-ready-content-report.md)
+    记录 #196 的 UK-ready 内容子集、口音差异、minimal-pair 候选、target-phoneme 覆盖与内容质量 caveat。
+
 ## 工程随笔
 
 1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)
