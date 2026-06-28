@@ -14,14 +14,9 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 from import_words import import_words  # noqa: E402
-from app.main import app  # noqa: E402
+
 from app.db import get_connection  # noqa: E402
-from app.services.db_store import (  # noqa: E402
-    create_attempt,
-    count_phonemes,
-    get_session_items,
-    get_word_by_id,
-)
+from app.main import app  # noqa: E402
 from app.services.progress import _compute_mastery, update_phoneme_stats  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -120,6 +115,48 @@ class TestAttemptRoute:
         data = resp.json()
         assert data["is_correct"] is False
         assert data["correct_answer"] == item["display_ipa"]
+
+    def test_uk_comparison_ipa_is_not_accepted_for_us_session(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE words
+            SET ipa_uk = '/ʃɪp-uk/', phoneme_tags_uk = '["/ʃ/", "/ɪ/", "/p/"]'
+            WHERE id = 'ship'
+            """
+        )
+        conn.execute("UPDATE settings SET show_accent_compare = 1 WHERE user_id = 'default'")
+        conn.commit()
+        conn.close()
+
+        today = client.post("/api/practice/next-normal").json()
+        item = next(item for item in today["items"] if item["word_id"] == "ship")
+        assert item["display_ipa"] == "/ʃɪp/"
+        assert item["accent_compare"]["comparison"]["ipa"] == "/ʃɪp-uk/"
+
+        resp = client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": "/ʃɪp-uk/",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_correct"] is False
+        assert data["correct_answer"] == "/ʃɪp/"
+
+        conn = get_connection(seeded_db)
+        row = conn.execute(
+            """
+            SELECT selected_answer, correct_answer, is_correct, primary_accent
+            FROM attempts
+            WHERE session_item_id = ?
+            """,
+            (item["session_item_id"],),
+        ).fetchone()
+        conn.close()
+        assert row["selected_answer"] == "/ʃɪp-uk/"
+        assert row["correct_answer"] == "/ʃɪp/"
+        assert row["is_correct"] == 0
+        assert row["primary_accent"] == "US"
 
     def test_attempt_persisted(self, client, seeded_db):
         item = _get_first_item(client)
@@ -248,10 +285,11 @@ class TestAttemptRoute:
         ).fetchall()
         conn.close()
 
-        assert [(row["primary_accent"], row["attempt_count"], row["correct_count"]) for row in rows] == [
-            ("UK", 1, 0),
-            ("US", 7, 7),
+        stats_summary = [
+            (row["primary_accent"], row["attempt_count"], row["correct_count"])
+            for row in rows
         ]
+        assert stats_summary == [("UK", 1, 0), ("US", 7, 7)]
 
     def test_last_wrong_at_preserved_after_correct(self, client, seeded_db):
         """After wrong→correct, last_wrong_at should persist, not be cleared."""

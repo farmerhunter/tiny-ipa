@@ -246,6 +246,65 @@ class TestTodayPersistence:
             # display_ipa should match ipa_us
             assert item["display_ipa"] == w.ipa_us
 
+    def test_accent_compare_hidden_when_setting_off(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE words
+            SET ipa_uk = '/ʃɪp-uk/', phoneme_tags_uk = '["/ʃ/", "/ɪ/", "/p/"]'
+            WHERE id = 'ship'
+            """
+        )
+        conn.execute("UPDATE settings SET show_accent_compare = 0 WHERE user_id = 'default'")
+        conn.commit()
+        conn.close()
+
+        data = client.post("/api/practice/next-normal").json()
+        assert all("accent_compare" not in item for item in data["items"])
+        ship = next(item for item in data["items"] if item["word_id"] == "ship")
+        assert ship["display_ipa"] == "/ʃɪp/"
+        assert "/ʃɪp-uk/" not in ship["question"]["choices"]
+
+    def test_accent_compare_shown_for_eligible_rows_only(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE words
+            SET ipa_uk = '/ʃɪp-uk/', phoneme_tags_uk = '["/ʃ/", "/ɪ/", "/p/"]'
+            WHERE id = 'ship'
+            """
+        )
+        conn.execute("UPDATE words SET phoneme_tags_uk = NULL WHERE id = 'cat'")
+        conn.execute("UPDATE settings SET show_accent_compare = 1 WHERE user_id = 'default'")
+        conn.commit()
+        conn.close()
+
+        data = client.post("/api/practice/next-normal").json()
+        ship = next(item for item in data["items"] if item["word_id"] == "ship")
+        cat = next(item for item in data["items"] if item["word_id"] == "cat")
+
+        assert ship["display_ipa"] == "/ʃɪp/"
+        assert ship["target_phonemes"] == ["/ʃ/", "/ɪ/", "/p/"]
+        assert ship["accent_compare"] == {
+            "enabled": True,
+            "primary": {
+                "accent": "US",
+                "label": "American sound",
+                "ipa": "/ʃɪp/",
+            },
+            "comparison": {
+                "accent": "UK",
+                "label": "British note",
+                "ipa": "/ʃɪp-uk/",
+                "phoneme_tags": ["/ʃ/", "/ɪ/", "/p/"],
+                "review_note": (
+                    "Display-only comparison. Your answer is still graded against "
+                    "the American IPA."
+                ),
+            },
+        }
+        assert "accent_compare" not in cat
+
     def test_disabled_words_not_scheduled(self, client, seeded_db):
         # Mark one word as disabled and verify it's excluded.
         conn = get_connection(seeded_db)

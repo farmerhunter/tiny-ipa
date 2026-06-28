@@ -1,9 +1,7 @@
 /**
  * SettingsPage — display and edit user settings.
  *
- * Only exposes MVP-supported controls.  Future settings (UK accent,
- * reveal_first, accent compare) are intentionally hidden until the practice
- * flow supports them.
+ * Only exposes learner-supported controls. UK remains comparison-only in M9.
  */
 
 import { useEffect, useState } from "react";
@@ -150,6 +148,15 @@ export default function SettingsPage({
         </label>
 
         <label className="setting-row">
+          <span>
+            Accent comparison
+            <small>Show British notes after answering</small>
+          </span>
+          <input type="checkbox" checked={settings.show_accent_compare}
+            onChange={e => update({ show_accent_compare: e.target.checked })} />
+        </label>
+
+        <label className="setting-row">
           <span>Review strength</span>
           <select value={settings.review_strength}
             onChange={e => update({ review_strength: e.target.value })}>
@@ -261,10 +268,6 @@ export default function SettingsPage({
         <label className="setting-row">
           <span>Practice mode</span>
           <select value={settings.practice_mode} … />
-        </label>
-        <label className="setting-row">
-          <span>Show accent compare</span>
-          <input type="checkbox" checked={settings.show_accent_compare} … />
         </label>
         ---- */}
       </div>
