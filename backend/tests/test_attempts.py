@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -184,6 +185,73 @@ class TestAttemptRoute:
         assert len(rows) > 0
         for r in rows:
             assert r["primary_accent"] == "US"
+
+    def test_uk_session_attempt_updates_only_uk_phoneme_stats(self, client, seeded_db):
+        """A lower-level UK session writes UK stats without touching US stats."""
+        conn = get_connection(seeded_db)
+        session_id = "uk-session"
+        item_id = f"{session_id}_item_001"
+        conn.execute(
+            """
+            INSERT INTO daily_sessions (
+                id, user_id, session_date, primary_accent, status, created_at,
+                group_index, group_type, learner_level
+            ) VALUES (?, 'default', '2026-06-28', 'UK', 'in_progress',
+                '2026-06-28T10:00:00Z', 1, 'normal', 'entry')
+            """,
+            (session_id,),
+        )
+        conn.execute(
+            """
+            INSERT INTO session_items (
+                id, session_id, word_id, order_index, target_phonemes,
+                question_type, status
+            ) VALUES (?, ?, 'ship', 0, ?, 'choose_ipa', 'pending')
+            """,
+            (item_id, session_id, json.dumps(["/ʃ/"])),
+        )
+        conn.execute(
+            """
+            INSERT INTO phoneme_stats (
+                user_id, primary_accent, phoneme_id, attempt_count, correct_count,
+                last_attempt_at, mastery_status
+            ) VALUES ('default', 'US', '/ʃ/', 7, 7, '2026-06-27T10:00:00Z', 'mastered')
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.post("/api/attempt", json={
+            "session_item_id": item_id,
+            "selected_answer": "/wrong/",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_correct"] is False
+        assert data["updated_phonemes"] == [
+            {
+                "phoneme": "/ʃ/",
+                "attempt_count": 1,
+                "correct_count": 0,
+                "mastery_status": "new",
+            }
+        ]
+
+        conn = get_connection(seeded_db)
+        rows = conn.execute(
+            """
+            SELECT primary_accent, attempt_count, correct_count
+            FROM phoneme_stats
+            WHERE user_id = 'default' AND phoneme_id = '/ʃ/'
+            ORDER BY primary_accent
+            """
+        ).fetchall()
+        conn.close()
+
+        assert [(row["primary_accent"], row["attempt_count"], row["correct_count"]) for row in rows] == [
+            ("UK", 1, 0),
+            ("US", 7, 7),
+        ]
 
     def test_last_wrong_at_preserved_after_correct(self, client, seeded_db):
         """After wrong→correct, last_wrong_at should persist, not be cleared."""
