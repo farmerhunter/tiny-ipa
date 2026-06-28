@@ -11,6 +11,7 @@ from app.services.sessions import (
     build_minimal_pair_group_response,
     build_next_normal_group_response,
     build_recent_mistake_review_response,
+    build_target_phoneme_group_response,
     build_today_response,
 )
 
@@ -54,6 +55,23 @@ def minimal_pair_group():
     """Create or resume a confusing-sound comparison specialty group."""
     with get_db() as conn:
         return build_minimal_pair_group_response(conn)
+
+
+@router.post("/practice/target-phoneme")
+async def target_phoneme_group(request: Request):
+    """Create or resume an intentional chosen-sound specialty group."""
+    body = await request.json()
+    phoneme = body.get("phoneme")
+    if not isinstance(phoneme, str) or not phoneme.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "INVALID_TARGET_PHONEME",
+                "detail": "phoneme must be one approved sound string.",
+            },
+        )
+    with get_db() as conn:
+        return build_target_phoneme_group_response(conn, phoneme=phoneme.strip())
 
 
 @router.post("/review/current-group")

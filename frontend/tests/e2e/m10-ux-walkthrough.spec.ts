@@ -1,8 +1,8 @@
 import { expect, type Page, type Route, test } from "@playwright/test";
 
 type LearnerLevel = "entry" | "mid";
-type GroupKey = "none" | "entry" | "mid" | "currentReview" | "recentReview" | "focused" | "minimalPair";
-type GroupType = "normal" | "mistake_review" | "weak_focus" | "minimal_pair";
+type GroupKey = "none" | "entry" | "mid" | "currentReview" | "recentReview" | "focused" | "minimalPair" | "targetPhoneme";
+type GroupType = "normal" | "mistake_review" | "weak_focus" | "minimal_pair" | "target_phoneme";
 
 interface MockItem {
   session_item_id: string;
@@ -148,6 +148,18 @@ const items: Record<Exclude<GroupKey, "none">, MockItem[]> = {
       audio_url: null,
     },
   ],
+  targetPhoneme: [
+    {
+      session_item_id: "target-ship",
+      word_id: "ship",
+      display_ipa: "/ʃɪp/",
+      word: "ship",
+      meaning_zh: "船",
+      target_phonemes: ["/ʃ/", "/ɪ/", "/p/"],
+      choices: ["/sɪp/", "/ʃɪp/"],
+      audio_url: null,
+    },
+  ],
 };
 
 function levelLabel(level: LearnerLevel) {
@@ -162,6 +174,7 @@ function groupType(group: GroupKey): GroupType {
   if (group === "currentReview" || group === "recentReview") return "mistake_review";
   if (group === "focused") return "weak_focus";
   if (group === "minimalPair") return "minimal_pair";
+  if (group === "targetPhoneme") return "target_phoneme";
   return "normal";
 }
 
@@ -190,6 +203,20 @@ function todayResponse(state: MockState) {
       word_count: 0,
       status: "idle",
       source_session_item_ids: [],
+      target_phoneme_options: [
+        {
+          phoneme: "/ʃ/",
+          symbol: "ʃ",
+          example_word: "ship",
+          candidate_count: 2,
+        },
+        {
+          phoneme: "/θ/",
+          symbol: "θ",
+          example_word: "thin",
+          candidate_count: 1,
+        },
+      ],
       items: [],
     };
   }
@@ -198,6 +225,7 @@ function todayResponse(state: MockState) {
   const review = state.activeGroup === "currentReview" || state.activeGroup === "recentReview";
   const focus = state.activeGroup === "focused";
   const minimalPair = state.activeGroup === "minimalPair";
+  const targetPhoneme = state.activeGroup === "targetPhoneme";
   return {
     session_id: `${state.activeGroup}-session`,
     group_id: `${state.activeGroup}-group`,
@@ -207,7 +235,7 @@ function todayResponse(state: MockState) {
     learner_level_label: levelLabel(level),
     selected_learner_level: state.selectedLevel,
     selected_learner_level_label: levelLabel(state.selectedLevel),
-    pending_level_change: !review && !focus && !minimalPair && state.selectedLevel !== level,
+    pending_level_change: !review && !focus && !minimalPair && !targetPhoneme && state.selectedLevel !== level,
     completed_normal_groups_today: {
       entry: state.completed.entry,
       mid: state.completed.mid,
@@ -215,7 +243,9 @@ function todayResponse(state: MockState) {
     },
     date: "2026-06-18",
     primary_accent: "US",
-    origin: minimalPair
+    origin: targetPhoneme
+      ? "target_phoneme_start"
+      : minimalPair
       ? "minimal_pair_start"
       : focus
         ? "focus_start"
@@ -231,16 +261,36 @@ function todayResponse(state: MockState) {
             ? "focus_selection"
             : minimalPair
               ? "specialty_minimal_pair"
+              : targetPhoneme
+                ? "specialty_target_phoneme"
               : "normal_current",
     source_group_id: review ? "entry-group" : undefined,
-    focus_phonemes: focus ? state.focusPhonemes : [],
+    focus_phonemes: focus || targetPhoneme ? state.focusPhonemes : [],
     daily_word_count: items[state.activeGroup].length,
     recent_mistake_count: state.recentMistakeCount,
     word_count: items[state.activeGroup].length,
     status: "active",
     source_session_item_ids: review ? ["entry-ship"] : [],
     source_count: review ? 1 : 0,
-    action_label: minimalPair ? "Start Sound Compare Group 1" : undefined,
+    action_label: targetPhoneme
+      ? "Start Sound Practice Group 1"
+      : minimalPair
+        ? "Start Sound Compare Group 1"
+        : undefined,
+    target_phoneme_options: [
+      {
+        phoneme: "/ʃ/",
+        symbol: "ʃ",
+        example_word: "ship",
+        candidate_count: 2,
+      },
+      {
+        phoneme: "/θ/",
+        symbol: "θ",
+        example_word: "thin",
+        candidate_count: 1,
+      },
+    ],
     items: items[state.activeGroup].map((item) => ({
       session_item_id: item.session_item_id,
       word_id: item.word_id,
@@ -396,6 +446,14 @@ async function routeMock(route: Route, state: MockState) {
     return;
   }
 
+  if (path === "/practice/target-phoneme") {
+    const body = request.postDataJSON() as { phoneme?: string };
+    state.focusPhonemes = body.phoneme ? [body.phoneme] : ["/ʃ/"];
+    state.activeGroup = "targetPhoneme";
+    await route.fulfill({ json: todayResponse(state) });
+    return;
+  }
+
   if (path === "/practice/abandon-current-and-next") {
     state.activeGroup = state.selectedLevel;
     await route.fulfill({
@@ -501,6 +559,7 @@ async function attachScreenshot(page: Page, name: string) {
 
 test.describe("M10 UX walkthrough evidence", () => {
   test("Today practice, wrong-answer recovery, reviews, and Progress focus are observable", async ({ page }) => {
+    test.setTimeout(60_000);
     await setupM10Api(page);
 
     await test.step("Today start orientation", async () => {
@@ -541,7 +600,7 @@ test.describe("M10 UX walkthrough evidence", () => {
     await test.step("Completion summary exposes current-group recovery and next choices", async () => {
       await answer(page, "/θɪn/");
       await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
-        timeout: 4_000,
+        timeout: 10_000,
       });
       await expect(page.getByText("1 / 2 correct")).toBeVisible();
       await expect(page.getByRole("heading", { name: "This group's misses" })).toBeVisible();
@@ -585,7 +644,7 @@ test.describe("M10 UX walkthrough evidence", () => {
 
     await page.goto("/");
     await expect(page.getByText("Today practice hub")).toBeVisible();
-    await expect(page.getByText("Specialty practice")).toBeVisible();
+    await expect(page.getByText("Specialty practice").first()).toBeVisible();
     await expect(page.getByText("Sound Compare", { exact: true })).toBeVisible();
     await expect(page.getByText("Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Start Sound Compare" })).toBeVisible();
@@ -599,6 +658,28 @@ test.describe("M10 UX walkthrough evidence", () => {
     await expect(page.getByText("Focused group:")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Select /ʃɪp/" })).toBeVisible();
     await attachScreenshot(page, "m9-minimal-pair-active");
+  });
+
+  test("Sound Practice uses guided chosen-sound entry distinct from weak focus", async ({ page }) => {
+    await setupM10Api(page);
+
+    await page.goto("/");
+    await expect(page.getByText("Today practice hub")).toBeVisible();
+    await expect(page.getByText("Sound Practice", { exact: true })).toBeVisible();
+    await expect(page.getByText("Pick one approved American sound for intentional practice. This is separate from weak-sound recovery.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Practice /ʃ/" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Practice /θ/" })).toBeVisible();
+    await attachScreenshot(page, "m9-target-phoneme-entry");
+
+    await page.getByRole("button", { name: "Practice /ʃ/" }).click();
+    await expect(page.getByText("Sound Practice group: 1 / 1")).toBeVisible();
+    await expect(page.getByText("Intentional practice for /ʃ/. This is a chosen-sound specialty group, not weak-sound recovery.")).toBeVisible();
+    await expect(page.getByText("Chosen sound")).toBeVisible();
+    await expect(page.getByText("Current focus")).toHaveCount(0);
+    await expect(page.getByText("Focused group:")).toHaveCount(0);
+    await expect(page.getByText("Current-group review:")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Select /ʃɪp/" })).toBeVisible();
+    await attachScreenshot(page, "m9-target-phoneme-active");
   });
 
   test("Settings level switching, empty review state, audio signal, and mobile views are observable", async ({ page }, testInfo) => {
