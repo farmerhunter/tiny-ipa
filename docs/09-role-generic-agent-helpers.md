@@ -10,6 +10,19 @@ fast REST-based reads, `needs:*` labels, and local audit scripts can make a
 GitHub Project feel like a lightweight agent scheduler. The next step is to make
 that scheduler role-generic before adding more write automation.
 
+## Dogfood Evidence
+
+The helper migration-readiness evaluation is preserved in closed issue
+[#146](https://github.com/farmerhunter/tiny-ipa/issues/146). Treat it as
+historical evidence for the staged-migration decision, blocker analysis, and
+Tiny IPA-local exclusions, not as a live source of truth for current helper
+state.
+
+Current reusable workflow rules should live in the harvested practices, skills,
+and the stable docs in this repository. New migration or portability decisions
+should be recorded in fresh issues rather than reopening #146 as an active
+tracking surface.
+
 ## Design Constraints and Principles
 
 The helper model is a lightweight multi-agent scheduler built on GitHub under
