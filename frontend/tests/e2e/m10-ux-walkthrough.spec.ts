@@ -13,6 +13,21 @@ interface MockItem {
   target_phonemes: string[];
   choices: string[];
   audio_url: string | null;
+  accent_compare?: {
+    enabled: boolean;
+    primary: {
+      accent: "US";
+      label: string;
+      ipa: string;
+    };
+    comparison: {
+      accent: "UK";
+      label: string;
+      ipa: string;
+      phoneme_tags: string[];
+      review_note: string;
+    };
+  };
 }
 
 interface MockState {
@@ -22,6 +37,7 @@ interface MockState {
   focusPhonemes: string[];
   recentMistakeCount: number;
   recentReviewEmpty: boolean;
+  showAccentCompare: boolean;
 }
 
 const items: Record<Exclude<GroupKey, "none">, MockItem[]> = {
@@ -35,6 +51,21 @@ const items: Record<Exclude<GroupKey, "none">, MockItem[]> = {
       target_phonemes: ["/ʃ/"],
       choices: ["/sɪp/", "/ʃɪp/"],
       audio_url: null,
+      accent_compare: {
+        enabled: true,
+        primary: {
+          accent: "US",
+          label: "American sound",
+          ipa: "/ʃɪp/",
+        },
+        comparison: {
+          accent: "UK",
+          label: "British note",
+          ipa: "/ʃɪp-uk/",
+          phoneme_tags: ["/ʃ/", "/ɪ/", "/p/"],
+          review_note: "Display-only comparison. Your answer is still graded against the American IPA.",
+        },
+      },
     },
     {
       session_item_id: "entry-thin",
@@ -185,6 +216,7 @@ function todayResponse(state: MockState) {
       meaning_zh: item.meaning_zh,
       audio_url: item.audio_url,
       target_phonemes: item.target_phonemes,
+      accent_compare: state.showAccentCompare ? item.accent_compare : undefined,
       question: {
         type: "ipa_choice",
         prompt: "Which IPA matches this word?",
@@ -199,7 +231,7 @@ function settingsResponse(state: MockState) {
     primary_accent: "US",
     daily_word_count: 2,
     show_translation: true,
-    show_accent_compare: false,
+    show_accent_compare: state.showAccentCompare,
     practice_mode: "ipa_first",
     review_strength: "normal",
     learner_level: state.selectedLevel,
@@ -271,6 +303,7 @@ async function setupM10Api(page: Page, options: Partial<MockState> = {}) {
     focusPhonemes: options.focusPhonemes ?? [],
     recentMistakeCount: options.recentMistakeCount ?? 0,
     recentReviewEmpty: options.recentReviewEmpty ?? false,
+    showAccentCompare: options.showAccentCompare ?? false,
   };
 
   await page.route("**/api/**", async (route) => {
@@ -301,9 +334,13 @@ async function routeMock(route: Route, state: MockState) {
         learner_level?: LearnerLevel;
         focus_phonemes?: string[];
         daily_word_count?: number;
+        show_accent_compare?: boolean;
       };
       if (body.learner_level) state.selectedLevel = body.learner_level;
       if (body.focus_phonemes) state.focusPhonemes = body.focus_phonemes;
+      if (typeof body.show_accent_compare === "boolean") {
+        state.showAccentCompare = body.show_accent_compare;
+      }
     }
     await route.fulfill({ json: settingsResponse(state) });
     return;
@@ -578,5 +615,31 @@ test.describe("M10 UX walkthrough evidence", () => {
     await page.getByRole("button", { name: "Play pronunciation with browser voice" }).click();
     await expect(page.getByText("Audio unavailable")).toBeVisible();
     await attachScreenshot(page, "m10-audio-unavailable-state");
+  });
+
+  test("UK comparison is settings-gated and display-only", async ({ page }) => {
+    const state = await setupM10Api(page);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Start Entry group" }).click();
+    await answer(page, "/sɪp/");
+    await expect(page.getByLabel("Accent comparison")).toHaveCount(0);
+
+    state.activeGroup = "none";
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByLabel("Accent comparison").click();
+    await expect(page.getByText("Saved")).toBeVisible();
+    await expect(page.getByText("Primary accent")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Today", exact: true }).click();
+    await page.getByRole("button", { name: "Start Entry group" }).click();
+    await answer(page, "/sɪp/");
+
+    await expect(page.getByLabel("Accent comparison")).toBeVisible();
+    await expect(page.getByText("American sound")).toBeVisible();
+    await expect(page.getByText("British note")).toBeVisible();
+    await expect(page.getByText("/ʃɪp-uk/")).toBeVisible();
+    await expect(page.getByText("Your answer is still graded against the American IPA")).toBeVisible();
+    await attachScreenshot(page, "m9-uk-comparison-note");
   });
 });

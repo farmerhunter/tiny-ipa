@@ -89,7 +89,10 @@ def build_today_response(
             source_scope="normal_current",
             focus_phonemes=existing.focus_phonemes or settings.focus_phonemes,
             selected_learner_level=selected_level,
-            action_label=f"Resume {learner_level_label(existing.learner_level)} Group {existing.group_index}",
+            action_label=(
+                f"Resume {learner_level_label(existing.learner_level)} "
+                f"Group {existing.group_index}"
+            ),
         )
 
     return _normal_empty_response(
@@ -131,7 +134,10 @@ def build_next_normal_group_response(
             source_scope="normal_current",
             focus_phonemes=existing.focus_phonemes or settings.focus_phonemes,
             selected_learner_level=settings.learner_level,
-            action_label=f"Resume {learner_level_label(existing.learner_level)} Group {existing.group_index}",
+            action_label=(
+                f"Resume {learner_level_label(existing.learner_level)} "
+                f"Group {existing.group_index}"
+            ),
         )
 
     return _create_normal_group_response(
@@ -199,7 +205,10 @@ def _create_normal_group_response(
         source_scope=source_scope,
         focus_phonemes=settings.focus_phonemes,
         selected_learner_level=settings.learner_level,
-        action_label=f"Start {learner_level_label(session.learner_level)} Group {session.group_index}",
+        action_label=(
+            f"Start {learner_level_label(session.learner_level)} "
+            f"Group {session.group_index}"
+        ),
     )
 
 
@@ -505,7 +514,10 @@ def build_focused_group_response(
             source_scope="focus_selection",
             focus_phonemes=focus_phonemes,
             selected_learner_level=settings.learner_level,
-            action_label=f"Resume {learner_level_label(existing.learner_level)} Focus Group {existing.group_index}",
+            action_label=(
+                f"Resume {learner_level_label(existing.learner_level)} "
+                f"Focus Group {existing.group_index}"
+            ),
         )
 
     group_index = get_next_session_group_index(conn, user_id, session_date, accent)
@@ -551,7 +563,10 @@ def build_focused_group_response(
         source_scope="focus_selection",
         focus_phonemes=focus_phonemes,
         selected_learner_level=settings.learner_level,
-        action_label=f"Start {learner_level_label(session.learner_level)} Focus Group {session.group_index}",
+        action_label=(
+            f"Start {learner_level_label(session.learner_level)} "
+            f"Focus Group {session.group_index}"
+        ),
     )
 
 
@@ -733,6 +748,39 @@ def learner_level_label(learner_level: Optional[str]) -> str:
     return _LEARNER_LEVEL_LABELS.get(learner_level or "entry", "Entry")
 
 
+def _uk_comparison_ready(word) -> bool:
+    return bool(
+        word.content_status != "disabled"
+        and word.ipa_us
+        and word.ipa_uk
+        and word.phoneme_tags_us
+        and word.phoneme_tags_uk
+    )
+
+
+def _build_accent_compare(word, *, enabled: bool) -> Optional[dict]:
+    if not enabled or not _uk_comparison_ready(word):
+        return None
+    return {
+        "enabled": True,
+        "primary": {
+            "accent": "US",
+            "label": "American sound",
+            "ipa": word.ipa_us,
+        },
+        "comparison": {
+            "accent": "UK",
+            "label": "British note",
+            "ipa": word.ipa_uk,
+            "phoneme_tags": word.phoneme_tags_uk,
+            "review_note": (
+                "Display-only comparison. Your answer is still graded against "
+                "the American IPA."
+            ),
+        },
+    }
+
+
 def _build_response(
     *,
     session: DailySession,
@@ -748,6 +796,8 @@ def _build_response(
     action_label: Optional[str] = None,
 ) -> dict:
     """Assemble the /api/today JSON response from session + items."""
+    settings = get_settings(conn, session.user_id)
+    show_accent_compare = bool(settings and settings.show_accent_compare)
     distractor_pool = _build_distractor_pool(conn, accent)
     item_dicts: List[dict] = []
     for item in items:
@@ -774,6 +824,12 @@ def _build_response(
                 "question": question,
             }
         )
+        accent_compare = _build_accent_compare(
+            word,
+            enabled=accent == "US" and show_accent_compare,
+        )
+        if accent_compare is not None:
+            item_dicts[-1]["accent_compare"] = accent_compare
 
     response = {
         "session_id": session.id,

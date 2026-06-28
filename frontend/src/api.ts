@@ -65,6 +65,21 @@ export interface TodayItem {
     prompt: string;
     choices: string[];
   };
+  accent_compare?: {
+    enabled: boolean;
+    primary: {
+      accent: "US";
+      label: string;
+      ipa: string;
+    };
+    comparison: {
+      accent: "UK";
+      label: string;
+      ipa: string;
+      phoneme_tags: string[];
+      review_note: string;
+    };
+  };
 }
 
 export interface TodayResponse {

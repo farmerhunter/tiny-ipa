@@ -153,6 +153,16 @@ export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
         </div>
       )}
 
+      {isAnswered && item.accent_compare && (
+        <aside className="accent-compare-note" aria-label="Accent comparison">
+          <span>{item.accent_compare.primary.label}</span>
+          <code>{item.accent_compare.primary.ipa}</code>
+          <span>{item.accent_compare.comparison.label}</span>
+          <code>{item.accent_compare.comparison.ipa}</code>
+          <p>{item.accent_compare.comparison.review_note}</p>
+        </aside>
+      )}
+
       {isError && (
         <div className="feedback feedback-error" role="alert">
           <p>⚠️ Failed to submit: {error}</p>
