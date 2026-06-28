@@ -44,6 +44,9 @@
 10. [UX Research and Practice Experience Optimization](10-ux-research-and-optimization.md)
     定义面向青少年学习者的可重复 UX 研究、视觉探索、设计审查和浏览器走查方法，用于 M10 以及未来项目复用。
 
+11. [M9 UK Accent Compare and Specialty Practice Contract](11-m9-accent-specialty-contract.md)
+    定义 M9 的 UK 对照、主口音、判题/统计、音频、specialty practice 与下游质量 gate。
+
 ## 工程随笔
 
 1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)
