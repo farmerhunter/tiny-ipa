@@ -407,6 +407,140 @@ class TestTodayPersistence:
             ("US", len(data["updated_phonemes"]))
         ]
 
+    def test_today_exposes_guided_target_phoneme_options(self, client, seeded_db):
+        data = client.get("/api/today").json()
+
+        options = data["target_phoneme_options"]
+        option_ids = {option["phoneme"] for option in options}
+        assert "/ʃ/" in option_ids
+        assert "/æ/" in option_ids
+        assert all(option["candidate_count"] > 0 for option in options)
+
+    def test_target_phoneme_group_uses_selected_approved_us_sound(
+        self, client, seeded_db
+    ):
+        data = client.post("/api/practice/target-phoneme", json={
+            "phoneme": "/ʃ/",
+        }).json()
+
+        assert "error" not in data, data
+        assert data["group_type"] == "target_phoneme"
+        assert data["origin"] == "target_phoneme_start"
+        assert data["source_scope"] == "specialty_target_phoneme"
+        assert data["focus_phonemes"] == ["/ʃ/"]
+        assert data["primary_accent"] == "US"
+        assert data["action_label"].startswith("Start Sound Practice Group")
+        assert data["items"]
+        assert all("/ʃ/" in item["target_phonemes"] for item in data["items"])
+
+        conn = get_connection(seeded_db)
+        row = conn.execute(
+            """
+            SELECT group_type, source_scope, focus_phonemes
+            FROM daily_sessions
+            WHERE id = ?
+            """,
+            (data["session_id"],),
+        ).fetchone()
+        item_rows = conn.execute(
+            """
+            SELECT target_phonemes
+            FROM session_items
+            WHERE session_id = ?
+            ORDER BY order_index
+            """,
+            (data["session_id"],),
+        ).fetchall()
+        conn.close()
+
+        assert row["group_type"] == "target_phoneme"
+        assert row["source_scope"] == "specialty_target_phoneme"
+        assert json.loads(row["focus_phonemes"]) == ["/ʃ/"]
+        assert all("/ʃ/" in json.loads(item["target_phonemes"]) for item in item_rows)
+
+    def test_target_phoneme_group_resumes_same_selected_sound(self, client, seeded_db):
+        first = client.post("/api/practice/target-phoneme", json={
+            "phoneme": "/ʃ/",
+        }).json()
+        second = client.post("/api/practice/target-phoneme", json={
+            "phoneme": "/ʃ/",
+        }).json()
+
+        assert second["origin"] == "target_phoneme_resume"
+        assert second["session_id"] == first["session_id"]
+        assert second["focus_phonemes"] == ["/ʃ/"]
+
+    def test_target_phoneme_empty_for_unapproved_or_empty_sound(
+        self, client, seeded_db
+    ):
+        data = client.post("/api/practice/target-phoneme", json={
+            "phoneme": "/not-approved/",
+        }).json()
+
+        assert data["group_type"] == "target_phoneme"
+        assert data["status"] == "empty"
+        assert data["origin"] == "target_phoneme_empty"
+        assert data["items"] == []
+        assert "selected American sound" in data["detail"]
+
+        conn = get_connection(seeded_db)
+        count = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM daily_sessions WHERE group_type = 'target_phoneme'"
+        ).fetchone()["cnt"]
+        conn.close()
+        assert count == 0
+
+    def test_target_phoneme_rejects_missing_payload(self, client):
+        resp = client.post("/api/practice/target-phoneme", json={
+            "phoneme": "",
+        })
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "INVALID_TARGET_PHONEME"
+
+    def test_target_phoneme_attempt_reuses_us_attempt_and_stats_path(
+        self, client, seeded_db
+    ):
+        group = client.post("/api/practice/target-phoneme", json={
+            "phoneme": "/ʃ/",
+        }).json()
+        item = group["items"][0]
+        resp = client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": item["display_ipa"],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_correct"] is True
+        assert data["correct_answer"] == item["display_ipa"]
+        assert data["updated_phonemes"]
+
+        conn = get_connection(seeded_db)
+        attempt = conn.execute(
+            """
+            SELECT primary_accent, question_type, correct_answer, is_correct
+            FROM attempts
+            WHERE session_item_id = ?
+            """,
+            (item["session_item_id"],),
+        ).fetchone()
+        stats = conn.execute(
+            """
+            SELECT primary_accent, COUNT(*) AS cnt
+            FROM phoneme_stats
+            GROUP BY primary_accent
+            """
+        ).fetchall()
+        conn.close()
+        assert dict(attempt) == {
+            "primary_accent": "US",
+            "question_type": "choose_ipa",
+            "correct_answer": item["display_ipa"],
+            "is_correct": 1,
+        }
+        assert [(row["primary_accent"], row["cnt"]) for row in stats] == [
+            ("US", len(data["updated_phonemes"]))
+        ]
+
     def test_disabled_words_not_scheduled(self, client, seeded_db):
         # Mark one word as disabled and verify it's excluded.
         conn = get_connection(seeded_db)
