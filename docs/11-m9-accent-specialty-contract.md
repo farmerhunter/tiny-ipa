@@ -355,4 +355,3 @@ follow-up gates, if any
 
 Final Epic integration to `main` remains Architect/user gated if subjective
 accent quality, learner comprehension, or visual fit remains unresolved.
-
