@@ -65,6 +65,21 @@ export interface TodayItem {
     prompt: string;
     choices: string[];
   };
+  accent_compare?: {
+    enabled: boolean;
+    primary: {
+      accent: "US";
+      label: string;
+      ipa: string;
+    };
+    comparison: {
+      accent: "UK";
+      label: string;
+      ipa: string;
+      phoneme_tags: string[];
+      review_note: string;
+    };
+  };
 }
 
 export interface TodayResponse {
@@ -94,6 +109,12 @@ export interface TodayResponse {
   word_count?: number;
   status: string;
   source_session_item_ids?: string[];
+  target_phoneme_options?: {
+    phoneme: string;
+    symbol: string;
+    example_word: string | null;
+    candidate_count: number;
+  }[];
   items: TodayItem[];
   source_count?: number;
   error?: string;
@@ -145,6 +166,30 @@ export async function startCurrentGroupReview(
 export async function startRecentMistakeReview(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/review/recent-mistakes`, {
     method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function startMinimalPairPractice(): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/practice/minimal-pairs`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function startTargetPhonemePractice(
+  phoneme: string,
+): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/practice/target-phoneme`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneme }),
   });
   if (!res.ok) {
     throw new Error(await normalizeApiError(res));

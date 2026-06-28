@@ -459,6 +459,36 @@ summary:focus-visible {
   font-size: 0.85rem;
 }
 
+.accent-compare-note {
+  align-items: center;
+  background: #eef3ef;
+  border: 1px solid #cddbd0;
+  border-radius: 8px;
+  color: var(--ink);
+  display: grid;
+  font-size: 0.88rem;
+  gap: 6px 10px;
+  grid-template-columns: minmax(96px, max-content) minmax(0, 1fr);
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.accent-compare-note span {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.accent-compare-note code {
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-weight: 750;
+}
+
+.accent-compare-note p {
+  color: var(--muted);
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+}
+
 .feedback-continue-btn {
   background: var(--accent);
   border: 1px solid var(--accent-dark);
@@ -638,6 +668,7 @@ summary:focus-visible {
 }
 
 .hub-status-card,
+.specialty-panel,
 .level-progress-panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -651,6 +682,16 @@ summary:focus-visible {
 .hub-status-card.pending {
   background: var(--warning-bg);
   border-color: #d4c3b4;
+}
+
+.specialty-panel {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.specialty-panel div {
+  display: grid;
+  gap: 5px;
 }
 
 .pending-copy {
@@ -925,6 +966,17 @@ summary:focus-visible {
   border-bottom: 1px solid rgba(217, 210, 199, 0.8);
   font-size: 0.95rem;
   cursor: pointer;
+}
+
+.setting-row span {
+  display: grid;
+  gap: 2px;
+}
+
+.setting-row small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .setting-row select,

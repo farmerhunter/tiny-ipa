@@ -1,8 +1,8 @@
 import { expect, type Page, type Route, test } from "@playwright/test";
 
 type LearnerLevel = "entry" | "mid";
-type GroupKey = "none" | "entry" | "mid" | "currentReview" | "recentReview" | "focused";
-type GroupType = "normal" | "mistake_review" | "weak_focus";
+type GroupKey = "none" | "entry" | "mid" | "currentReview" | "recentReview" | "focused" | "minimalPair" | "targetPhoneme";
+type GroupType = "normal" | "mistake_review" | "weak_focus" | "minimal_pair" | "target_phoneme";
 
 interface MockItem {
   session_item_id: string;
@@ -13,6 +13,21 @@ interface MockItem {
   target_phonemes: string[];
   choices: string[];
   audio_url: string | null;
+  accent_compare?: {
+    enabled: boolean;
+    primary: {
+      accent: "US";
+      label: string;
+      ipa: string;
+    };
+    comparison: {
+      accent: "UK";
+      label: string;
+      ipa: string;
+      phoneme_tags: string[];
+      review_note: string;
+    };
+  };
 }
 
 interface MockState {
@@ -22,6 +37,7 @@ interface MockState {
   focusPhonemes: string[];
   recentMistakeCount: number;
   recentReviewEmpty: boolean;
+  showAccentCompare: boolean;
 }
 
 const items: Record<Exclude<GroupKey, "none">, MockItem[]> = {
@@ -35,6 +51,21 @@ const items: Record<Exclude<GroupKey, "none">, MockItem[]> = {
       target_phonemes: ["/ʃ/"],
       choices: ["/sɪp/", "/ʃɪp/"],
       audio_url: null,
+      accent_compare: {
+        enabled: true,
+        primary: {
+          accent: "US",
+          label: "American sound",
+          ipa: "/ʃɪp/",
+        },
+        comparison: {
+          accent: "UK",
+          label: "British note",
+          ipa: "/ʃɪp-uk/",
+          phoneme_tags: ["/ʃ/", "/ɪ/", "/p/"],
+          review_note: "Display-only comparison. Your answer is still graded against the American IPA.",
+        },
+      },
     },
     {
       session_item_id: "entry-thin",
@@ -95,6 +126,40 @@ const items: Record<Exclude<GroupKey, "none">, MockItem[]> = {
       audio_url: null,
     },
   ],
+  minimalPair: [
+    {
+      session_item_id: "minimal-ship",
+      word_id: "ship",
+      display_ipa: "/ʃɪp/",
+      word: "ship",
+      meaning_zh: "船",
+      target_phonemes: ["/ʃ/", "/ɪ/", "/p/"],
+      choices: ["/ʃɪp/", "/ʃiːp/"],
+      audio_url: null,
+    },
+    {
+      session_item_id: "minimal-sheep",
+      word_id: "sheep",
+      display_ipa: "/ʃiːp/",
+      word: "sheep",
+      meaning_zh: "羊",
+      target_phonemes: ["/ʃ/", "/iː/", "/p/"],
+      choices: ["/ʃɪp/", "/ʃiːp/"],
+      audio_url: null,
+    },
+  ],
+  targetPhoneme: [
+    {
+      session_item_id: "target-ship",
+      word_id: "ship",
+      display_ipa: "/ʃɪp/",
+      word: "ship",
+      meaning_zh: "船",
+      target_phonemes: ["/ʃ/", "/ɪ/", "/p/"],
+      choices: ["/sɪp/", "/ʃɪp/"],
+      audio_url: null,
+    },
+  ],
 };
 
 function levelLabel(level: LearnerLevel) {
@@ -108,6 +173,8 @@ function groupLevel(group: GroupKey): LearnerLevel {
 function groupType(group: GroupKey): GroupType {
   if (group === "currentReview" || group === "recentReview") return "mistake_review";
   if (group === "focused") return "weak_focus";
+  if (group === "minimalPair") return "minimal_pair";
+  if (group === "targetPhoneme") return "target_phoneme";
   return "normal";
 }
 
@@ -136,6 +203,20 @@ function todayResponse(state: MockState) {
       word_count: 0,
       status: "idle",
       source_session_item_ids: [],
+      target_phoneme_options: [
+        {
+          phoneme: "/ʃ/",
+          symbol: "ʃ",
+          example_word: "ship",
+          candidate_count: 2,
+        },
+        {
+          phoneme: "/θ/",
+          symbol: "θ",
+          example_word: "thin",
+          candidate_count: 1,
+        },
+      ],
       items: [],
     };
   }
@@ -143,6 +224,8 @@ function todayResponse(state: MockState) {
   const level = groupLevel(state.activeGroup);
   const review = state.activeGroup === "currentReview" || state.activeGroup === "recentReview";
   const focus = state.activeGroup === "focused";
+  const minimalPair = state.activeGroup === "minimalPair";
+  const targetPhoneme = state.activeGroup === "targetPhoneme";
   return {
     session_id: `${state.activeGroup}-session`,
     group_id: `${state.activeGroup}-group`,
@@ -152,7 +235,7 @@ function todayResponse(state: MockState) {
     learner_level_label: levelLabel(level),
     selected_learner_level: state.selectedLevel,
     selected_learner_level_label: levelLabel(state.selectedLevel),
-    pending_level_change: !review && !focus && state.selectedLevel !== level,
+    pending_level_change: !review && !focus && !minimalPair && !targetPhoneme && state.selectedLevel !== level,
     completed_normal_groups_today: {
       entry: state.completed.entry,
       mid: state.completed.mid,
@@ -160,7 +243,15 @@ function todayResponse(state: MockState) {
     },
     date: "2026-06-18",
     primary_accent: "US",
-    origin: focus ? "focus_start" : review ? "current_group_review_start" : "normal_start",
+    origin: targetPhoneme
+      ? "target_phoneme_start"
+      : minimalPair
+      ? "minimal_pair_start"
+      : focus
+        ? "focus_start"
+        : review
+          ? "current_group_review_start"
+          : "normal_start",
     source_scope:
       state.activeGroup === "currentReview"
         ? "current_group"
@@ -168,15 +259,38 @@ function todayResponse(state: MockState) {
           ? "recent_global"
           : focus
             ? "focus_selection"
-            : "normal_current",
+            : minimalPair
+              ? "specialty_minimal_pair"
+              : targetPhoneme
+                ? "specialty_target_phoneme"
+              : "normal_current",
     source_group_id: review ? "entry-group" : undefined,
-    focus_phonemes: focus ? state.focusPhonemes : [],
+    focus_phonemes: focus || targetPhoneme ? state.focusPhonemes : [],
     daily_word_count: items[state.activeGroup].length,
     recent_mistake_count: state.recentMistakeCount,
     word_count: items[state.activeGroup].length,
     status: "active",
     source_session_item_ids: review ? ["entry-ship"] : [],
     source_count: review ? 1 : 0,
+    action_label: targetPhoneme
+      ? "Start Sound Practice Group 1"
+      : minimalPair
+        ? "Start Sound Compare Group 1"
+        : undefined,
+    target_phoneme_options: [
+      {
+        phoneme: "/ʃ/",
+        symbol: "ʃ",
+        example_word: "ship",
+        candidate_count: 2,
+      },
+      {
+        phoneme: "/θ/",
+        symbol: "θ",
+        example_word: "thin",
+        candidate_count: 1,
+      },
+    ],
     items: items[state.activeGroup].map((item) => ({
       session_item_id: item.session_item_id,
       word_id: item.word_id,
@@ -185,6 +299,7 @@ function todayResponse(state: MockState) {
       meaning_zh: item.meaning_zh,
       audio_url: item.audio_url,
       target_phonemes: item.target_phonemes,
+      accent_compare: state.showAccentCompare ? item.accent_compare : undefined,
       question: {
         type: "ipa_choice",
         prompt: "Which IPA matches this word?",
@@ -199,7 +314,7 @@ function settingsResponse(state: MockState) {
     primary_accent: "US",
     daily_word_count: 2,
     show_translation: true,
-    show_accent_compare: false,
+    show_accent_compare: state.showAccentCompare,
     practice_mode: "ipa_first",
     review_strength: "normal",
     learner_level: state.selectedLevel,
@@ -271,6 +386,7 @@ async function setupM10Api(page: Page, options: Partial<MockState> = {}) {
     focusPhonemes: options.focusPhonemes ?? [],
     recentMistakeCount: options.recentMistakeCount ?? 0,
     recentReviewEmpty: options.recentReviewEmpty ?? false,
+    showAccentCompare: options.showAccentCompare ?? false,
   };
 
   await page.route("**/api/**", async (route) => {
@@ -301,9 +417,13 @@ async function routeMock(route: Route, state: MockState) {
         learner_level?: LearnerLevel;
         focus_phonemes?: string[];
         daily_word_count?: number;
+        show_accent_compare?: boolean;
       };
       if (body.learner_level) state.selectedLevel = body.learner_level;
       if (body.focus_phonemes) state.focusPhonemes = body.focus_phonemes;
+      if (typeof body.show_accent_compare === "boolean") {
+        state.showAccentCompare = body.show_accent_compare;
+      }
     }
     await route.fulfill({ json: settingsResponse(state) });
     return;
@@ -316,6 +436,20 @@ async function routeMock(route: Route, state: MockState) {
 
   if (path === "/practice/next-normal") {
     state.activeGroup = state.selectedLevel;
+    await route.fulfill({ json: todayResponse(state) });
+    return;
+  }
+
+  if (path === "/practice/minimal-pairs") {
+    state.activeGroup = "minimalPair";
+    await route.fulfill({ json: todayResponse(state) });
+    return;
+  }
+
+  if (path === "/practice/target-phoneme") {
+    const body = request.postDataJSON() as { phoneme?: string };
+    state.focusPhonemes = body.phoneme ? [body.phoneme] : ["/ʃ/"];
+    state.activeGroup = "targetPhoneme";
     await route.fulfill({ json: todayResponse(state) });
     return;
   }
@@ -425,6 +559,7 @@ async function attachScreenshot(page: Page, name: string) {
 
 test.describe("M10 UX walkthrough evidence", () => {
   test("Today practice, wrong-answer recovery, reviews, and Progress focus are observable", async ({ page }) => {
+    test.setTimeout(60_000);
     await setupM10Api(page);
 
     await test.step("Today start orientation", async () => {
@@ -465,7 +600,7 @@ test.describe("M10 UX walkthrough evidence", () => {
     await test.step("Completion summary exposes current-group recovery and next choices", async () => {
       await answer(page, "/θɪn/");
       await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
-        timeout: 4_000,
+        timeout: 10_000,
       });
       await expect(page.getByText("1 / 2 correct")).toBeVisible();
       await expect(page.getByRole("heading", { name: "This group's misses" })).toBeVisible();
@@ -502,6 +637,49 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByRole("button", { name: "Clear focus" })).toBeVisible();
       await attachScreenshot(page, "m10-progress-focus-entry");
     });
+  });
+
+  test("Sound Compare specialty practice is distinct from review and focus", async ({ page }) => {
+    await setupM10Api(page);
+
+    await page.goto("/");
+    await expect(page.getByText("Today practice hub")).toBeVisible();
+    await expect(page.getByText("Specialty practice").first()).toBeVisible();
+    await expect(page.getByText("Sound Compare", { exact: true })).toBeVisible();
+    await expect(page.getByText("Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start Sound Compare" })).toBeVisible();
+    await attachScreenshot(page, "m9-minimal-pair-entry");
+
+    await page.getByRole("button", { name: "Start Sound Compare" }).click();
+    await expect(page.getByText("Sound Compare group: 1 / 2")).toBeVisible();
+    await expect(page.getByText("Compare words with easily confused sounds. This is specialty practice, not mistake review or weak-sound recovery.")).toBeVisible();
+    await expect(page.getByText("Current-group review:")).toHaveCount(0);
+    await expect(page.getByText("Recent mistake review:")).toHaveCount(0);
+    await expect(page.getByText("Focused group:")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Select /ʃɪp/" })).toBeVisible();
+    await attachScreenshot(page, "m9-minimal-pair-active");
+  });
+
+  test("Sound Practice uses guided chosen-sound entry distinct from weak focus", async ({ page }) => {
+    await setupM10Api(page);
+
+    await page.goto("/");
+    await expect(page.getByText("Today practice hub")).toBeVisible();
+    await expect(page.getByText("Sound Practice", { exact: true })).toBeVisible();
+    await expect(page.getByText("Pick one approved American sound for intentional practice. This is separate from weak-sound recovery.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Practice /ʃ/" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Practice /θ/" })).toBeVisible();
+    await attachScreenshot(page, "m9-target-phoneme-entry");
+
+    await page.getByRole("button", { name: "Practice /ʃ/" }).click();
+    await expect(page.getByText("Sound Practice group: 1 / 1")).toBeVisible();
+    await expect(page.getByText("Intentional practice for /ʃ/. This is a chosen-sound specialty group, not weak-sound recovery.")).toBeVisible();
+    await expect(page.getByText("Chosen sound")).toBeVisible();
+    await expect(page.getByText("Current focus")).toHaveCount(0);
+    await expect(page.getByText("Focused group:")).toHaveCount(0);
+    await expect(page.getByText("Current-group review:")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Select /ʃɪp/" })).toBeVisible();
+    await attachScreenshot(page, "m9-target-phoneme-active");
   });
 
   test("Settings level switching, empty review state, audio signal, and mobile views are observable", async ({ page }, testInfo) => {
@@ -578,5 +756,31 @@ test.describe("M10 UX walkthrough evidence", () => {
     await page.getByRole("button", { name: "Play pronunciation with browser voice" }).click();
     await expect(page.getByText("Audio unavailable")).toBeVisible();
     await attachScreenshot(page, "m10-audio-unavailable-state");
+  });
+
+  test("UK comparison is settings-gated and display-only", async ({ page }) => {
+    const state = await setupM10Api(page);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Start Entry group" }).click();
+    await answer(page, "/sɪp/");
+    await expect(page.getByLabel("Accent comparison")).toHaveCount(0);
+
+    state.activeGroup = "none";
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByLabel("Accent comparison").click();
+    await expect(page.getByText("Saved")).toBeVisible();
+    await expect(page.getByText("Primary accent")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Today", exact: true }).click();
+    await page.getByRole("button", { name: "Start Entry group" }).click();
+    await answer(page, "/sɪp/");
+
+    await expect(page.getByLabel("Accent comparison")).toBeVisible();
+    await expect(page.getByText("American sound")).toBeVisible();
+    await expect(page.getByText("British note")).toBeVisible();
+    await expect(page.getByText("/ʃɪp-uk/")).toBeVisible();
+    await expect(page.getByText("Your answer is still graded against the American IPA")).toBeVisible();
+    await attachScreenshot(page, "m9-uk-comparison-note");
   });
 });

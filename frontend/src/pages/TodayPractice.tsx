@@ -15,8 +15,10 @@ import {
   fetchToday,
   startCurrentGroupReview,
   startFocusedPractice,
+  startMinimalPairPractice,
   startNextNormalGroup,
   startRecentMistakeReview,
+  startTargetPhonemePractice,
 } from "../api";
 import type { ChoiceResult } from "../components/ChoiceQuestion";
 import { ChoiceQuestion } from "../components/ChoiceQuestion";
@@ -44,6 +46,8 @@ function canonicalFocus(phonemes: string[]): string[] {
 }
 
 function groupLabel(session: TodayResponse): string {
+  if (session.group_type === "minimal_pair") return "Sound Compare group";
+  if (session.group_type === "target_phoneme") return "Sound Practice group";
   if (session.group_type === "weak_focus") return "Focused group";
   if (session.source_scope === "current_group") return "Current-group review";
   if (session.source_scope === "recent_global") return "Recent mistake review";
@@ -61,6 +65,13 @@ function selectedLevelLabel(session: TodayResponse): string {
 }
 
 function groupReason(session: TodayResponse): string {
+  if (session.group_type === "minimal_pair") {
+    return "Compare words with easily confused sounds. This is specialty practice, not mistake review or weak-sound recovery.";
+  }
+  if (session.group_type === "target_phoneme") {
+    const target = session.focus_phonemes?.[0] ?? "your chosen sound";
+    return `Intentional practice for ${target}. This is a chosen-sound specialty group, not weak-sound recovery.`;
+  }
   if (session.group_type === "weak_focus") {
     const focus = session.focus_phonemes?.join(" ") || "selected sounds";
     return `${learnerLevelLabel(session)} focused practice for ${focus}.`;
@@ -300,6 +311,40 @@ export default function TodayPractice({
     }
   };
 
+  const handleMinimalPairPractice = async () => {
+    setActionLoading("minimal-pair");
+    setError(null);
+    try {
+      const data = await startMinimalPairPractice();
+      if (data.status === "empty" || data.items.length === 0) {
+        setNotice(data.detail ?? "Sound Compare practice is not available yet.");
+      } else {
+        resetPractice(data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start Sound Compare practice");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTargetPhonemePractice = async (phoneme: string) => {
+    setActionLoading(`target-${phoneme}`);
+    setError(null);
+    try {
+      const data = await startTargetPhonemePractice(phoneme);
+      if (data.status === "empty" || data.items.length === 0) {
+        setNotice(data.detail ?? "Sound Practice is not available for that sound yet.");
+      } else {
+        resetPractice(data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start Sound Practice");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleFocusPractice = async (phonemes: string[]) => {
     const nextFocus = canonicalFocus(phonemes);
     if (nextFocus.length === 0) return;
@@ -414,6 +459,54 @@ export default function TodayPractice({
           {completedGroupCount(session) > 0 && (
             <p className="empty-hint">{completedGroupsCopy(session)}</p>
           )}
+
+          <div className="specialty-panel">
+            <div>
+              <span className="focus-panel-label">Specialty practice</span>
+              <strong>Sound Compare</strong>
+              <span>
+                Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.
+              </span>
+            </div>
+            <button
+              className="secondary-action-btn"
+              onClick={() => void handleMinimalPairPractice()}
+              disabled={actionLoading !== null}
+              type="button"
+            >
+              {actionLoading === "minimal-pair" ? "Loading…" : "Start Sound Compare"}
+            </button>
+          </div>
+
+          <div className="specialty-panel target-phoneme-panel">
+            <div>
+              <span className="focus-panel-label">Specialty practice</span>
+              <strong>Sound Practice</strong>
+              <span>
+                Pick one approved American sound for intentional practice. This is separate from weak-sound recovery.
+              </span>
+            </div>
+            <div className="phoneme-chip-list">
+              {(session.target_phoneme_options ?? []).slice(0, 6).map((option) => (
+                <button
+                  className="phoneme-chip selectable"
+                  key={option.phoneme}
+                  onClick={() => void handleTargetPhonemePractice(option.phoneme)}
+                  disabled={actionLoading !== null}
+                  type="button"
+                >
+                  {actionLoading === `target-${option.phoneme}`
+                    ? "Loading..."
+                    : `Practice ${option.phoneme}`}
+                </button>
+              ))}
+              {(session.target_phoneme_options ?? []).length === 0 && (
+                <span className="empty-hint">
+                  Sound Practice will appear when approved sounds have enough words.
+                </span>
+              )}
+            </div>
+          </div>
 
           {notice && <p className="empty-hint">{notice}</p>}
           {error && <p className="save-error">{error}</p>}
@@ -594,7 +687,9 @@ export default function TodayPractice({
       </div>
       {(session.focus_phonemes?.length || focusPhonemes.length > 0) && (
         <div className="active-focus-banner">
-          <span>Current focus</span>
+          <span>
+            {session.group_type === "target_phoneme" ? "Chosen sound" : "Current focus"}
+          </span>
           {(session.focus_phonemes ?? focusPhonemes).map((phoneme) => (
             <span className="phoneme-chip" key={phoneme}>{phoneme}</span>
           ))}

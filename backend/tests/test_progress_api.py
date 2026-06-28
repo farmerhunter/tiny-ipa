@@ -242,6 +242,106 @@ class TestProgressApi:
         assert resp["level_stats"]["entry"]["weak_phonemes"][0]["phoneme"] == "/æ/"
         assert resp["level_stats"]["mid"]["strong_phonemes"][0]["phoneme"] == "/ʃ/"
 
+    def test_progress_defaults_do_not_blend_uk_stats_into_us_path(self, seeded_db):
+        conn = get_connection(seeded_db)
+        today = date.today().isoformat()
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        sessions = [
+            ("us-normal", "US", today, "completed", "entry"),
+            ("uk-normal", "UK", today, "in_progress", "mid"),
+            ("uk-streak", "UK", yesterday, "completed", "mid"),
+        ]
+        for session_id, accent, session_date, status, level in sessions:
+            conn.execute(
+                """
+                INSERT INTO daily_sessions (
+                    id, user_id, session_date, primary_accent,
+                    status, created_at, completed_at, group_index,
+                    group_type, learner_level
+                ) VALUES (?, 'default', ?, ?, ?, ?, ?, 1, 'normal', ?)
+                """,
+                (
+                    session_id,
+                    session_date,
+                    accent,
+                    status,
+                    f"{session_date}T10:00:00Z",
+                    f"{session_date}T10:05:00Z" if status == "completed" else None,
+                    level,
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO session_items (
+                    id, session_id, word_id, order_index, target_phonemes,
+                    question_type, status
+                ) VALUES (?, ?, 'ship', 0, ?, 'choose_ipa', 'complete')
+                """,
+                (
+                    f"{session_id}-item",
+                    session_id,
+                    json.dumps(["/ʃ/"] if accent == "US" else ["/θ/"]),
+                ),
+            )
+
+        for index in range(3):
+            conn.execute(
+                """
+                INSERT INTO attempts (
+                    id, user_id, session_item_id, word_id, primary_accent,
+                    question_type, selected_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, 'default', 'us-normal-item', 'ship', 'US',
+                    'choose_ipa', '/ʃɪp/', '/ʃɪp/', 1, ?)
+                """,
+                (f"us-attempt-{index}", f"{today}T11:0{index}:00Z"),
+            )
+            conn.execute(
+                """
+                INSERT INTO attempts (
+                    id, user_id, session_item_id, word_id, primary_accent,
+                    question_type, selected_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, 'default', 'uk-normal-item', 'ship', 'UK',
+                    'choose_ipa', '/wrong/', '/ʃɪp/', 0, ?)
+                """,
+                (f"uk-attempt-{index}", f"{today}T12:0{index}:00Z"),
+            )
+
+        conn.execute(
+            """
+            INSERT INTO phoneme_stats (
+                user_id, primary_accent, phoneme_id, attempt_count, correct_count,
+                last_attempt_at, mastery_status
+            ) VALUES ('default', 'US', '/ʃ/', 3, 3, ?, 'learning')
+            """,
+            (f"{today}T11:02:00Z",),
+        )
+        conn.execute(
+            """
+            INSERT INTO phoneme_stats (
+                user_id, primary_accent, phoneme_id, attempt_count, correct_count,
+                last_attempt_at, mastery_status
+            ) VALUES ('default', 'UK', '/θ/', 3, 0, ?, 'weak')
+            """,
+            (f"{today}T12:02:00Z",),
+        )
+        conn.commit()
+
+        resp = build_progress_response(conn)
+        conn.close()
+
+        assert resp["today_status"] == "completed"
+        assert resp["today_completed"] is True
+        assert resp["streak_days"] == 0
+        assert resp["total_attempts"] == 3
+        assert resp["total_sessions"] == 1
+        assert resp["total_normal_groups"] == 1
+        assert resp["level_stats"]["entry"]["normal_groups"] == 1
+        assert resp["level_stats"]["mid"]["normal_groups"] == 0
+        assert resp["level_stats"]["entry"]["attempts"] == 3
+        assert resp["level_stats"]["mid"]["attempts"] == 0
+        assert resp["weak_phonemes"] == []
+        assert resp["strong_phonemes"][0]["phoneme"] == "/ʃ/"
+
 
 # ---------------------------------------------------------------------------
 # Streak
