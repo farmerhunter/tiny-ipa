@@ -15,9 +15,9 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M6 Core 300 Content and Coverage | #26 | Done |
 | M7 Practice Loop and Review UX | #114 | Done |
 | M8 Level-based Content Expansion and Core 1000 Rebalance | #108 | Done |
-| M9 UK Accent Compare and Specialty Practice | #28 | In progress |
+| M9 UK Accent Compare and Specialty Practice | #28 | Done |
 | M10 UX Research and Practice Experience Optimization | #102 | Done |
-| M11 VPS Deployment and Backup | #27 | Backlog |
+| M11 VPS Deployment and Backup | #27 | Ready |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -303,21 +303,22 @@ Goal: open optional UK comparison and specialty practice without changing core b
 Roadmap status:
 
 ```text
-Current milestone. The Architect contract gate is complete, and foundational
-content/stat separation work is released before UK comparison UI or specialty
-runtime practice.
+Done. Epic #28 closed after the accepted M9 contract, UK-ready content/report,
+accent-specific stats separation, settings-gated display-only UK comparison,
+minimal-pair specialty practice, target-phoneme specialty practice, and final
+readiness/integration gate were completed and merged to main.
 ```
 
-Current child issue sequence:
+Completed child issue sequence:
 
 ```text
 #193 Define M9 accent and specialty practice contract
 #196 Build reviewed UK-ready content subset and accent coverage report
 #197 Add accent-specific stats separation regression checks
-UK comparison UI/API after content and stats gates
-minimal-pair specialty practice after content and stats gates
-target-phoneme specialty practice after content and shared specialty semantics
-final M9 readiness review with trial evidence
+#201 Add settings-gated display-only UK comparison UI/API
+#203 Add minimal-pair specialty practice group
+#205 Add target-phoneme specialty practice group
+#207 Final M9 readiness review and integration gate
 ```
 
 Acceptance:
@@ -363,6 +364,13 @@ final closeout is recorded on #102
 ## M11：VPS Deployment and Backup
 
 Goal: make the app reachable on a real phone and maintainable on a personal VPS.
+
+Roadmap status:
+
+```text
+Ready. M11 is the next Epic candidate after M9 completion. Child issues are not
+planned yet and should be decomposed by Architect before implementation release.
+```
 
 Expected child issue areas:
 
