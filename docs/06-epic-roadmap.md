@@ -15,8 +15,8 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M6 Core 300 Content and Coverage | #26 | Done |
 | M7 Practice Loop and Review UX | #114 | Done |
 | M8 Level-based Content Expansion and Core 1000 Rebalance | #108 | Done |
-| M9 UK Accent Compare and Specialty Practice | #28 | Backlog |
-| M10 UX Research and Practice Experience Optimization | #102 | Backlog |
+| M9 UK Accent Compare and Specialty Practice | #28 | In progress |
+| M10 UX Research and Practice Experience Optimization | #102 | Done |
 | M11 VPS Deployment and Backup | #27 | Backlog |
 
 ## M0：Feasibility and Architecture Skeleton
@@ -300,14 +300,24 @@ Dependency plan:
 
 Goal: open optional UK comparison and specialty practice without changing core boundaries.
 
-Expected child issue areas:
+Roadmap status:
 
 ```text
-UK reviewed subset
-show_accent_compare
-minimal pair practice
-target phoneme practice
-accent-specific stats checks
+Current milestone. The Architect contract gate is complete, and foundational
+content/stat separation work is released before UK comparison UI or specialty
+runtime practice.
+```
+
+Current child issue sequence:
+
+```text
+#193 Define M9 accent and specialty practice contract
+#196 Build reviewed UK-ready content subset and accent coverage report
+#197 Add accent-specific stats separation regression checks
+UK comparison UI/API after content and stats gates
+minimal-pair specialty practice after content and stats gates
+target-phoneme specialty practice after content and shared specialty semantics
+final M9 readiness review with trial evidence
 ```
 
 Acceptance:
@@ -320,16 +330,25 @@ specialty practice reuses question/grading/progress boundaries
 
 ## M10：UX Research and Practice Experience Optimization
 
-Goal: improve the learning experience after the core practice loop, level model, and specialty practice foundations are in place.
+Goal: improve the learning experience after the core practice loop and level model, before the later UK comparison and specialty practice runtime work.
 
-Expected child issue areas:
+Roadmap status:
 
 ```text
-manual observation of learner practice sessions
-question wording and feedback comprehension
-audio playback ergonomics
-mobile layout and child-friendly interaction checks
-progress motivation and fatigue controls
+Done. Epic #102 closed after the accepted UX methodology, learner-paced feedback,
+recovery and level-switch copy, progress motivation copy, audio confidence
+states, and 小音标 Morandi visual direction were completed and verified.
+```
+
+Completed child issue areas:
+
+```text
+UX methodology and repeatable design workflow
+learner-paced wrong-answer feedback
+recovery and level-switch copy clarification
+progress motivation and fatigue-aware copy
+audio confidence and unavailable-playback states
+小音标 Morandi visual direction and placeholder login/account affordance
 ```
 
 Acceptance:
@@ -338,6 +357,7 @@ Acceptance:
 UX findings are recorded as evidence, not ad hoc redesign impulses
 high-impact interaction fixes are split into scoped child issues
 practice experience changes preserve existing scheduling and progress boundaries
+final closeout is recorded on #102
 ```
 
 ## M11：VPS Deployment and Backup
