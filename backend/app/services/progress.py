@@ -207,14 +207,23 @@ def build_progress_response(
 
     # ---- total attempts ------------------------------------------------------
     total_row = conn.execute(
-        "SELECT COUNT(*) AS cnt FROM attempts WHERE user_id = ?", (user_id,)
+        """
+        SELECT COUNT(*) AS cnt
+        FROM attempts
+        WHERE user_id = ? AND primary_accent = ?
+        """,
+        (user_id, primary_accent),
     ).fetchone()
     total_attempts = total_row["cnt"] if total_row else 0
 
     # ---- total sessions ------------------------------------------------------
     sess_row = conn.execute(
-        "SELECT COUNT(*) AS cnt FROM daily_sessions WHERE user_id = ?",
-        (user_id,),
+        """
+        SELECT COUNT(*) AS cnt
+        FROM daily_sessions
+        WHERE user_id = ? AND primary_accent = ?
+        """,
+        (user_id, primary_accent),
     ).fetchone()
     total_sessions = sess_row["cnt"] if sess_row else 0
 
@@ -222,9 +231,9 @@ def build_progress_response(
         """
         SELECT COUNT(*) AS cnt
         FROM daily_sessions
-        WHERE user_id = ? AND group_type = 'normal'
+        WHERE user_id = ? AND primary_accent = ? AND group_type = 'normal'
         """,
-        (user_id,),
+        (user_id, primary_accent),
     ).fetchone()
     total_normal_groups = normal_row["cnt"] if normal_row else 0
 
@@ -233,9 +242,10 @@ def build_progress_response(
     today_rows = conn.execute(
         """
         SELECT status FROM daily_sessions
-        WHERE user_id = ? AND session_date = ? AND group_type = 'normal'
+        WHERE user_id = ? AND primary_accent = ? AND session_date = ?
+          AND group_type = 'normal'
         """,
-        (user_id, today_str),
+        (user_id, primary_accent, today_str),
     ).fetchall()
     statuses = {row["status"] for row in today_rows}
     if "in_progress" in statuses:
@@ -247,7 +257,7 @@ def build_progress_response(
     today_completed = today_status == "completed"
 
     # ---- streak --------------------------------------------------------------
-    streak_days = _compute_streak(conn, user_id)
+    streak_days = _compute_streak(conn, user_id, primary_accent)
 
     # ---- weak / strong phonemes ----------------------------------------------
     weak_phonemes, strong_phonemes = _compute_phoneme_lists(
@@ -274,7 +284,7 @@ def build_progress_response(
 # ---------------------------------------------------------------------------
 
 
-def _compute_streak(conn: sqlite3.Connection, user_id: str) -> int:
+def _compute_streak(conn: sqlite3.Connection, user_id: str, primary_accent: str) -> int:
     """Count consecutive completed daily sessions.
 
     Walks backwards from yesterday; a gap or incomplete day breaks the streak.
@@ -283,10 +293,11 @@ def _compute_streak(conn: sqlite3.Connection, user_id: str) -> int:
     rows = conn.execute(
         """
         SELECT session_date FROM daily_sessions
-        WHERE user_id = ? AND status = 'completed' AND group_type = 'normal'
+        WHERE user_id = ? AND primary_accent = ? AND status = 'completed'
+          AND group_type = 'normal'
         ORDER BY session_date DESC
         """,
-        (user_id,),
+        (user_id, primary_accent),
     ).fetchall()
     completed_dates = {r["session_date"] for r in rows}
 
@@ -334,10 +345,10 @@ def _compute_level_stats(
         """
         SELECT learner_level, status, session_date, COUNT(*) AS cnt
         FROM daily_sessions
-        WHERE user_id = ? AND group_type = 'normal'
+        WHERE user_id = ? AND primary_accent = ? AND group_type = 'normal'
         GROUP BY learner_level, status, session_date
         """,
-        (user_id,),
+        (user_id, primary_accent),
     ).fetchall()
     for row in group_rows:
         level = row["learner_level"] if row["learner_level"] in result else "entry"
