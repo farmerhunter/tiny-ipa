@@ -305,6 +305,108 @@ class TestTodayPersistence:
         }
         assert "accent_compare" not in cat
 
+    def test_minimal_pair_group_uses_explicit_pair_metadata(self, client, seeded_db):
+        data = client.post("/api/practice/minimal-pairs").json()
+        assert "error" not in data, data
+        assert data["group_type"] == "minimal_pair"
+        assert data["origin"] == "minimal_pair_start"
+        assert data["source_scope"] == "specialty_minimal_pair"
+        assert data["primary_accent"] == "US"
+        assert data["action_label"].startswith("Start Sound Compare Group")
+        assert [item["word_id"] for item in data["items"]] == ["sheep", "ship"]
+        assert [item["display_ipa"] for item in data["items"]] == ["/ʃiːp/", "/ʃɪp/"]
+
+        conn = get_connection(seeded_db)
+        row = conn.execute(
+            "SELECT group_type FROM daily_sessions WHERE id = ?",
+            (data["session_id"],),
+        ).fetchone()
+        item_rows = conn.execute(
+            """
+            SELECT word_id, target_phonemes
+            FROM session_items
+            WHERE session_id = ?
+            ORDER BY order_index
+            """,
+            (data["session_id"],),
+        ).fetchall()
+        conn.close()
+
+        assert row["group_type"] == "minimal_pair"
+        assert [row["word_id"] for row in item_rows] == ["sheep", "ship"]
+        assert json.loads(item_rows[0]["target_phonemes"]) == ["/ʃ/", "/iː/", "/p/"]
+
+    def test_minimal_pair_group_resumes_same_day_active_group(self, client, seeded_db):
+        first = client.post("/api/practice/minimal-pairs").json()
+        second = client.post("/api/practice/minimal-pairs").json()
+        assert second["origin"] == "minimal_pair_resume"
+        assert second["session_id"] == first["session_id"]
+        assert [item["session_item_id"] for item in second["items"]] == [
+            item["session_item_id"] for item in first["items"]
+        ]
+
+    def test_minimal_pair_empty_when_metadata_insufficient(self, client, seeded_db):
+        conn = get_connection(seeded_db)
+        conn.execute("UPDATE words SET minimal_pair_group = NULL")
+        conn.commit()
+        conn.close()
+
+        data = client.post("/api/practice/minimal-pairs").json()
+        assert data["group_type"] == "minimal_pair"
+        assert data["status"] == "empty"
+        assert data["origin"] == "minimal_pair_empty"
+        assert data["items"] == []
+        assert "at least two safe words" in data["detail"]
+
+        conn = get_connection(seeded_db)
+        count = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM daily_sessions WHERE group_type = 'minimal_pair'"
+        ).fetchone()["cnt"]
+        conn.close()
+        assert count == 0
+
+    def test_minimal_pair_attempt_reuses_us_attempt_and_stats_path(
+        self, client, seeded_db
+    ):
+        group = client.post("/api/practice/minimal-pairs").json()
+        item = group["items"][0]
+        resp = client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": item["display_ipa"],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_correct"] is True
+        assert data["correct_answer"] == item["display_ipa"]
+        assert data["updated_phonemes"]
+
+        conn = get_connection(seeded_db)
+        attempt = conn.execute(
+            """
+            SELECT primary_accent, question_type, correct_answer, is_correct
+            FROM attempts
+            WHERE session_item_id = ?
+            """,
+            (item["session_item_id"],),
+        ).fetchone()
+        stats = conn.execute(
+            """
+            SELECT primary_accent, COUNT(*) AS cnt
+            FROM phoneme_stats
+            GROUP BY primary_accent
+            """
+        ).fetchall()
+        conn.close()
+        assert dict(attempt) == {
+            "primary_accent": "US",
+            "question_type": "choose_ipa",
+            "correct_answer": item["display_ipa"],
+            "is_correct": 1,
+        }
+        assert [(row["primary_accent"], row["cnt"]) for row in stats] == [
+            ("US", len(data["updated_phonemes"]))
+        ]
+
     def test_disabled_words_not_scheduled(self, client, seeded_db):
         # Mark one word as disabled and verify it's excluded.
         conn = get_connection(seeded_db)

@@ -1,8 +1,8 @@
 import { expect, type Page, type Route, test } from "@playwright/test";
 
 type LearnerLevel = "entry" | "mid";
-type GroupKey = "none" | "entry" | "mid" | "currentReview" | "recentReview" | "focused";
-type GroupType = "normal" | "mistake_review" | "weak_focus";
+type GroupKey = "none" | "entry" | "mid" | "currentReview" | "recentReview" | "focused" | "minimalPair";
+type GroupType = "normal" | "mistake_review" | "weak_focus" | "minimal_pair";
 
 interface MockItem {
   session_item_id: string;
@@ -126,6 +126,28 @@ const items: Record<Exclude<GroupKey, "none">, MockItem[]> = {
       audio_url: null,
     },
   ],
+  minimalPair: [
+    {
+      session_item_id: "minimal-ship",
+      word_id: "ship",
+      display_ipa: "/ʃɪp/",
+      word: "ship",
+      meaning_zh: "船",
+      target_phonemes: ["/ʃ/", "/ɪ/", "/p/"],
+      choices: ["/ʃɪp/", "/ʃiːp/"],
+      audio_url: null,
+    },
+    {
+      session_item_id: "minimal-sheep",
+      word_id: "sheep",
+      display_ipa: "/ʃiːp/",
+      word: "sheep",
+      meaning_zh: "羊",
+      target_phonemes: ["/ʃ/", "/iː/", "/p/"],
+      choices: ["/ʃɪp/", "/ʃiːp/"],
+      audio_url: null,
+    },
+  ],
 };
 
 function levelLabel(level: LearnerLevel) {
@@ -139,6 +161,7 @@ function groupLevel(group: GroupKey): LearnerLevel {
 function groupType(group: GroupKey): GroupType {
   if (group === "currentReview" || group === "recentReview") return "mistake_review";
   if (group === "focused") return "weak_focus";
+  if (group === "minimalPair") return "minimal_pair";
   return "normal";
 }
 
@@ -174,6 +197,7 @@ function todayResponse(state: MockState) {
   const level = groupLevel(state.activeGroup);
   const review = state.activeGroup === "currentReview" || state.activeGroup === "recentReview";
   const focus = state.activeGroup === "focused";
+  const minimalPair = state.activeGroup === "minimalPair";
   return {
     session_id: `${state.activeGroup}-session`,
     group_id: `${state.activeGroup}-group`,
@@ -183,7 +207,7 @@ function todayResponse(state: MockState) {
     learner_level_label: levelLabel(level),
     selected_learner_level: state.selectedLevel,
     selected_learner_level_label: levelLabel(state.selectedLevel),
-    pending_level_change: !review && !focus && state.selectedLevel !== level,
+    pending_level_change: !review && !focus && !minimalPair && state.selectedLevel !== level,
     completed_normal_groups_today: {
       entry: state.completed.entry,
       mid: state.completed.mid,
@@ -191,7 +215,13 @@ function todayResponse(state: MockState) {
     },
     date: "2026-06-18",
     primary_accent: "US",
-    origin: focus ? "focus_start" : review ? "current_group_review_start" : "normal_start",
+    origin: minimalPair
+      ? "minimal_pair_start"
+      : focus
+        ? "focus_start"
+        : review
+          ? "current_group_review_start"
+          : "normal_start",
     source_scope:
       state.activeGroup === "currentReview"
         ? "current_group"
@@ -199,7 +229,9 @@ function todayResponse(state: MockState) {
           ? "recent_global"
           : focus
             ? "focus_selection"
-            : "normal_current",
+            : minimalPair
+              ? "specialty_minimal_pair"
+              : "normal_current",
     source_group_id: review ? "entry-group" : undefined,
     focus_phonemes: focus ? state.focusPhonemes : [],
     daily_word_count: items[state.activeGroup].length,
@@ -208,6 +240,7 @@ function todayResponse(state: MockState) {
     status: "active",
     source_session_item_ids: review ? ["entry-ship"] : [],
     source_count: review ? 1 : 0,
+    action_label: minimalPair ? "Start Sound Compare Group 1" : undefined,
     items: items[state.activeGroup].map((item) => ({
       session_item_id: item.session_item_id,
       word_id: item.word_id,
@@ -353,6 +386,12 @@ async function routeMock(route: Route, state: MockState) {
 
   if (path === "/practice/next-normal") {
     state.activeGroup = state.selectedLevel;
+    await route.fulfill({ json: todayResponse(state) });
+    return;
+  }
+
+  if (path === "/practice/minimal-pairs") {
+    state.activeGroup = "minimalPair";
     await route.fulfill({ json: todayResponse(state) });
     return;
   }
@@ -539,6 +578,27 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByRole("button", { name: "Clear focus" })).toBeVisible();
       await attachScreenshot(page, "m10-progress-focus-entry");
     });
+  });
+
+  test("Sound Compare specialty practice is distinct from review and focus", async ({ page }) => {
+    await setupM10Api(page);
+
+    await page.goto("/");
+    await expect(page.getByText("Today practice hub")).toBeVisible();
+    await expect(page.getByText("Specialty practice")).toBeVisible();
+    await expect(page.getByText("Sound Compare", { exact: true })).toBeVisible();
+    await expect(page.getByText("Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start Sound Compare" })).toBeVisible();
+    await attachScreenshot(page, "m9-minimal-pair-entry");
+
+    await page.getByRole("button", { name: "Start Sound Compare" }).click();
+    await expect(page.getByText("Sound Compare group: 1 / 2")).toBeVisible();
+    await expect(page.getByText("Compare words with easily confused sounds. This is specialty practice, not mistake review or weak-sound recovery.")).toBeVisible();
+    await expect(page.getByText("Current-group review:")).toHaveCount(0);
+    await expect(page.getByText("Recent mistake review:")).toHaveCount(0);
+    await expect(page.getByText("Focused group:")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Select /ʃɪp/" })).toBeVisible();
+    await attachScreenshot(page, "m9-minimal-pair-active");
   });
 
   test("Settings level switching, empty review state, audio signal, and mobile views are observable", async ({ page }, testInfo) => {

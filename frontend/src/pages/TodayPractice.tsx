@@ -15,6 +15,7 @@ import {
   fetchToday,
   startCurrentGroupReview,
   startFocusedPractice,
+  startMinimalPairPractice,
   startNextNormalGroup,
   startRecentMistakeReview,
 } from "../api";
@@ -44,6 +45,7 @@ function canonicalFocus(phonemes: string[]): string[] {
 }
 
 function groupLabel(session: TodayResponse): string {
+  if (session.group_type === "minimal_pair") return "Sound Compare group";
   if (session.group_type === "weak_focus") return "Focused group";
   if (session.source_scope === "current_group") return "Current-group review";
   if (session.source_scope === "recent_global") return "Recent mistake review";
@@ -61,6 +63,9 @@ function selectedLevelLabel(session: TodayResponse): string {
 }
 
 function groupReason(session: TodayResponse): string {
+  if (session.group_type === "minimal_pair") {
+    return "Compare words with easily confused sounds. This is specialty practice, not mistake review or weak-sound recovery.";
+  }
   if (session.group_type === "weak_focus") {
     const focus = session.focus_phonemes?.join(" ") || "selected sounds";
     return `${learnerLevelLabel(session)} focused practice for ${focus}.`;
@@ -300,6 +305,23 @@ export default function TodayPractice({
     }
   };
 
+  const handleMinimalPairPractice = async () => {
+    setActionLoading("minimal-pair");
+    setError(null);
+    try {
+      const data = await startMinimalPairPractice();
+      if (data.status === "empty" || data.items.length === 0) {
+        setNotice(data.detail ?? "Sound Compare practice is not available yet.");
+      } else {
+        resetPractice(data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start Sound Compare practice");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleFocusPractice = async (phonemes: string[]) => {
     const nextFocus = canonicalFocus(phonemes);
     if (nextFocus.length === 0) return;
@@ -414,6 +436,24 @@ export default function TodayPractice({
           {completedGroupCount(session) > 0 && (
             <p className="empty-hint">{completedGroupsCopy(session)}</p>
           )}
+
+          <div className="specialty-panel">
+            <div>
+              <span className="focus-panel-label">Specialty practice</span>
+              <strong>Sound Compare</strong>
+              <span>
+                Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.
+              </span>
+            </div>
+            <button
+              className="secondary-action-btn"
+              onClick={() => void handleMinimalPairPractice()}
+              disabled={actionLoading !== null}
+              type="button"
+            >
+              {actionLoading === "minimal-pair" ? "Loading…" : "Start Sound Compare"}
+            </button>
+          </div>
 
           {notice && <p className="empty-hint">{notice}</p>}
           {error && <p className="save-error">{error}</p>}

@@ -167,6 +167,16 @@ export async function startRecentMistakeReview(): Promise<TodayResponse> {
   return res.json();
 }
 
+export async function startMinimalPairPractice(): Promise<TodayResponse> {
+  const res = await fetch(`${API_BASE}/practice/minimal-pairs`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
 export async function startFocusedPractice(
   focusPhonemes: string[],
 ): Promise<TodayResponse> {
