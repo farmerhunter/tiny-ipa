@@ -8,6 +8,7 @@ from app.services.sessions import (
     build_clear_focus_response,
     build_current_group_review_response,
     build_focused_group_response,
+    build_minimal_pair_group_response,
     build_next_normal_group_response,
     build_recent_mistake_review_response,
     build_today_response,
@@ -46,6 +47,13 @@ def recent_mistake_review():
     """Create or resume a review group from recent wrong answers."""
     with get_db() as conn:
         return build_recent_mistake_review_response(conn)
+
+
+@router.post("/practice/minimal-pairs")
+def minimal_pair_group():
+    """Create or resume a confusing-sound comparison specialty group."""
+    with get_db() as conn:
+        return build_minimal_pair_group_response(conn)
 
 
 @router.post("/review/current-group")

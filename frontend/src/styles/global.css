@@ -668,6 +668,7 @@ summary:focus-visible {
 }
 
 .hub-status-card,
+.specialty-panel,
 .level-progress-panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -681,6 +682,16 @@ summary:focus-visible {
 .hub-status-card.pending {
   background: var(--warning-bg);
   border-color: #d4c3b4;
+}
+
+.specialty-panel {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.specialty-panel div {
+  display: grid;
+  gap: 5px;
 }
 
 .pending-copy {

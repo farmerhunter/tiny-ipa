@@ -33,6 +33,11 @@ _LEARNER_LEVEL_LABELS = {
     "mid": "Mid",
 }
 
+_MINIMAL_PAIR_EMPTY_DETAIL = (
+    "Sound Compare practice is not available yet. It needs at least two safe "
+    "words with pair metadata."
+)
+
 
 def _today_date_str() -> str:
     return date.today().isoformat()
@@ -570,6 +575,100 @@ def build_focused_group_response(
     )
 
 
+def build_minimal_pair_group_response(
+    conn,
+    *,
+    user_id: str = "default",
+    accent: str = "US",
+) -> dict:
+    """Create or resume a confusing-sound comparison specialty group."""
+    session_date = _today_date_str()
+    settings = get_settings(conn, user_id)
+    if settings is None:
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Settings not initialised. Run import_words.py first.",
+        }
+
+    existing = get_active_session_for_date(
+        conn,
+        user_id,
+        session_date,
+        accent,
+        "minimal_pair",
+        source_scope="specialty_minimal_pair",
+        learner_level=settings.learner_level,
+    )
+    if existing is not None:
+        items = get_session_items(conn, existing.id)
+        return _build_response(
+            session=existing,
+            items=items,
+            daily_word_count=settings.daily_word_count,
+            conn=conn,
+            accent=accent,
+            origin="minimal_pair_resume",
+            source_scope="specialty_minimal_pair",
+            selected_learner_level=settings.learner_level,
+            action_label=f"Resume Sound Compare Group {existing.group_index}",
+        )
+
+    words = _select_minimal_pair_words(
+        conn,
+        accent=accent,
+        learner_level=settings.learner_level,
+        limit=settings.daily_word_count,
+    )
+    if len(words) < 2:
+        return {
+            "group_type": "minimal_pair",
+            "learner_level": settings.learner_level,
+            "learner_level_label": learner_level_label(settings.learner_level),
+            "selected_learner_level": settings.learner_level,
+            "selected_learner_level_label": learner_level_label(settings.learner_level),
+            "date": session_date,
+            "primary_accent": accent,
+            "daily_word_count": settings.daily_word_count,
+            "recent_mistake_count": _recent_mistake_count(
+                conn,
+                user_id=user_id,
+                accent=accent,
+                daily_word_count=settings.daily_word_count,
+            ),
+            "word_count": 0,
+            "status": "empty",
+            "origin": "minimal_pair_empty",
+            "source_scope": "specialty_minimal_pair",
+            "source_session_item_ids": [],
+            "items": [],
+            "detail": _MINIMAL_PAIR_EMPTY_DETAIL,
+        }
+
+    group_index = get_next_session_group_index(conn, user_id, session_date, accent)
+    session, items = _create_group_from_words(
+        conn,
+        words=words,
+        user_id=user_id,
+        session_date=session_date,
+        accent=accent,
+        group_index=group_index,
+        group_type="minimal_pair",
+        learner_level=settings.learner_level,
+        source_scope="specialty_minimal_pair",
+    )
+    return _build_response(
+        session=session,
+        items=items,
+        daily_word_count=settings.daily_word_count,
+        conn=conn,
+        accent=accent,
+        origin="minimal_pair_start",
+        source_scope="specialty_minimal_pair",
+        selected_learner_level=settings.learner_level,
+        action_label=f"Start Sound Compare Group {session.group_index}",
+    )
+
+
 def build_clear_focus_response(
     conn,
     *,
@@ -596,6 +695,53 @@ def build_clear_focus_response(
         response["focus_phonemes"] = []
         response["detail"] = "Focus selection cleared."
     return response
+
+
+def _select_minimal_pair_words(
+    conn,
+    *,
+    accent: str,
+    learner_level: str,
+    limit: int,
+) -> list:
+    ipa_field = "ipa_us" if accent == "US" else "ipa_uk"
+    tags_field = "phoneme_tags_us" if accent == "US" else "phoneme_tags_uk"
+    level_values = (
+        ["entry", "beginner"] if learner_level == "entry" else [learner_level]
+    )
+    level_placeholders = ", ".join("?" for _ in level_values)
+    rows = conn.execute(
+        f"""
+        SELECT *
+        FROM words
+        WHERE content_status != 'disabled'
+          AND level IN ({level_placeholders})
+          AND minimal_pair_group IS NOT NULL
+          AND minimal_pair_group != ''
+          AND {ipa_field} IS NOT NULL
+          AND {ipa_field} != ''
+          AND {tags_field} IS NOT NULL
+          AND {tags_field} != ''
+          AND minimal_pair_group IN (
+              SELECT minimal_pair_group
+              FROM words
+              WHERE content_status != 'disabled'
+                AND level IN ({level_placeholders})
+                AND minimal_pair_group IS NOT NULL
+                AND minimal_pair_group != ''
+                AND {ipa_field} IS NOT NULL
+                AND {ipa_field} != ''
+                AND {tags_field} IS NOT NULL
+                AND {tags_field} != ''
+              GROUP BY minimal_pair_group
+              HAVING COUNT(*) >= 2
+          )
+        ORDER BY minimal_pair_group, word
+        LIMIT ?
+        """,
+        (*level_values, *level_values, max(limit, 2)),
+    ).fetchall()
+    return [get_word_by_id(conn, row["id"]) for row in rows if row["id"]]
 
 
 def _create_group_from_words(
