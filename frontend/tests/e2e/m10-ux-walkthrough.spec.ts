@@ -318,7 +318,7 @@ function settingsResponse(state: MockState) {
     practice_mode: "ipa_first",
     review_strength: "normal",
     learner_level: state.selectedLevel,
-    ui_language: "zh-CN",
+    ui_language: "en-US",
     focus_phonemes: state.focusPhonemes,
   };
 }
@@ -653,7 +653,7 @@ test.describe("M10 UX walkthrough evidence", () => {
 
     await page.getByRole("button", { name: "Start Sound Compare" }).click();
     await expect(page.getByText("Sound Compare group: 1 / 2")).toBeVisible();
-    await expect(page.getByText("Compare words with easily confused sounds. This is specialty practice, not mistake review or weak-sound recovery.")).toBeVisible();
+    await expect(page.getByText("Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.")).toBeVisible();
     await expect(page.getByText("Current-group review:")).toHaveCount(0);
     await expect(page.getByText("Recent mistake review:")).toHaveCount(0);
     await expect(page.getByText("Focused group:")).toHaveCount(0);
