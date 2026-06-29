@@ -81,7 +81,7 @@ class TestSchemaInitialisation:
         conn.close()
         assert before == after
 
-    def test_init_adds_focus_phonemes_to_existing_settings_table(self, temp_db):
+    def test_init_adds_new_settings_columns_to_existing_settings_table(self, temp_db):
         conn = get_connection(temp_db)
         conn.execute(
             """
@@ -115,7 +115,11 @@ class TestSchemaInitialisation:
         conn.close()
 
         assert "focus_phonemes" in columns
+        assert "learner_level" in columns
+        assert "ui_language" in columns
         assert settings is not None
+        assert settings.learner_level == "entry"
+        assert settings.ui_language == "zh-CN"
         assert settings.focus_phonemes == []
 
 
@@ -240,6 +244,7 @@ class TestSettingsStore:
             show_accent_compare=False,
             practice_mode="ipa_first",
             review_strength="normal",
+            ui_language="en-US",
             focus_phonemes=["/ʃ/", "/ɪ/"],
             updated_at="2026-06-06T00:00:00Z",
         )
@@ -252,6 +257,7 @@ class TestSettingsStore:
         assert got.show_accent_compare is False
         assert got.practice_mode == "ipa_first"
         assert got.review_strength == "normal"
+        assert got.ui_language == "en-US"
         assert got.focus_phonemes == ["/ʃ/", "/ɪ/"]
 
     def test_get_missing_settings(self):
@@ -297,6 +303,7 @@ class TestImportWords:
         assert settings.user_id == "default"
         assert settings.primary_accent == "US"
         assert settings.daily_word_count == 10
+        assert settings.ui_language == "zh-CN"
         assert settings.focus_phonemes == []
 
     def test_import_preserves_accent_fields(self, temp_db):

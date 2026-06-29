@@ -319,6 +319,7 @@ export interface SettingsData {
   practice_mode: string;
   review_strength: string;
   learner_level: "entry" | "mid";
+  ui_language: "zh-CN" | "en-US";
   focus_phonemes: string[];
 }
 

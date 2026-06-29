@@ -52,6 +52,7 @@ class TestSettingsApi:
         assert data["daily_word_count"] == 10
         assert data["show_translation"] is True
         assert data["learner_level"] == "entry"
+        assert data["ui_language"] == "zh-CN"
         assert data["focus_phonemes"] == []
 
     def test_put_updates_and_persists(self, client, seeded_db):
@@ -59,6 +60,7 @@ class TestSettingsApi:
             "daily_word_count": 5,
             "show_translation": False,
             "learner_level": "mid",
+            "ui_language": "en-US",
             "focus_phonemes": ["/ʃ/", " /ɪ/ "],
         })
         assert resp.status_code == 200
@@ -66,6 +68,7 @@ class TestSettingsApi:
         assert data["daily_word_count"] == 5
         assert data["show_translation"] is False
         assert data["learner_level"] == "mid"
+        assert data["ui_language"] == "en-US"
         assert data["focus_phonemes"] == ["/ʃ/", "/ɪ/"]
         # Other fields unchanged
         assert data["primary_accent"] == "US"
@@ -78,7 +81,14 @@ class TestSettingsApi:
         assert s.daily_word_count == 5
         assert s.show_translation is False
         assert s.learner_level == "mid"
+        assert s.ui_language == "en-US"
         assert s.focus_phonemes == ["/ʃ/", "/ɪ/"]
+
+    @pytest.mark.parametrize("ui_language", ["zh-CN", "en-US"])
+    def test_put_accepts_supported_ui_languages(self, client, ui_language):
+        resp = client.put("/api/settings", json={"ui_language": ui_language})
+        assert resp.status_code == 200
+        assert resp.json()["ui_language"] == ui_language
 
     def test_put_invalid_daily_word_count(self, client):
         resp = client.put("/api/settings", json={"daily_word_count": 100})
@@ -98,6 +108,11 @@ class TestSettingsApi:
 
     def test_put_invalid_learner_level(self, client):
         resp = client.put("/api/settings", json={"learner_level": "advanced"})
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "SETTINGS_INVALID"
+
+    def test_put_invalid_ui_language(self, client):
+        resp = client.put("/api/settings", json={"ui_language": "fr-FR"})
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "SETTINGS_INVALID"
 
@@ -137,6 +152,7 @@ class TestSettingsApi:
             assert resp.status_code == 200
             assert resp.json()["daily_word_count"] == 10
             assert resp.json()["learner_level"] == "entry"
+            assert resp.json()["ui_language"] == "zh-CN"
             assert resp.json()["focus_phonemes"] == []
         finally:
             db_mod.DEFAULT_DB_PATH = orig
