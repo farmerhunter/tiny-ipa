@@ -234,6 +234,7 @@ function settingsResponse(state: MockState) {
     practice_mode: "adaptive",
     review_strength: "normal",
     learner_level: "entry",
+    ui_language: "zh-CN",
     focus_phonemes: state.focusPhonemes,
   };
 }

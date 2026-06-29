@@ -111,6 +111,7 @@ function settingsResponse(state: MockState) {
     practice_mode: "ipa_first",
     review_strength: "normal",
     learner_level: state.selectedLevel,
+    ui_language: "zh-CN",
     focus_phonemes: [],
   };
 }

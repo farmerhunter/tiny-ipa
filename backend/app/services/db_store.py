@@ -90,6 +90,7 @@ def _settings_from_row(row: sqlite3.Row) -> Settings:
         practice_mode=row["practice_mode"],
         review_strength=row["review_strength"],
         learner_level=row["learner_level"],
+        ui_language=row["ui_language"],
         focus_phonemes=_parse_list(row["focus_phonemes"]) or [],
         updated_at=row["updated_at"],
     )
@@ -210,11 +211,13 @@ def upsert_settings(conn: sqlite3.Connection, settings: Settings) -> None:
         INSERT OR REPLACE INTO settings (
             user_id, primary_accent, daily_word_count,
             show_translation, show_accent_compare,
-            practice_mode, review_strength, learner_level, focus_phonemes, updated_at
+            practice_mode, review_strength, learner_level, ui_language,
+            focus_phonemes, updated_at
         ) VALUES (
             :user_id, :primary_accent, :daily_word_count,
             :show_translation, :show_accent_compare,
-            :practice_mode, :review_strength, :learner_level, :focus_phonemes, :updated_at
+            :practice_mode, :review_strength, :learner_level, :ui_language,
+            :focus_phonemes, :updated_at
         )
         """,
         {
@@ -226,6 +229,7 @@ def upsert_settings(conn: sqlite3.Connection, settings: Settings) -> None:
             "practice_mode": settings.practice_mode,
             "review_strength": settings.review_strength,
             "learner_level": settings.learner_level,
+            "ui_language": settings.ui_language,
             "focus_phonemes": _to_json(settings.focus_phonemes),
             "updated_at": settings.updated_at,
         },

@@ -39,6 +39,14 @@ const LEVEL_OPTIONS: Array<{
   },
 ];
 
+const UI_LANGUAGE_OPTIONS: Array<{
+  value: SettingsData["ui_language"];
+  label: string;
+}> = [
+  { value: "zh-CN", label: "中文 (zh-CN)" },
+  { value: "en-US", label: "English (en-US)" },
+];
+
 function canonicalFocus(phonemes: string[]): string[] {
   return Array.from(new Set(phonemes.map((item) => item.trim()).filter(Boolean))).sort();
 }
@@ -163,6 +171,16 @@ export default function SettingsPage({
             <option value="quick">Quick</option>
             <option value="normal">Normal</option>
             <option value="extra_review">Extra review</option>
+          </select>
+        </label>
+
+        <label className="setting-row">
+          <span>UI language</span>
+          <select value={settings.ui_language}
+            onChange={e => update({ ui_language: e.target.value as SettingsData["ui_language"] })}>
+            {UI_LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </label>
 
