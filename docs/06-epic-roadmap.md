@@ -20,6 +20,7 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M11 Localization and Configurable UI Language | #209 | Planning |
 | M12 Minimal Auth and Multi-user Data Isolation | #210 | Planning |
 | M13 VPS Deployment and Backup | #27 | Blocked |
+| M14 Account Management and Admin UX | #212 | Backlog / Deferred |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -529,6 +530,53 @@ deployment is an adapter/contract layer, not a place to add business logic
 do not implement auth, localization, account management, or data migration here
 do not mutate real SQLite data, secrets, DNS, VPS runtime, or deployment config
 without explicit Human approval
+```
+
+## M14：Account Management and Admin UX
+
+Goal: preserve broader account and admin UX ideas as a deferred post-deploy
+roadmap placeholder, without mixing them into minimal auth or deployment.
+
+Roadmap status:
+
+```text
+Backlog / deferred. Epic #212 exists as a placeholder only. It should not be
+decomposed or released until post-deploy usage produces a concrete product need
+and Architect/Human accepts the scope.
+```
+
+Potential future scope:
+
+```text
+user profile/account settings polish
+password change/reset/recovery strategy
+owner/admin management entry points
+multi-learner management UX if later product decision requires it
+user data export/delete policy review
+```
+
+Explicit non-scope until separately approved:
+
+```text
+SaaS billing
+OAuth or social login
+family/teacher dashboard
+complex role matrix
+production account recovery service
+account/admin implementation code in M11, M12, or M13
+```
+
+Execution contract:
+
+```text
+Branch strategy: not released; future decomposition required
+Owner role: architect for future product/UX scoping
+Review role: reviewer only after future child issues exist
+Acceptance role: architect / user for future account/admin product decision
+Depends on: #209, #210, and #27
+Completion handoff: hold
+Merge rule: no implementation PRs until this Epic is explicitly reactivated
+Verification required: future scope-specific verification to be defined during decomposition
 ```
 
 ## Scope Control
