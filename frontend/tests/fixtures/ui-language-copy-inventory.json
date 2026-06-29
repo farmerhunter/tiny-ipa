@@ -1,0 +1,634 @@
+{
+  "inventory_version": "m11-p0-2026-06-29",
+  "default_locale": "zh-CN",
+  "selectable_locales": ["zh-CN", "en-US"],
+  "classifications": [
+    "translatable",
+    "domain_token",
+    "content_data",
+    "developer_only"
+  ],
+  "entries": [
+    {
+      "key": "app.brand.name",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "小音标",
+      "notes": "Product name copy; English display name needs Architect/User acceptance."
+    },
+    {
+      "key": "app.brand.tagline",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "每天几分钟，把声音和 IPA 对上号。"
+    },
+    {
+      "key": "app.nav.today",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Today"
+    },
+    {
+      "key": "app.nav.progress",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Progress"
+    },
+    {
+      "key": "app.nav.settings",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Settings"
+    },
+    {
+      "key": "app.login.disabled",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "登录 / 登录后同步练习 / 账号入口暂未启用；后续可用于同步进度和错题。",
+      "notes": "Visible auth placeholder; no auth behavior changes in M11."
+    },
+    {
+      "key": "app.backend.connecting",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Connecting to backend…"
+    },
+    {
+      "key": "app.backend.unreachable",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Cannot reach backend. Make sure it is running on port 8010."
+    },
+    {
+      "key": "today.loading",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Loading today's practice…"
+    },
+    {
+      "key": "today.error.title",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Practice unavailable"
+    },
+    {
+      "key": "today.error.import_hint",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Make sure you've run import_words.py and the backend is running.",
+      "notes": "Developer-oriented wording shown to learners; follow-up copy decision needed before final M11 readiness."
+    },
+    {
+      "key": "today.hub.kicker",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Today practice hub"
+    },
+    {
+      "key": "today.hub.heading.start",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Start {selectedLevel} practice"
+    },
+    {
+      "key": "today.hub.heading.active",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{level} practice in progress"
+    },
+    {
+      "key": "today.hub.copy.empty",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "A short listening group is ready. Listen first, then choose the IPA that matches."
+    },
+    {
+      "key": "today.hub.copy.active",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Pick up where you left off, or switch intentionally when you are ready."
+    },
+    {
+      "key": "today.hub.status.ready",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Ready when you are / {selectedLevel} listening group / {count} words per normal group"
+    },
+    {
+      "key": "today.hub.status.active",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Active group / {level} group in progress / {wordCount} words assigned"
+    },
+    {
+      "key": "today.hub.pending_level_change",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{selectedLevel} is selected for your next new group. Your current {currentLevel} group stays active until you finish it or switch now."
+    },
+    {
+      "key": "today.hub.completed_today",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Completed today: Entry {entryCount}, Mid {midCount}."
+    },
+    {
+      "key": "today.action.start_group",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Start {level} group / Start {level} Group {groupIndex}"
+    },
+    {
+      "key": "today.action.resume_group",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Resume {level} group / Resume {level} Group {groupIndex}"
+    },
+    {
+      "key": "today.action.switch_now",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Switch to {selectedLevel} now"
+    },
+    {
+      "key": "today.confirm.abandon_pending",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "End this {currentLevel} group and switch to {selectedLevel} now?"
+    },
+    {
+      "key": "today.confirm.abandon_same_level",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "End this {currentLevel} group and start another {selectedLevel} group?"
+    },
+    {
+      "key": "today.group.reason.normal_next",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "A new {level} practice group."
+    },
+    {
+      "key": "today.group.reason.normal_resume",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Resuming your current {level} group."
+    },
+    {
+      "key": "practice.question.prompt.choose_ipa",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "backend/app/services/questions.py",
+      "current": "Which IPA matches this word?"
+    },
+    {
+      "key": "practice.feedback.submitting",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Submitting…"
+    },
+    {
+      "key": "practice.feedback.correct",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Correct!"
+    },
+    {
+      "key": "practice.feedback.incorrect",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Not quite."
+    },
+    {
+      "key": "practice.feedback.explanation_labels",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx",
+      "current": "You picked / Correct IPA / Target sound / picked {selected}, correct {correct}"
+    },
+    {
+      "key": "practice.feedback.focus_hint.default",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx",
+      "current": "Focus on the IPA difference, then listen again."
+    },
+    {
+      "key": "practice.feedback.focus_hint.phonemes",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx",
+      "current": "Focus on {phonemes} before choosing."
+    },
+    {
+      "key": "practice.action.continue",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Continue"
+    },
+    {
+      "key": "practice.feedback.submit_failed",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Failed to submit: {error}"
+    },
+    {
+      "key": "practice.summary.complete_title",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{groupLabel} complete"
+    },
+    {
+      "key": "practice.summary.score",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{correctCount} / {totalCount} correct"
+    },
+    {
+      "key": "practice.summary.current_misses",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "This group's misses"
+    },
+    {
+      "key": "practice.summary.no_misses",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "No misses in this group."
+    },
+    {
+      "key": "practice.summary.focus_next",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Focus a weak sound next / Start a focused group weighted toward one of the sounds missed in this group."
+    },
+    {
+      "key": "review.current.action",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Review this group's misses / Review Group {groupIndex} misses"
+    },
+    {
+      "key": "review.current.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "No misses in this group are ready for review. / No incorrect answers are available for this group."
+    },
+    {
+      "key": "review.recent.action",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Review {count} older mistakes / Start Recent Review Group {groupIndex}"
+    },
+    {
+      "key": "review.recent.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "No recent mistakes are ready for review. / No recent incorrect attempts are available for review."
+    },
+    {
+      "key": "focus.current.panel",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "Current focus / Next group focus / Focus changes the next focused practice group. Clear it to return to normal practice."
+    },
+    {
+      "key": "focus.action.start",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py",
+      "current": "Focus {phoneme} / Start {level} Focus Group {groupIndex}"
+    },
+    {
+      "key": "focus.action.resume",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx backend/app/services/sessions.py",
+      "current": "Resume focus / Resume {level} Focus Group {groupIndex}"
+    },
+    {
+      "key": "focus.action.clear",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py",
+      "current": "Clear focus / Focus cleared. Back to normal practice. / Focus selection cleared."
+    },
+    {
+      "key": "specialty.sound_compare",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Compare / Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus."
+    },
+    {
+      "key": "specialty.sound_compare.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Compare practice is not available yet. It needs at least two safe words with pair metadata."
+    },
+    {
+      "key": "specialty.sound_practice",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Practice / Pick one approved American sound for intentional practice."
+    },
+    {
+      "key": "specialty.sound_practice.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Practice is not available for this sound yet. It needs safe words tagged with the selected American sound."
+    },
+    {
+      "key": "audio.action.play_recorded",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Play recorded pronunciation"
+    },
+    {
+      "key": "audio.action.play_browser_voice",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Play pronunciation with browser voice"
+    },
+    {
+      "key": "audio.status.recorded",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Recorded audio / Playing recorded audio"
+    },
+    {
+      "key": "audio.status.browser_voice",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Browser voice / Playing browser voice"
+    },
+    {
+      "key": "audio.status.fallback",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Recorded audio unavailable; using browser voice"
+    },
+    {
+      "key": "audio.status.unavailable",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Audio unavailable"
+    },
+    {
+      "key": "progress.loading",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Loading progress…"
+    },
+    {
+      "key": "progress.today_status",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Done / Started / Ready / practice completed today / practice underway today / start today's practice"
+    },
+    {
+      "key": "progress.stats",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "answered items / completed groups / active / {accuracy}% accuracy / Accuracy appears after answers"
+    },
+    {
+      "key": "progress.level.hints",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "{level} has an active group. Answer a few items to unlock accuracy and sound signals. / {level} has no answered items yet. / {level} has sounds ready for focused practice."
+    },
+    {
+      "key": "progress.weak.level",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Sounds to revisit in {level} / No weak sound signal yet for {level}; it appears after answered items."
+    },
+    {
+      "key": "progress.weak.global",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Sounds to revisit overall / Sounds that need more reps across your complete history."
+    },
+    {
+      "key": "progress.strong.global",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Sounds going well overall"
+    },
+    {
+      "key": "progress.empty",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Answer a few items to see sound-level progress."
+    },
+    {
+      "key": "settings.loading",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Loading…"
+    },
+    {
+      "key": "settings.saved",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Saved"
+    },
+    {
+      "key": "settings.words_per_group",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Words per group"
+    },
+    {
+      "key": "settings.show_translation",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Show translation"
+    },
+    {
+      "key": "settings.accent_compare",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Accent comparison / Show British notes after answering"
+    },
+    {
+      "key": "settings.review_strength",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Review strength / Quick / Normal / Extra review"
+    },
+    {
+      "key": "settings.practice_level",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Practice level / Choose the level for the next new normal group."
+    },
+    {
+      "key": "settings.level.entry",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
+      "current": "Entry / Starter word pool for the next new normal group."
+    },
+    {
+      "key": "settings.level.mid",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
+      "current": "Mid / Broader word pool for the next new normal group."
+    },
+    {
+      "key": "settings.focus_practice",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Focus practice / Pick a sound to start a focused group. The scheduler will weight words toward that sound until you clear focus."
+    },
+    {
+      "key": "settings.focus.manual",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Manual IPA focus entry / Comma-separated IPA symbols"
+    },
+    {
+      "key": "error.api.normalized",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/api.ts",
+      "current": "Request failed (HTTP {status}) / {errorCode}: {detail}"
+    },
+    {
+      "key": "error.settings.invalid",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "backend/app/routes/settings.py",
+      "current": "primary_accent must be one of ... / daily_word_count must be an integer between 1 and 50 / focus_phonemes must be a list of non-empty strings"
+    },
+    {
+      "key": "error.practice.invalid_request",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "backend/app/routes/practice.py backend/app/routes/attempts.py",
+      "current": "phoneme must be one approved sound string. / group_id is required for current-group review. / Missing session_item_id"
+    },
+    {
+      "key": "token.ipa_symbols",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx content/phonemes.json",
+      "current": "/ʃ/ /θ/ /æ/ /ɪ/ /tʃ/ /ʌ/ and all IPA choices",
+      "notes": "Never translate, normalize, or wrap as prose."
+    },
+    {
+      "key": "token.accent_identifiers",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "frontend/src/api.ts backend/app/routes/settings.py",
+      "current": "US / UK / primary_accent / show_accent_compare"
+    },
+    {
+      "key": "token.api_enums",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "frontend/src/api.ts backend/app/services/sessions.py backend/app/services/progress.py",
+      "current": "entry / mid / normal / weak_focus / mistake_review / minimal_pair / target_phoneme / normal_next / recent_global / current_group / new / weak / learning / mastered"
+    },
+    {
+      "key": "token.error_codes",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "backend/app/routes/practice.py backend/app/routes/settings.py backend/app/routes/attempts.py",
+      "current": "CONTENT_NOT_READY / INVALID_FOCUS / SETTINGS_INVALID / INVALID_ATTEMPT / ITEM_NOT_FOUND / SESSION_NOT_FOUND"
+    },
+    {
+      "key": "content.word_values",
+      "surface": "content_data",
+      "classification": "content_data",
+      "source": "frontend/src/components/ChoiceQuestion.tsx content/*.json",
+      "current": "item.word, item.meaning_zh, IPA choices, correct_answer, source word metadata",
+      "notes": "Do not move source word content or meaning_zh into locale resources."
+    },
+    {
+      "key": "content.accent_compare_values",
+      "surface": "content_data",
+      "classification": "content_data",
+      "source": "frontend/src/components/ChoiceQuestion.tsx backend/app/services/sessions.py",
+      "current": "accent_compare.primary.ipa, accent_compare.comparison.ipa, comparison.review_note"
+    },
+    {
+      "key": "dev.test_selectors_and_classnames",
+      "surface": "developer_only",
+      "classification": "developer_only",
+      "source": "frontend/src/**/*.tsx frontend/tests/e2e/*.spec.ts",
+      "current": "CSS classes, test names, route-mock labels, command names, import_words.py references in docs/tests"
+    }
+  ]
+}
