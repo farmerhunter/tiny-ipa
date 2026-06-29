@@ -6,7 +6,7 @@
  * refresh-safe: reloading on the same date resumes the same session.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SettingsData, TodayItem, TodayResponse } from "../api";
 import {
   abandonCurrentAndStartNext,
@@ -22,8 +22,10 @@ import {
 } from "../api";
 import type { ChoiceResult } from "../components/ChoiceQuestion";
 import { ChoiceQuestion } from "../components/ChoiceQuestion";
+import { createTranslator, type Locale, type Translator } from "../locales";
 
 interface Props {
+  uiLanguage: Locale;
   focusPhonemes: string[];
   onFocusChange: (focusPhonemes: string[]) => void;
   onOpenProgress: () => void;
@@ -45,14 +47,14 @@ function canonicalFocus(phonemes: string[]): string[] {
   return Array.from(new Set(phonemes.map((item) => item.trim()).filter(Boolean))).sort();
 }
 
-function groupLabel(session: TodayResponse): string {
-  if (session.group_type === "minimal_pair") return "Sound Compare group";
-  if (session.group_type === "target_phoneme") return "Sound Practice group";
-  if (session.group_type === "weak_focus") return "Focused group";
-  if (session.source_scope === "current_group") return "Current-group review";
-  if (session.source_scope === "recent_global") return "Recent mistake review";
-  if (session.group_type === "mistake_review") return "Mistake review";
-  return "Practice group";
+function groupLabel(session: TodayResponse, t: Translator): string {
+  if (session.group_type === "minimal_pair") return t("today.group.label.sound_compare");
+  if (session.group_type === "target_phoneme") return t("today.group.label.sound_practice");
+  if (session.group_type === "weak_focus") return t("today.group.label.focused");
+  if (session.source_scope === "current_group") return t("today.group.label.current_review");
+  if (session.source_scope === "recent_global") return t("today.group.label.recent_review");
+  if (session.group_type === "mistake_review") return t("today.group.label.mistake_review");
+  return t("today.group.label.practice");
 }
 
 function learnerLevelLabel(session: TodayResponse): string {
@@ -64,91 +66,101 @@ function selectedLevelLabel(session: TodayResponse): string {
     ?? (session.selected_learner_level === "mid" ? "Mid" : "Entry");
 }
 
-function groupReason(session: TodayResponse): string {
+function groupReason(session: TodayResponse, t: Translator): string {
   if (session.group_type === "minimal_pair") {
-    return "Compare words with easily confused sounds. This is specialty practice, not mistake review or weak-sound recovery.";
+    return t("specialty.sound_compare.description");
   }
   if (session.group_type === "target_phoneme") {
-    const target = session.focus_phonemes?.[0] ?? "your chosen sound";
-    return `Intentional practice for ${target}. This is a chosen-sound specialty group, not weak-sound recovery.`;
+    const phoneme = session.focus_phonemes?.[0] ?? t("today.group.reason.chosen_sound");
+    return t("today.group.reason.target_phoneme", { phoneme });
   }
   if (session.group_type === "weak_focus") {
-    const focus = session.focus_phonemes?.join(" ") || "selected sounds";
-    return `${learnerLevelLabel(session)} focused practice for ${focus}.`;
+    const phonemes = session.focus_phonemes?.join(" ") || t("today.group.reason.selected_sounds");
+    return t("today.group.reason.weak_focus", {
+      level: learnerLevelLabel(session),
+      phonemes,
+    });
   }
   if (session.source_scope === "current_group") {
-    return "Reviewing misses from the group you just finished, before older mistakes.";
+    return t("today.group.reason.current_group");
   }
   if (session.source_scope === "recent_global") {
-    return "Reviewing older mistakes from earlier practice.";
+    return t("today.group.reason.recent_global");
   }
   if (session.source_scope === "normal_next") {
-    return `A new ${learnerLevelLabel(session)} practice group.`;
+    return t("today.group.reason.normal_next", { level: learnerLevelLabel(session) });
   }
   if (session.origin === "normal_resume") {
-    return `Resuming your current ${learnerLevelLabel(session)} group.`;
+    return t("today.group.reason.normal_resume", { level: learnerLevelLabel(session) });
   }
-  return `${learnerLevelLabel(session)} practice group.`;
+  return t("today.group.reason.default", { level: learnerLevelLabel(session) });
 }
 
-function buildFocusHint(targetPhonemes: string[]): string {
+function buildFocusHint(targetPhonemes: string[], t: Translator): string {
   if (targetPhonemes.length === 0) {
-    return "Focus on the IPA difference, then listen again.";
+    return t("practice.feedback.focus_hint.default");
   }
-  return `Focus on ${targetPhonemes.join(" ")} before choosing.`;
+  return t("practice.feedback.focus_hint.phonemes", { phonemes: targetPhonemes.join(" ") });
 }
 
-function currentReviewActionLabel(session: TodayResponse): string {
+function currentReviewActionLabel(session: TodayResponse, t: Translator): string {
   if (session.group_type === "mistake_review") {
-    return "Review this review's misses";
+    return t("review.current.action.review_misses");
   }
-  return "Review this group's misses";
+  return t("review.current.action.group_misses");
 }
 
-function nextNormalActionLabel(session: TodayResponse): string {
+function nextNormalActionLabel(session: TodayResponse, t: Translator): string {
   const level = selectedLevelLabel(session);
-  return `Start next ${level} group`;
+  return t("today.action.start_next_group", { level });
 }
 
-function resumeActionLabel(session: TodayResponse): string {
+function resumeActionLabel(session: TodayResponse, t: Translator): string {
   const level = learnerLevelLabel(session);
-  return `Resume ${level} group`;
+  return t("today.action.resume_group.short", { level });
 }
 
-function completedGroupsCopy(session: TodayResponse): string {
+function completedGroupsCopy(session: TodayResponse, t: Translator): string {
   const counts = session.completed_normal_groups_today ?? { entry: 0, mid: 0, total: 0 };
-  return `Completed today: Entry ${counts.entry}, Mid ${counts.mid}.`;
+  return t("today.hub.completed_today", {
+    entryCount: counts.entry,
+    midCount: counts.mid,
+  });
 }
 
 function completedGroupCount(session: TodayResponse): number {
   return session.completed_normal_groups_today?.total ?? 0;
 }
 
-function todayHubHeading(session: TodayResponse, hasActiveGroup: boolean): string {
-  if (hasActiveGroup) return `${learnerLevelLabel(session)} practice in progress`;
-  return `Start ${selectedLevelLabel(session)} practice`;
-}
-
-function todayHubCopy(hasActiveGroup: boolean): string {
+function todayHubHeading(session: TodayResponse, hasActiveGroup: boolean, t: Translator): string {
   if (hasActiveGroup) {
-    return "Pick up where you left off, or switch intentionally when you are ready.";
+    return t("today.hub.heading.active", { level: learnerLevelLabel(session) });
   }
-  return "A short listening group is ready. Listen first, then choose the IPA that matches.";
+  return t("today.hub.heading.start", { selectedLevel: selectedLevelLabel(session) });
 }
 
-function recentReviewLabel(session: TodayResponse): string {
+function todayHubCopy(hasActiveGroup: boolean, t: Translator): string {
+  if (hasActiveGroup) {
+    return t("today.hub.copy.active");
+  }
+  return t("today.hub.copy.empty");
+}
+
+function recentReviewLabel(session: TodayResponse, t: Translator): string {
   const count = session.recent_mistake_count ?? 0;
-  if (count <= 0) return "No older mistakes to review";
-  return count === 1 ? "Review 1 older mistake" : `Review ${count} older mistakes`;
+  if (count <= 0) return t("review.recent.none");
+  return t("review.recent.action.count", { count });
 }
 
 export default function TodayPractice({
+  uiLanguage,
   focusPhonemes,
   onFocusChange,
   onOpenProgress,
   initialSession,
   onInitialSessionConsumed,
 }: Props) {
+  const t = useMemo(() => createTranslator(uiLanguage), [uiLanguage]);
   const adoptedInitialSession = useRef(Boolean(initialSession));
   const [session, setSession] = useState<TodayResponse | null>(() => initialSession ?? null);
   const [loading, setLoading] = useState(() => !initialSession);
@@ -202,7 +214,7 @@ export default function TodayPractice({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load practice");
+          setError(err instanceof Error ? err.message : t("error.practice.load_failed"));
         }
       })
       .finally(() => {
@@ -212,7 +224,7 @@ export default function TodayPractice({
     return () => {
       cancelled = true;
     };
-  }, [initialSession, resetPractice]);
+  }, [initialSession, resetPractice, t]);
 
   const handleResult = (item: TodayItem, result: ChoiceResult) => {
     setResults((prev) => [
@@ -247,7 +259,7 @@ export default function TodayPractice({
       const data = await startNextNormalGroup();
       resetPractice(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load another group");
+      setError(err instanceof Error ? err.message : t("error.practice.load_next_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -258,8 +270,14 @@ export default function TodayPractice({
     const isPending = Boolean(session.pending_level_change);
     const ok = window.confirm(
       isPending
-        ? `End this ${learnerLevelLabel(session)} group and switch to ${selectedLevelLabel(session)} now?`
-        : `End this ${learnerLevelLabel(session)} group and start another ${selectedLevelLabel(session)} group?`,
+        ? t("today.confirm.abandon_pending", {
+            currentLevel: learnerLevelLabel(session),
+            selectedLevel: selectedLevelLabel(session),
+          })
+        : t("today.confirm.abandon_same_level", {
+            currentLevel: learnerLevelLabel(session),
+            selectedLevel: selectedLevelLabel(session),
+          }),
     );
     if (!ok) return;
     setActionLoading("abandon-next");
@@ -269,7 +287,7 @@ export default function TodayPractice({
       resetPractice(data);
       setNotice(data.detail ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to switch groups");
+      setError(err instanceof Error ? err.message : t("error.practice.switch_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -283,12 +301,12 @@ export default function TodayPractice({
     try {
       const data = await startCurrentGroupReview(sourceGroupId);
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? "No misses in this group are ready for review.");
+        setNotice(data.detail ?? t("review.current.empty"));
       } else {
         resetPractice(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start review");
+      setError(err instanceof Error ? err.message : t("error.practice.review_start_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -300,12 +318,12 @@ export default function TodayPractice({
     try {
       const data = await startRecentMistakeReview();
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? "No recent mistakes are ready for review.");
+        setNotice(data.detail ?? t("review.recent.empty"));
       } else {
         resetPractice(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start recent review");
+      setError(err instanceof Error ? err.message : t("error.practice.recent_review_start_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -317,12 +335,12 @@ export default function TodayPractice({
     try {
       const data = await startMinimalPairPractice();
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? "Sound Compare practice is not available yet.");
+        setNotice(data.detail ?? t("specialty.sound_compare.empty"));
       } else {
         resetPractice(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start Sound Compare practice");
+      setError(err instanceof Error ? err.message : t("error.practice.sound_compare_start_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -334,12 +352,12 @@ export default function TodayPractice({
     try {
       const data = await startTargetPhonemePractice(phoneme);
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? "Sound Practice is not available for that sound yet.");
+        setNotice(data.detail ?? t("specialty.sound_practice.empty"));
       } else {
         resetPractice(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start Sound Practice");
+      setError(err instanceof Error ? err.message : t("error.practice.sound_practice_start_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -355,7 +373,7 @@ export default function TodayPractice({
       resetPractice(data);
       onFocusChange(data.focus_phonemes ?? nextFocus);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start focused practice");
+      setError(err instanceof Error ? err.message : t("error.practice.focus_start_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -368,9 +386,9 @@ export default function TodayPractice({
       const data = await clearPracticeFocus();
       onFocusChange([]);
       resetPractice(data, undefined, { showHub: true });
-      setNotice("Focus cleared. Back to normal practice.");
+      setNotice(t("focus.action.clear.notice"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to clear focus");
+      setError(err instanceof Error ? err.message : t("error.practice.clear_focus_failed"));
     } finally {
       setActionLoading(null);
     }
@@ -380,7 +398,7 @@ export default function TodayPractice({
   if (loading) {
     return (
       <main className="practice-container">
-        <p>Loading today's practice…</p>
+        <p>{t("today.loading")}</p>
       </main>
     );
   }
@@ -390,11 +408,11 @@ export default function TodayPractice({
     return (
       <main className="practice-container">
         <div className="practice-error">
-          <h2>Practice unavailable</h2>
-          <p>{error || "Unknown error"}</p>
+          <h2>{t("today.error.title")}</h2>
+          <p>{error || t("error.generic.unknown")}</p>
           <p className="hint">
-            Make sure you've run <code>import_words.py</code> and the backend
-            is running.
+            {t("today.error.import_hint_before")} <code>import_words.py</code>{" "}
+            {t("today.error.import_hint_after")}
           </p>
         </div>
       </main>
@@ -405,11 +423,11 @@ export default function TodayPractice({
     return (
       <main className="practice-container">
         <div className="practice-error">
-          <h2>Practice unavailable</h2>
-          <p>{error || session?.detail || "Unknown error"}</p>
+          <h2>{t("today.error.title")}</h2>
+          <p>{error || session?.detail || t("error.generic.unknown")}</p>
           <p className="hint">
-            Make sure you've run <code>import_words.py</code> and the backend
-            is running.
+            {t("today.error.import_hint_before")} <code>import_words.py</code>{" "}
+            {t("today.error.import_hint_after")}
           </p>
         </div>
       </main>
@@ -425,47 +443,58 @@ export default function TodayPractice({
     return (
       <main className="practice-container">
         <section className="today-hub">
-          <p className="workflow-kicker">Today practice hub</p>
-          <h1>{todayHubHeading(session, hasActiveGroup)}</h1>
+          <p className="workflow-kicker">{t("today.hub.kicker")}</p>
+          <h1>{todayHubHeading(session, hasActiveGroup, t)}</h1>
           <p className="section-copy">
-            {todayHubCopy(hasActiveGroup)}
+            {todayHubCopy(hasActiveGroup, t)}
           </p>
 
           <div className={`hub-status-card ${pendingLevelChange ? "pending" : ""}`}>
             {hasActiveGroup ? (
               <>
-                <span className="focus-panel-label">Active group</span>
-                <strong>{learnerLevelLabel(session)} group in progress</strong>
+                <span className="focus-panel-label">{t("today.hub.status.active.label")}</span>
+                <strong>
+                  {t("today.hub.status.active.title", { level: learnerLevelLabel(session) })}
+                </strong>
                 <span>
-                  {session.word_count ?? session.items.length} words assigned · {session.primary_accent}
+                  {t("today.hub.status.active.meta", {
+                    wordCount: session.word_count ?? session.items.length,
+                  })} · {session.primary_accent}
                 </span>
                 {pendingLevelChange && (
                   <p className="pending-copy">
-                    {selectedLevelLabel(session)} is selected for your next new group. Your current {learnerLevelLabel(session)} group stays active until you finish it or switch now.
+                    {t("today.hub.pending_level_change", {
+                      selectedLevel: selectedLevelLabel(session),
+                      currentLevel: learnerLevelLabel(session),
+                    })}
                   </p>
                 )}
               </>
             ) : (
               <>
-                <span className="focus-panel-label">Ready when you are</span>
-                <strong>{selectedLevelLabel(session)} listening group</strong>
+                <span className="focus-panel-label">{t("today.hub.status.ready.label")}</span>
+                <strong>
+                  {t("today.hub.status.ready.title", {
+                    selectedLevel: selectedLevelLabel(session),
+                  })}
+                </strong>
                 <span>
-                  {session.daily_word_count} words per normal group · {session.primary_accent}
+                  {t("today.hub.status.ready.meta", { count: session.daily_word_count })} · {session.primary_accent}
                 </span>
               </>
             )}
           </div>
 
           {completedGroupCount(session) > 0 && (
-            <p className="empty-hint">{completedGroupsCopy(session)}</p>
+            <p className="empty-hint">{completedGroupsCopy(session, t)}</p>
           )}
 
           <div className="specialty-panel">
             <div>
-              <span className="focus-panel-label">Specialty practice</span>
-              <strong>Sound Compare</strong>
+              <span className="focus-panel-label">{t("specialty.label")}</span>
+              <strong>{t("specialty.sound_compare.title")}</strong>
               <span>
-                Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.
+                {t("specialty.sound_compare.description")}
               </span>
             </div>
             <button
@@ -474,16 +503,18 @@ export default function TodayPractice({
               disabled={actionLoading !== null}
               type="button"
             >
-              {actionLoading === "minimal-pair" ? "Loading…" : "Start Sound Compare"}
+              {actionLoading === "minimal-pair"
+                ? t("action.loading")
+                : t("specialty.sound_compare.start")}
             </button>
           </div>
 
           <div className="specialty-panel target-phoneme-panel">
             <div>
-              <span className="focus-panel-label">Specialty practice</span>
-              <strong>Sound Practice</strong>
+              <span className="focus-panel-label">{t("specialty.label")}</span>
+              <strong>{t("specialty.sound_practice.title")}</strong>
               <span>
-                Pick one approved American sound for intentional practice. This is separate from weak-sound recovery.
+                {t("specialty.sound_practice.description")}
               </span>
             </div>
             <div className="phoneme-chip-list">
@@ -496,13 +527,13 @@ export default function TodayPractice({
                   type="button"
                 >
                   {actionLoading === `target-${option.phoneme}`
-                    ? "Loading..."
-                    : `Practice ${option.phoneme}`}
+                    ? t("action.loading")
+                    : t("specialty.sound_practice.practice", { phoneme: option.phoneme })}
                 </button>
               ))}
               {(session.target_phoneme_options ?? []).length === 0 && (
                 <span className="empty-hint">
-                  Sound Practice will appear when approved sounds have enough words.
+                  {t("specialty.sound_practice.no_options")}
                 </span>
               )}
             </div>
@@ -525,10 +556,12 @@ export default function TodayPractice({
               disabled={actionLoading !== null}
             >
               {actionLoading === "continue"
-                ? "Loading…"
+                ? t("action.loading")
                 : hasActiveGroup
-                  ? resumeActionLabel(session)
-                  : session.action_label ?? `Start ${selectedLevelLabel(session)} group`}
+                  ? resumeActionLabel(session, t)
+                  : session.action_label ?? t("today.action.start_group.short", {
+                      level: selectedLevelLabel(session),
+                    })}
             </button>
             {showSwitchAction && (
               <button
@@ -537,8 +570,10 @@ export default function TodayPractice({
                 disabled={actionLoading !== null}
               >
                 {actionLoading === "abandon-next"
-                  ? "Loading…"
-                  : `Switch to ${selectedLevelLabel(session)} now`}
+                  ? t("action.loading")
+                  : t("today.action.switch_now", {
+                      selectedLevel: selectedLevelLabel(session),
+                    })}
               </button>
             )}
             <button
@@ -546,10 +581,10 @@ export default function TodayPractice({
               onClick={handleRecentReview}
               disabled={actionLoading !== null || (session.recent_mistake_count ?? 0) <= 0}
             >
-              {actionLoading === "recent-review" ? "Loading…" : recentReviewLabel(session)}
+              {actionLoading === "recent-review" ? t("action.loading") : recentReviewLabel(session, t)}
             </button>
             <button className="secondary-action-btn" onClick={onOpenProgress}>
-              View Progress
+              {t("today.action.view_progress")}
             </button>
           </div>
         </section>
@@ -574,42 +609,51 @@ export default function TodayPractice({
     return (
       <main className="practice-container">
         <div className="practice-summary">
-          <p className="workflow-kicker">{groupReason(summarySession)}</p>
-          <h2>{groupLabel(summarySession)} complete</h2>
+          <p className="workflow-kicker">{groupReason(summarySession, t)}</p>
+          <h2>
+            {t("practice.summary.complete_title", {
+              groupLabel: groupLabel(summarySession, t),
+            })}
+          </h2>
           <p className="summary-score">
-            {correctCount} / {total} correct
+            {t("practice.summary.score", {
+              correctCount,
+              totalCount: total,
+            })}
           </p>
           {wrongResults.length > 0 ? (
             <section className="summary-section">
-              <h3>This group's misses</h3>
+              <h3>{t("practice.summary.current_misses")}</h3>
               <ul className="summary-list">
                 {wrongResults.map((r) => (
                   <li key={r.sessionItemId} className="summary-wrong">
                     <span>
                       <strong>{r.word}</strong>
                       <span className="summary-answer">
-                        picked <code>{r.selectedAnswer}</code>, correct{" "}
-                        <code>{r.correctAnswer}</code>
+                        {t("practice.summary.picked_before")} <code>{r.selectedAnswer}</code>
+                        {", "}
+                        {t("practice.summary.correct_before")} <code>{r.correctAnswer}</code>
                       </span>
                     </span>
                     <span className="summary-phonemes">
-                      Target sound: {r.targetPhonemes.join(" ") || "IPA contrast"}
+                      {t("practice.feedback.label.target_sound")}:{" "}
+                      {r.targetPhonemes.join(" ") || t("practice.feedback.target_sound.default")}
                     </span>
                     <span className="summary-hint">
-                      {buildFocusHint(r.targetPhonemes)}
+                      {buildFocusHint(r.targetPhonemes, t)}
                     </span>
                   </li>
                 ))}
               </ul>
             </section>
           ) : (
-            <p className="summary-perfect">No misses in this group.</p>
+            <p className="summary-perfect">{t("practice.summary.no_misses")}</p>
           )}
           {focusSuggestions.length > 0 && (
             <section className="summary-section focus-choice-panel">
-              <h3>Focus a weak sound next</h3>
+              <h3>{t("practice.summary.focus_next.title")}</h3>
               <p className="section-copy">
-                Start a focused group weighted toward one of the sounds missed in this group.
+                {t("practice.summary.focus_next.description")}
               </p>
               <div className="phoneme-chip-list">
                 {focusSuggestions.map((phoneme) => (
@@ -620,7 +664,7 @@ export default function TodayPractice({
                     disabled={actionLoading !== null}
                     type="button"
                   >
-                    Focus {phoneme}
+                    {t("focus.action.start", { phoneme })}
                   </button>
                 ))}
               </div>
@@ -634,7 +678,9 @@ export default function TodayPractice({
               onClick={handleNextNormal}
               disabled={actionLoading !== null}
             >
-              {actionLoading === "continue" ? "Loading…" : nextNormalActionLabel(summarySession)}
+              {actionLoading === "continue"
+                ? t("action.loading")
+                : nextNormalActionLabel(summarySession, t)}
             </button>
             {hasCurrentGroupMisses && (
               <button
@@ -643,8 +689,8 @@ export default function TodayPractice({
                 disabled={actionLoading !== null}
               >
                 {actionLoading === "current-review"
-                  ? "Loading…"
-                  : currentReviewActionLabel(summarySession)}
+                  ? t("action.loading")
+                  : currentReviewActionLabel(summarySession, t)}
               </button>
             )}
             <button
@@ -653,14 +699,14 @@ export default function TodayPractice({
               disabled={actionLoading !== null}
             >
               {actionLoading === "recent-review"
-                ? "Loading…"
+                ? t("action.loading")
                 : recentReviewLabel({
                     ...summarySession,
                     recent_mistake_count: summaryRecentMistakeCount,
-                  })}
+                  }, t)}
             </button>
             <button className="secondary-action-btn" onClick={onOpenProgress}>
-              Return to Progress
+              {t("today.action.return_to_progress")}
             </button>
           </div>
         </div>
@@ -675,20 +721,22 @@ export default function TodayPractice({
   return (
     <main className="practice-container">
       <div className="practice-header">
-        <span className="progress-label">{groupLabel(session)}: {progress}</span>
+        <span className="progress-label">{groupLabel(session, t)}: {progress}</span>
         <span className="practice-context">
           <span className="level-label">{learnerLevelLabel(session)}</span>
           <span className="accent-label">{session.primary_accent}</span>
         </span>
       </div>
       <div className="mode-panel">
-        <strong>{groupLabel(session)}</strong>
-        <span>{groupReason(session)}</span>
+        <strong>{groupLabel(session, t)}</strong>
+        <span>{groupReason(session, t)}</span>
       </div>
       {(session.focus_phonemes?.length || focusPhonemes.length > 0) && (
         <div className="active-focus-banner">
           <span>
-            {session.group_type === "target_phoneme" ? "Chosen sound" : "Current focus"}
+            {session.group_type === "target_phoneme"
+              ? t("focus.chosen_sound.label")
+              : t("focus.current.label")}
           </span>
           {(session.focus_phonemes ?? focusPhonemes).map((phoneme) => (
             <span className="phoneme-chip" key={phoneme}>{phoneme}</span>
@@ -700,7 +748,7 @@ export default function TodayPractice({
               disabled={actionLoading !== null}
               type="button"
             >
-              Clear focus
+              {t("focus.action.clear_button")}
             </button>
           )}
         </div>
@@ -711,6 +759,7 @@ export default function TodayPractice({
       <ChoiceQuestion
         key={currentItem.session_item_id}
         item={currentItem}
+        t={t}
         onResult={(result) => {
           handleResult(currentItem, result);
           if (result.isCorrect) {

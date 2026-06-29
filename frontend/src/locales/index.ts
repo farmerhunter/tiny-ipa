@@ -9,6 +9,7 @@ export const SUPPORTED_LOCALES = ["zh-CN", "en-US"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export type LocaleKey = keyof typeof zhCN;
 export type LocaleValues = Record<string, string | number>;
+export type Translator = ReturnType<typeof createTranslator>;
 
 export type MissingKeyEvent = {
   locale: Locale;
