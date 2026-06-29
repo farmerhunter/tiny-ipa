@@ -14,6 +14,42 @@ Runtime Data
 
 源内容是事实来源。SQLite 可以删除重建，但用户学习记录需要备份。
 
+## Localization and Current-user Roadmap Boundary
+
+M11 and M12 insert two prerequisites before deployment:
+
+```text
+M11 Localization and Configurable UI Language (#209)
+M12 Minimal Auth and Multi-user Data Isolation (#210)
+```
+
+Localization is a UI/runtime contract. It should make learner-facing copy
+configurable without changing IPA/content/grading semantics. Auth is a runtime
+identity contract. It should make existing `user_id` fields meaningful before
+the app is exposed through VPS deployment.
+
+These Epics must preserve the existing content boundary:
+
+```text
+global source/runtime content:
+  words
+  phonemes
+  static audio assets
+  source reports
+
+per-user runtime learning data:
+  settings
+  daily_sessions
+  session ownership
+  attempts
+  phoneme_stats
+  review/focus state
+```
+
+The old `default` user is a migration concern. Any real migration of existing
+SQLite data requires backup guidance, dry-run evidence, and explicit Human
+approval before mutating real/private data.
+
 ## 源词条字段
 
 推荐源内容字段：
@@ -85,6 +121,7 @@ settings(
   practice_mode TEXT NOT NULL,
   review_strength TEXT NOT NULL,
   learner_level TEXT NOT NULL DEFAULT 'entry',
+  ui_language TEXT NOT NULL DEFAULT 'zh-CN',
   focus_phonemes TEXT NOT NULL DEFAULT '[]',
   updated_at TEXT NOT NULL
 )
@@ -143,6 +180,47 @@ phoneme_stats(
 `primary_accent` 必须进入 session、attempt 和 stats，否则未来 UK 对照会污染 US 统计。
 
 ## API 合同
+
+### Current user and auth boundary
+
+Pre-auth local development may continue to use a documented dev/default user.
+M12 must make the current-user source explicit before VPS deployment:
+
+```text
+anonymous local dev user     allowed only in documented dev mode
+authenticated runtime user   required for deployed learner data
+owner/admin bootstrap        minimal personal deployment setup
+```
+
+Runtime endpoints that read or mutate learner data must resolve the current
+user before touching user-scoped tables:
+
+```text
+GET /api/today
+POST /api/practice/next-normal
+POST /api/practice/abandon-current-and-next
+POST /api/practice/focus
+POST /api/practice/clear-focus
+POST /api/review/current-group
+POST /api/review/recent-mistakes
+POST /api/attempt
+GET /api/progress
+GET/PUT /api/settings
+```
+
+Shared content reads may remain global, but must not leak another user's
+runtime attempts, settings, sessions, or stats.
+
+M12 should define the concrete auth endpoints. Expected minimum shape:
+
+```http
+POST /api/auth/login
+POST /api/auth/logout
+GET /api/auth/me
+```
+
+The final contract must specify cookie/session behavior, secret configuration,
+local dev bootstrap, and failure states before M13 deployment releases.
 
 ### Health
 
@@ -551,6 +629,7 @@ MVP 默认：
   "show_accent_compare": false,
   "practice_mode": "ipa_first",
   "review_strength": "normal",
+  "ui_language": "zh-CN",
   "learner_level": "entry"
 }
 ```
@@ -631,6 +710,7 @@ Settings API contract:
   "practice_mode": "ipa_first",
   "review_strength": "normal",
   "focus_phonemes": [],
+  "ui_language": "zh-CN",
   "learner_level": "entry"
 }
 ```
@@ -641,6 +721,18 @@ Settings API contract:
 entry | mid      accepted values
 other values     400 SETTINGS_INVALID
 ```
+
+M11 adds `ui_language` as a learner-facing UI preference. Initial accepted
+values should be:
+
+```text
+zh-CN | en-US     accepted values
+other values      400 SETTINGS_INVALID
+```
+
+`ui_language` controls interface copy only. It must not translate IPA strings,
+phoneme symbols, accent identifiers, source word content, `meaning_zh`, grading
+logic, or scheduler behavior.
 
 If the UI exposes `mid` before the Mid content set is ready, the action must fail
 with a clear disabled/hold state or a structured backend error. Final M8
@@ -729,6 +821,9 @@ cd frontend && pnpm test:e2e:m8
 ```text
 CONTENT_NOT_READY
 AUDIO_MISSING
+AUTH_REQUIRED
+CURRENT_USER_MISSING
+USER_DATA_SCOPE_VIOLATION
 SESSION_NOT_FOUND
 SESSION_ALREADY_COMPLETED
 ITEM_NOT_FOUND
