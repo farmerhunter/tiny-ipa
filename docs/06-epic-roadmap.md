@@ -17,7 +17,10 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M8 Level-based Content Expansion and Core 1000 Rebalance | #108 | Done |
 | M9 UK Accent Compare and Specialty Practice | #28 | Done |
 | M10 UX Research and Practice Experience Optimization | #102 | Done |
-| M11 VPS Deployment and Backup | #27 | Ready |
+| M11 Localization and Configurable UI Language | #209 | Planning |
+| M12 Minimal Auth and Multi-user Data Isolation | #210 | Planning |
+| M13 VPS Deployment and Backup | #27 | Blocked |
+| M14 Account Management and Admin UX | #212 | Backlog / Deferred |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -361,15 +364,140 @@ practice experience changes preserve existing scheduling and progress boundaries
 final closeout is recorded on #102
 ```
 
-## M11：VPS Deployment and Backup
+## M11：Localization and Configurable UI Language
+
+Goal: make Tiny IPA configurable for learner-facing UI language before auth and
+deployment harden the user boundary.
+
+Roadmap status:
+
+```text
+Planning. Epic #209 has been created as the next roadmap stage, but child
+issues are not planned or released yet.
+```
+
+Expected child issue areas:
+
+```text
+UI language contract and learner-facing copy inventory
+zh-CN and en-US locale resource structure
+settings/API support for configurable UI language
+frontend copy extraction across Today, Practice, Progress, Settings, audio,
+review/focus, and error states
+mobile text-fit and walkthrough evidence for both languages
+final localization readiness review and user-facing trial note
+```
+
+Acceptance:
+
+```text
+zh-CN is the default learner-facing UI language unless product decision changes it
+en-US is selectable without code changes
+learner-facing copy is not hard-coded across production components
+IPA strings, phoneme symbols, accent labels, source word content, and grading
+semantics remain domain data rather than translated UI prose
+missing translation keys fail visibly in dev/test or have a documented fallback
+mobile walkthrough evidence covers major flows and long text fit in both languages
+local dev remains runnable without auth or deployment prerequisites
+```
+
+Boundaries:
+
+```text
+do not translate source word content or meaning_zh in this Epic
+do not add real auth, account management, family dashboard, OAuth, social login,
+analytics, or deployment changes
+do not rewrite scheduler, grading, content import, or progress semantics
+```
+
+Execution contract:
+
+```text
+Branch strategy: epic integration branch
+Integration branch: epic/m11-localization-ui-language
+Base branch: epic/m11-localization-ui-language
+Target PR base: epic/m11-localization-ui-language
+Final PR target: main
+Owner role: architect for planning/decomposition; implementer per child issue
+Review role: reviewer for UI/API changes; architect for cross-issue contract acceptance
+Acceptance role: architect / user for language and copy acceptance
+Completion handoff: batch checkpoint
+```
+
+## M12：Minimal Auth and Multi-user Data Isolation
+
+Goal: add the minimum authentication and per-user data isolation needed before
+personal VPS deployment exposes Tiny IPA beyond a single local default user.
+
+Roadmap status:
+
+```text
+Planning. Epic #210 has been created after #209 and before #27. Child issues are
+not planned or released yet.
+```
+
+Expected child issue areas:
+
+```text
+auth/domain contract and personal-VPS threat boundary
+user model and owner/admin bootstrap strategy
+login, logout, and current-user API/session behavior
+per-user scoping for settings, sessions, attempts, progress, phoneme stats,
+review/focus state, and backup/restore expectations
+old default-user data migration or owner-claim strategy
+minimal frontend login/logout/current-user UX using localized copy from M11
+security/session tests, user-isolation regression tests, and local dev bootstrap
+final auth/data-boundary readiness review before deployment release
+```
+
+Acceptance:
+
+```text
+runtime learner data resolves an authenticated/current user instead of one global user
+settings, normal/review/focus sessions, attempts, progress, and phoneme stats are user-scoped
+shared content tables remain global/source-driven
+existing default data has an explicit migration or owner-claim strategy with backup guidance
+owner/admin bootstrap exists for personal deployment while broad admin UI stays deferred
+login/logout/current-user states are visible and tested or walkthrough-covered
+local development remains easy without external OAuth
+session/cookie/secret behavior needed by VPS deployment is documented and testable
+```
+
+Boundaries:
+
+```text
+do not add OAuth, social login, family dashboard, multi-role permission matrix,
+billing, analytics, email verification, password reset, or broad SaaS account management
+do not perform real data migration or mutate real SQLite data without explicit Human approval
+do not bind business logic to a VPS provider, domain, or reverse proxy
+```
+
+Execution contract:
+
+```text
+Branch strategy: epic integration branch
+Integration branch: epic/m12-minimal-auth-data-isolation
+Base branch: epic/m12-minimal-auth-data-isolation
+Target PR base: epic/m12-minimal-auth-data-isolation
+Final PR target: main
+Owner role: architect for planning/decomposition; implementer per child issue
+Review role: reviewer for implementation PRs; architect for security/data-boundary acceptance
+Acceptance role: architect / user for auth boundary and migration acceptance
+Depends on: #209 for localization/copy boundary before learner-facing auth UI work
+Completion handoff: batch checkpoint
+```
+
+## M13：VPS Deployment and Backup
 
 Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 
 Roadmap status:
 
 ```text
-Ready. M11 is the next Epic candidate after M9 completion. Child issues are not
-planned yet and should be decomposed by Architect before implementation release.
+Blocked. Epic #27 has moved after #209 Localization and #210 Minimal Auth /
+Multi-user Data Isolation. It should not be decomposed or released to
+Implementer until those prerequisites define the language, current-user,
+auth-secret, session-cookie, and user-data backup boundaries.
 ```
 
 Expected child issue areas:
@@ -391,6 +519,64 @@ domain works over HTTPS
 /audio/ works
 service survives restart
 backup can restore learning data
+auth/session secrets and secure cookie behavior are verified for the deployment target
+local dev remains runnable without VPS-only assumptions
+```
+
+Boundaries:
+
+```text
+deployment is an adapter/contract layer, not a place to add business logic
+do not implement auth, localization, account management, or data migration here
+do not mutate real SQLite data, secrets, DNS, VPS runtime, or deployment config
+without explicit Human approval
+```
+
+## M14：Account Management and Admin UX
+
+Goal: preserve broader account and admin UX ideas as a deferred post-deploy
+roadmap placeholder, without mixing them into minimal auth or deployment.
+
+Roadmap status:
+
+```text
+Backlog / deferred. Epic #212 exists as a placeholder only. It should not be
+decomposed or released until post-deploy usage produces a concrete product need
+and Architect/Human accepts the scope.
+```
+
+Potential future scope:
+
+```text
+user profile/account settings polish
+password change/reset/recovery strategy
+owner/admin management entry points
+multi-learner management UX if later product decision requires it
+user data export/delete policy review
+```
+
+Explicit non-scope until separately approved:
+
+```text
+SaaS billing
+OAuth or social login
+family/teacher dashboard
+complex role matrix
+production account recovery service
+account/admin implementation code in M11, M12, or M13
+```
+
+Execution contract:
+
+```text
+Branch strategy: not released; future decomposition required
+Owner role: architect for future product/UX scoping
+Review role: reviewer only after future child issues exist
+Acceptance role: architect / user for future account/admin product decision
+Depends on: #209, #210, and #27
+Completion handoff: hold
+Merge rule: no implementation PRs until this Epic is explicitly reactivated
+Verification required: future scope-specific verification to be defined during decomposition
 ```
 
 ## Scope Control

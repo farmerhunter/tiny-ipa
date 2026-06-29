@@ -22,6 +22,7 @@ Runtime Assets
         |
         v
 FastAPI Backend
+  auth/session/current user
   practice
   grading
   progress
@@ -92,6 +93,8 @@ FastAPI 只面向运行时用户体验。它不在请求路径中做大规模内
 后端拥有：
 
 ```text
+current-user resolution
+minimal auth/session boundary
 session generation
 question generation
 server-side grading
@@ -105,6 +108,48 @@ settings validation
 React PWA 消费领域摘要，不自行计算掌握度或决定调度逻辑。
 
 前端可以有本地 UI 状态，例如当前卡片是否 reveal，但不拥有学习记录事实。
+
+### Localization
+
+UI language is a product/runtime preference, not content-source data.
+
+Learner-facing UI copy should live behind a locale boundary so the app can
+support:
+
+```text
+zh-CN default learner-facing copy
+en-US selectable UI copy
+stable IPA, phoneme, accent, and content semantics
+```
+
+Localization should not translate source word records or `meaning_zh`. IPA
+symbols, phoneme tags, accent identifiers, and grading semantics remain domain
+data. Locale resources own button labels, state descriptions, error copy, and
+help text.
+
+### Auth and User Data Boundary
+
+Tiny IPA starts as a local single-user app, but runtime learning data is already
+modeled around `user_id`. Before deployment, the system needs an explicit
+current-user boundary:
+
+```text
+users / owner bootstrap
+login / logout / current user
+settings scoped by user
+daily_sessions scoped by user
+attempts scoped by user
+phoneme_stats scoped by user
+review/focus state scoped by user
+```
+
+Content tables remain global and source-driven. User runtime tables are private
+learning state and must be backed up and restored with the authenticated user
+boundary intact.
+
+Minimal auth should avoid broad SaaS features. OAuth, social login, family
+dashboards, complex role matrices, and account administration are separate
+future product decisions.
 
 ### Audio Assets
 
@@ -183,6 +228,9 @@ tiny-ipa/
 
 ```text
 content_source_unavailable
+auth_required
+current_user_missing
+user_data_scope_violation
 ipa_missing_us
 ipa_missing_uk
 ipa_parse_failed
