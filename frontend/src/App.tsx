@@ -1,21 +1,27 @@
-import { fetchHealth, type TodayResponse } from "./api";
+import { fetchHealth, fetchSettings, type TodayResponse } from "./api";
 import { useEffect, useState } from "react";
 import TodayPractice from "./pages/TodayPractice";
 import ProgressPage from "./pages/ProgressPage";
 import SettingsPage from "./pages/SettingsPage";
-import { DEFAULT_LOCALE, createTranslator } from "./locales";
+import { DEFAULT_LOCALE, createTranslator, type Locale } from "./locales";
 
 function App() {
   const [backendReady, setBackendReady] = useState<boolean>(false);
   const [checking, setChecking] = useState(true);
   const [page, setPage] = useState<"today" | "progress" | "settings">("today");
+  const [uiLanguage, setUiLanguage] = useState<Locale>(DEFAULT_LOCALE);
   const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
   const [practiceSession, setPracticeSession] = useState<TodayResponse | null>(null);
-  const t = createTranslator(DEFAULT_LOCALE);
+  const t = createTranslator(uiLanguage);
 
   useEffect(() => {
     fetchHealth()
-      .then(() => setBackendReady(true))
+      .then(() => {
+        setBackendReady(true);
+        return fetchSettings()
+          .then((settings) => setUiLanguage(settings.ui_language))
+          .catch(() => undefined);
+      })
       .catch(() => setBackendReady(false))
       .finally(() => setChecking(false));
   }, []);
@@ -49,7 +55,7 @@ function App() {
           <span>{t("app.brand.tagline")}</span>
         </div>
         <button className="login-placeholder" type="button" disabled>
-          {t("app.login.disabled").split(" / ")[0]}
+          {t("app.login.disabled.short")}
         </button>
       </header>
       <nav className="nav-bar">
@@ -62,6 +68,7 @@ function App() {
       </nav>
       {page === "progress"
         ? <ProgressPage
+            uiLanguage={uiLanguage}
             onBack={() => setPage("today")}
             focusPhonemes={focusPhonemes}
             onFocusChange={setFocusPhonemes}
@@ -72,7 +79,9 @@ function App() {
           />
         : page === "settings"
         ? <SettingsPage
+            uiLanguage={uiLanguage}
             onBack={() => setPage("today")}
+            onLanguageChange={setUiLanguage}
             onFocusChange={setFocusPhonemes}
             onStartPractice={(session) => {
               setPracticeSession(session);
@@ -80,6 +89,7 @@ function App() {
             }}
           />
         : <TodayPractice
+            uiLanguage={uiLanguage}
             focusPhonemes={focusPhonemes}
             onFocusChange={setFocusPhonemes}
             onOpenProgress={() => setPage("progress")}
