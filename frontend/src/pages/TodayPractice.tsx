@@ -22,7 +22,12 @@ import {
 } from "../api";
 import type { ChoiceResult } from "../components/ChoiceQuestion";
 import { ChoiceQuestion } from "../components/ChoiceQuestion";
-import { createTranslator, type Locale, type Translator } from "../locales";
+import {
+  createTranslator,
+  learnerLevelLabel as localizedLearnerLevelLabel,
+  type Locale,
+  type Translator,
+} from "../locales";
 
 interface Props {
   uiLanguage: Locale;
@@ -57,13 +62,12 @@ function groupLabel(session: TodayResponse, t: Translator): string {
   return t("today.group.label.practice");
 }
 
-function learnerLevelLabel(session: TodayResponse): string {
-  return session.learner_level_label ?? (session.learner_level === "mid" ? "Mid" : "Entry");
+function learnerLevelLabel(session: TodayResponse, t: Translator): string {
+  return localizedLearnerLevelLabel(session.learner_level, t);
 }
 
-function selectedLevelLabel(session: TodayResponse): string {
-  return session.selected_learner_level_label
-    ?? (session.selected_learner_level === "mid" ? "Mid" : "Entry");
+function selectedLevelLabel(session: TodayResponse, t: Translator): string {
+  return localizedLearnerLevelLabel(session.selected_learner_level, t);
 }
 
 function groupReason(session: TodayResponse, t: Translator): string {
@@ -77,7 +81,7 @@ function groupReason(session: TodayResponse, t: Translator): string {
   if (session.group_type === "weak_focus") {
     const phonemes = session.focus_phonemes?.join(" ") || t("today.group.reason.selected_sounds");
     return t("today.group.reason.weak_focus", {
-      level: learnerLevelLabel(session),
+      level: learnerLevelLabel(session, t),
       phonemes,
     });
   }
@@ -88,12 +92,12 @@ function groupReason(session: TodayResponse, t: Translator): string {
     return t("today.group.reason.recent_global");
   }
   if (session.source_scope === "normal_next") {
-    return t("today.group.reason.normal_next", { level: learnerLevelLabel(session) });
+    return t("today.group.reason.normal_next", { level: learnerLevelLabel(session, t) });
   }
   if (session.origin === "normal_resume") {
-    return t("today.group.reason.normal_resume", { level: learnerLevelLabel(session) });
+    return t("today.group.reason.normal_resume", { level: learnerLevelLabel(session, t) });
   }
-  return t("today.group.reason.default", { level: learnerLevelLabel(session) });
+  return t("today.group.reason.default", { level: learnerLevelLabel(session, t) });
 }
 
 function buildFocusHint(targetPhonemes: string[], t: Translator): string {
@@ -111,12 +115,12 @@ function currentReviewActionLabel(session: TodayResponse, t: Translator): string
 }
 
 function nextNormalActionLabel(session: TodayResponse, t: Translator): string {
-  const level = selectedLevelLabel(session);
+  const level = selectedLevelLabel(session, t);
   return t("today.action.start_next_group", { level });
 }
 
 function resumeActionLabel(session: TodayResponse, t: Translator): string {
-  const level = learnerLevelLabel(session);
+  const level = learnerLevelLabel(session, t);
   return t("today.action.resume_group.short", { level });
 }
 
@@ -134,9 +138,9 @@ function completedGroupCount(session: TodayResponse): number {
 
 function todayHubHeading(session: TodayResponse, hasActiveGroup: boolean, t: Translator): string {
   if (hasActiveGroup) {
-    return t("today.hub.heading.active", { level: learnerLevelLabel(session) });
+    return t("today.hub.heading.active", { level: learnerLevelLabel(session, t) });
   }
-  return t("today.hub.heading.start", { selectedLevel: selectedLevelLabel(session) });
+  return t("today.hub.heading.start", { selectedLevel: selectedLevelLabel(session, t) });
 }
 
 function todayHubCopy(hasActiveGroup: boolean, t: Translator): string {
@@ -181,7 +185,7 @@ export default function TodayPractice({
     options: { showHub?: boolean } = {},
   ) => {
     if (data.error) {
-      setError(data.detail ?? data.error);
+      setError(t("error.generic.failed", { error: data.error }));
       return;
     }
     setSession(data);
@@ -193,7 +197,7 @@ export default function TodayPractice({
     setNotice(null);
     if (data.focus_phonemes) onFocusChange(data.focus_phonemes);
     else if (settings) onFocusChange(settings.focus_phonemes);
-  }, [onFocusChange]);
+  }, [onFocusChange, t]);
 
   useEffect(() => {
     if (initialSession) {
@@ -271,12 +275,12 @@ export default function TodayPractice({
     const ok = window.confirm(
       isPending
         ? t("today.confirm.abandon_pending", {
-            currentLevel: learnerLevelLabel(session),
-            selectedLevel: selectedLevelLabel(session),
+            currentLevel: learnerLevelLabel(session, t),
+            selectedLevel: selectedLevelLabel(session, t),
           })
         : t("today.confirm.abandon_same_level", {
-            currentLevel: learnerLevelLabel(session),
-            selectedLevel: selectedLevelLabel(session),
+            currentLevel: learnerLevelLabel(session, t),
+            selectedLevel: selectedLevelLabel(session, t),
           }),
     );
     if (!ok) return;
@@ -285,7 +289,7 @@ export default function TodayPractice({
     try {
       const data = await abandonCurrentAndStartNext();
       resetPractice(data);
-      setNotice(data.detail ?? null);
+      setNotice(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error.practice.switch_failed"));
     } finally {
@@ -301,7 +305,7 @@ export default function TodayPractice({
     try {
       const data = await startCurrentGroupReview(sourceGroupId);
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? t("review.current.empty"));
+        setNotice(t("review.current.empty"));
       } else {
         resetPractice(data);
       }
@@ -318,7 +322,7 @@ export default function TodayPractice({
     try {
       const data = await startRecentMistakeReview();
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? t("review.recent.empty"));
+        setNotice(t("review.recent.empty"));
       } else {
         resetPractice(data);
       }
@@ -335,7 +339,7 @@ export default function TodayPractice({
     try {
       const data = await startMinimalPairPractice();
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? t("specialty.sound_compare.empty"));
+        setNotice(t("specialty.sound_compare.empty"));
       } else {
         resetPractice(data);
       }
@@ -352,7 +356,7 @@ export default function TodayPractice({
     try {
       const data = await startTargetPhonemePractice(phoneme);
       if (data.status === "empty" || data.items.length === 0) {
-        setNotice(data.detail ?? t("specialty.sound_practice.empty"));
+        setNotice(t("specialty.sound_practice.empty"));
       } else {
         resetPractice(data);
       }
@@ -424,7 +428,7 @@ export default function TodayPractice({
       <main className="practice-container">
         <div className="practice-error">
           <h2>{t("today.error.title")}</h2>
-          <p>{error || session?.detail || t("error.generic.unknown")}</p>
+          <p>{error || t("error.generic.unknown")}</p>
           <p className="hint">
             {t("today.error.import_hint_before")} <code>import_words.py</code>{" "}
             {t("today.error.import_hint_after")}
@@ -454,7 +458,7 @@ export default function TodayPractice({
               <>
                 <span className="focus-panel-label">{t("today.hub.status.active.label")}</span>
                 <strong>
-                  {t("today.hub.status.active.title", { level: learnerLevelLabel(session) })}
+                  {t("today.hub.status.active.title", { level: learnerLevelLabel(session, t) })}
                 </strong>
                 <span>
                   {t("today.hub.status.active.meta", {
@@ -464,8 +468,8 @@ export default function TodayPractice({
                 {pendingLevelChange && (
                   <p className="pending-copy">
                     {t("today.hub.pending_level_change", {
-                      selectedLevel: selectedLevelLabel(session),
-                      currentLevel: learnerLevelLabel(session),
+                      selectedLevel: selectedLevelLabel(session, t),
+                      currentLevel: learnerLevelLabel(session, t),
                     })}
                   </p>
                 )}
@@ -475,7 +479,7 @@ export default function TodayPractice({
                 <span className="focus-panel-label">{t("today.hub.status.ready.label")}</span>
                 <strong>
                   {t("today.hub.status.ready.title", {
-                    selectedLevel: selectedLevelLabel(session),
+                    selectedLevel: selectedLevelLabel(session, t),
                   })}
                 </strong>
                 <span>
@@ -559,8 +563,8 @@ export default function TodayPractice({
                 ? t("action.loading")
                 : hasActiveGroup
                   ? resumeActionLabel(session, t)
-                  : session.action_label ?? t("today.action.start_group.short", {
-                      level: selectedLevelLabel(session),
+                  : t("today.action.start_group.short", {
+                      level: selectedLevelLabel(session, t),
                     })}
             </button>
             {showSwitchAction && (
@@ -572,7 +576,7 @@ export default function TodayPractice({
                 {actionLoading === "abandon-next"
                   ? t("action.loading")
                   : t("today.action.switch_now", {
-                      selectedLevel: selectedLevelLabel(session),
+                      selectedLevel: selectedLevelLabel(session, t),
                     })}
               </button>
             )}
@@ -664,7 +668,7 @@ export default function TodayPractice({
                     disabled={actionLoading !== null}
                     type="button"
                   >
-                    {t("focus.action.start", { phoneme })}
+                    {t("focus.action.start_phoneme", { phoneme })}
                   </button>
                 ))}
               </div>
@@ -723,7 +727,7 @@ export default function TodayPractice({
       <div className="practice-header">
         <span className="progress-label">{groupLabel(session, t)}: {progress}</span>
         <span className="practice-context">
-          <span className="level-label">{learnerLevelLabel(session)}</span>
+          <span className="level-label">{learnerLevelLabel(session, t)}</span>
           <span className="accent-label">{session.primary_accent}</span>
         </span>
       </div>

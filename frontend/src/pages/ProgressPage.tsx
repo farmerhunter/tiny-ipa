@@ -17,7 +17,12 @@ import {
   fetchSettings,
   startFocusedPractice,
 } from "../api";
-import { createTranslator, type Locale, type Translator } from "../locales";
+import {
+  createTranslator,
+  learnerLevelLabel,
+  type Locale,
+  type Translator,
+} from "../locales";
 
 interface Props {
   uiLanguage: Locale;
@@ -54,23 +59,25 @@ function activeGroupCount(stats: LevelProgressStats): number {
 
 function levelProgressHint(stats: LevelProgressStats, t: Translator): string {
   const activeGroups = activeGroupCount(stats);
+  const level = learnerLevelLabel(stats.learner_level, t);
   if (stats.attempts === 0 && activeGroups > 0) {
-    return t("progress.level.hint.active", { level: stats.label });
+    return t("progress.level.hint.active", { level });
   }
   if (stats.attempts === 0) {
-    return t("progress.level.hint.empty", { level: stats.label });
+    return t("progress.level.hint.empty", { level });
   }
   if (stats.weak_phonemes.length > 0) {
-    return t("progress.level.hint.weak", { level: stats.label });
+    return t("progress.level.hint.weak", { level });
   }
-  return t("progress.level.hint.steady", { level: stats.label });
+  return t("progress.level.hint.steady", { level });
 }
 
 function levelWeakEmptyCopy(stats: LevelProgressStats, t: Translator): string {
+  const level = learnerLevelLabel(stats.learner_level, t);
   if (stats.attempts === 0) {
-    return t("progress.weak.level.empty_pending", { level: stats.label });
+    return t("progress.weak.level.empty_pending", { level });
   }
-  return t("progress.weak.level.empty", { level: stats.label });
+  return t("progress.weak.level.empty", { level });
 }
 
 function LevelStatsSection({
@@ -86,11 +93,12 @@ function LevelStatsSection({
   savingFocus: string | null;
   t: Translator;
 }) {
+  const level = learnerLevelLabel(stats.learner_level, t);
   return (
     <section className="level-progress-panel">
       <div className="level-progress-header">
-        <h2>{t("progress.level.title", { level: stats.label })}</h2>
-        <span className="level-scope-label">{stats.label}</span>
+        <h2>{t("progress.level.title", { level })}</h2>
+        <span className="level-scope-label">{level}</span>
       </div>
       <p className="section-copy">{levelProgressHint(stats, t)}</p>
       <div className="level-stat-grid">
@@ -102,7 +110,7 @@ function LevelStatsSection({
       </div>
       {stats.weak_phonemes.length > 0 ? (
         <>
-          <h3>{t("progress.weak.level.title", { level: stats.label })}</h3>
+          <h3>{t("progress.weak.level.title", { level })}</h3>
           <ul className="phoneme-list">
             {stats.weak_phonemes.map((p) => (
               <li key={`${stats.learner_level}-${p.phoneme}`} className="phoneme-item weak">
@@ -120,7 +128,7 @@ function LevelStatsSection({
                 >
                   {activeFocus.includes(p.phoneme)
                     ? t("focus.action.resume")
-                    : t("focus.action.start", { phoneme: p.phoneme })}
+                    : t("focus.action.start_phoneme", { phoneme: p.phoneme })}
                 </button>
                 <span className="phoneme-help">
                   {t("progress.focus.uses_selected_level")}
@@ -299,7 +307,7 @@ export default function ProgressPage({
                 >
                   {activeFocus.includes(p.phoneme)
                     ? t("focus.action.resume")
-                    : t("focus.action.start", { phoneme: p.phoneme })}
+                    : t("focus.action.start_phoneme", { phoneme: p.phoneme })}
                 </button>
                 <span className="phoneme-help">
                   {t("progress.focus.weighted", { phoneme: p.phoneme })}

@@ -10,6 +10,7 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export type LocaleKey = keyof typeof zhCN;
 export type LocaleValues = Record<string, string | number>;
 export type Translator = ReturnType<typeof createTranslator>;
+export type LearnerLevel = "entry" | "mid";
 
 export type MissingKeyEvent = {
   locale: Locale;
@@ -64,6 +65,13 @@ export function createTranslator(
 
     return `⟦missing:${locale}:${key}⟧`;
   };
+}
+
+export function learnerLevelLabel(
+  level: LearnerLevel | null | undefined,
+  t: Translator,
+): string {
+  return t(level === "mid" ? "settings.level.mid.title" : "settings.level.entry.title");
 }
 
 function interpolate(text: string, values: LocaleValues): string {
