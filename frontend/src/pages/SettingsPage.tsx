@@ -232,7 +232,7 @@ export default function SettingsPage({
                 onClick={() => void startFocus(phoneme)}
                 type="button"
               >
-                {t("focus.action.start", { phoneme })}
+                {t("focus.action.start_phoneme", { phoneme })}
               </button>
             ))}
           </div>

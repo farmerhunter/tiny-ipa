@@ -359,14 +359,23 @@
       "surface": "review_focus",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx backend/app/services/sessions.py",
-      "current": "Resume focus / Resume {level} Focus Group {groupIndex}"
+      "current": "Resume focus"
     },
     {
       "key": "focus.action.start",
       "surface": "review_focus",
       "classification": "translatable",
-      "source": "frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py",
-      "current": "Focus {phoneme} / Start {level} Focus Group {groupIndex}"
+      "source": "backend/app/services/sessions.py",
+      "current": "Start {level} Focus Group {groupIndex}",
+      "notes": "Group-specific focus action; call sites that only know a phoneme use focus.action.start_phoneme."
+    },
+    {
+      "key": "focus.action.start_phoneme",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "Focus {phoneme}",
+      "notes": "Phoneme-only focus action for call sites without level or group index."
     },
     {
       "key": "focus.chosen_sound.label",

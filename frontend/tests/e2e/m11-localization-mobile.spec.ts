@@ -29,8 +29,9 @@ interface MockState {
 const copy = {
   "zh-CN": {
     todayHub: "今日练习中心",
-    startPractice: "开始 Entry 练习",
-    startGroup: "开始 Entry 组",
+    startPractice: "开始 入门 练习",
+    startGroup: "开始 入门 组",
+    resumeGroup: "继续 入门 组",
     settings: "设置",
     languageTitle: "界面语言",
     saved: "已保存",
@@ -45,18 +46,21 @@ const copy = {
     recentReviewAction: "复习 1 个较早错题",
     recentReviewLabel: "近期错题复习: 1 / 1",
     progress: "进度",
-    progressHeading: "Entry 需要回顾的声音",
+    progressHeading: "入门 需要回顾的声音",
     focusAction: "聚焦 /ʃ/",
     focusedLabel: "聚焦练习组: 1 / 1",
     emptyReview: "没有可供复习的近期错误记录。",
     audioUnavailable: "音频不可用",
     errorTitle: "练习暂不可用",
     backToday: "← 今日",
+    soundCompareStart: "开始声音对比",
+    soundCompareUnavailable: "声音对比练习暂不可用。需要至少两个带配对元数据的安全词。",
   },
   "en-US": {
     todayHub: "Today practice hub",
     startPractice: "Start Entry practice",
     startGroup: "Start Entry group",
+    resumeGroup: "Resume Entry group",
     settings: "Settings",
     languageTitle: "UI language",
     saved: "Saved",
@@ -78,6 +82,8 @@ const copy = {
     audioUnavailable: "Audio unavailable",
     errorTitle: "Practice unavailable",
     backToday: "← Today",
+    soundCompareStart: "Start Sound Compare",
+    soundCompareUnavailable: "Sound Compare practice is not available yet. It needs at least two safe words with pair metadata.",
   },
 } as const;
 
@@ -427,6 +433,18 @@ async function routeMock(route: Route, state: MockState) {
     return;
   }
 
+  if (path === "/practice/minimal-pairs") {
+    await route.fulfill({
+      json: {
+        ...todayResponse(state),
+        status: "empty",
+        items: [],
+        detail: "Sound Compare practice is not available yet. It needs at least two safe words with pair metadata.",
+      },
+    });
+    return;
+  }
+
   await route.fallback();
 }
 
@@ -502,6 +520,29 @@ async function expectMobileTextFit(page: Page, label: string) {
 async function expectLocalizedShell(page: Page, locale: Locale, label: string) {
   await expect(page.getByText(copy[locale].todayHub)).toBeVisible();
   await expectMobileTextFit(page, label);
+  if (locale === "zh-CN") {
+    await expectNoZhCnBlockerLeaks(page, label);
+  }
+}
+
+async function expectNoZhCnBlockerLeaks(page: Page, label: string) {
+  const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  const forbidden = [
+    "Start Mid group",
+    "Start Entry group",
+    "Resume Entry group",
+    "Entry practice",
+    "Mid practice",
+    "Entry group",
+    "Mid group",
+    "Sounds to revisit in Entry",
+    "Sounds to revisit in Mid",
+    "Sound Compare practice is not available yet. It needs at least two safe words with pair metadata.",
+  ];
+  for (const text of forbidden) {
+    expect(visibleText, `${label}: should not show ${text}`).not.toContain(text);
+  }
+  expect(visibleText, `${label}: unresolved locale placeholders`).not.toMatch(/\{(?:level|groupIndex|selectedLevel|currentLevel)\}/);
 }
 
 test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
@@ -517,6 +558,9 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
         await expect(page.getByRole("heading", { name: copy[locale].settings })).toBeVisible();
         await expect(page.getByText(copy[locale].languageTitle)).toBeVisible();
         await expectMobileTextFit(page, `${locale} settings language`);
+        if (locale === "zh-CN") {
+          await expectNoZhCnBlockerLeaks(page, `${locale} settings language`);
+        }
 
         const otherLocale = locale === "zh-CN" ? "en-US" : "zh-CN";
         await page.locator("select").filter({ hasText: /zh-CN|en-US/ }).selectOption(otherLocale);
@@ -538,6 +582,9 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
         await expect(page.getByText(copy[locale].practiceLabel)).toBeVisible();
         await expect(page.getByText(copy[locale].browserVoice)).toBeVisible();
         await expectMobileTextFit(page, `${locale} normal practice browser audio`);
+        if (locale === "zh-CN") {
+          await expectNoZhCnBlockerLeaks(page, `${locale} normal practice browser audio`);
+        }
         await answer(page, "/sɪp/");
         await expect(page.getByText(copy[locale].incorrect)).toBeVisible();
         await expect(page.getByRole("button", { name: copy[locale].continue })).toBeVisible();
@@ -568,10 +615,16 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
         await expect(page.getByRole("heading", { name: copy[locale].progress, exact: true })).toBeVisible();
         await expect(page.getByRole("heading", { name: copy[locale].progressHeading })).toBeVisible();
         await expectMobileTextFit(page, `${locale} progress`);
+        if (locale === "zh-CN") {
+          await expectNoZhCnBlockerLeaks(page, `${locale} progress`);
+        }
         await page.getByRole("button", { name: copy[locale].focusAction }).first().click();
         await expect(page.getByText(copy[locale].focusedLabel)).toBeVisible();
         await attachScreenshot(page, `m11-${locale}-progress-focus`);
         await expectMobileTextFit(page, `${locale} focused practice`);
+        if (locale === "zh-CN") {
+          await expectNoZhCnBlockerLeaks(page, `${locale} focused practice`);
+        }
       });
     });
 
@@ -589,7 +642,7 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
       });
 
       await page.goto("/");
-      await page.getByRole("button", { name: new RegExp(locale === "zh-CN" ? "继续 Entry 组" : "Resume Entry group") }).click();
+      await page.getByRole("button", { name: copy[locale].resumeGroup }).click();
       await page.getByRole("button", { name: new RegExp(locale === "zh-CN" ? "浏览器语音" : "browser voice", "i") }).click();
       await expect(page.getByText(copy[locale].audioUnavailable)).toBeVisible();
       await attachScreenshot(page, `m11-${locale}-audio-unavailable`);
@@ -601,6 +654,16 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
       await expect(page.getByText(copy[locale].emptyReview)).toBeVisible();
       await attachScreenshot(page, `m11-${locale}-empty-review`);
       await expectMobileTextFit(page, `${locale} empty review`);
+      if (locale === "zh-CN") {
+        await expectNoZhCnBlockerLeaks(page, `${locale} empty review`);
+      }
+
+      await page.getByRole("button", { name: copy[locale].soundCompareStart }).click();
+      await expect(page.getByText(copy[locale].soundCompareUnavailable)).toBeVisible();
+      await expectMobileTextFit(page, `${locale} sound compare unavailable`);
+      if (locale === "zh-CN") {
+        await expectNoZhCnBlockerLeaks(page, `${locale} sound compare unavailable`);
+      }
 
       await page.unroute("**/api/**");
       await page.route("**/api/health", async (route) => {
