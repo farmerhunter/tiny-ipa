@@ -288,8 +288,14 @@ test.describe("M8 learner level selection walkthrough", () => {
       await expect(page.getByRole("heading", { name: "Entry progress" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Mid progress" })).toBeVisible();
       await expect(page.getByText("Sounds to revisit overall")).toHaveCount(0);
-      await expect(page.getByText("Entry has sounds ready for focused practice.")).toBeVisible();
-      await expect(page.getByText("Mid is looking steady so far. Keep practicing to confirm strong sounds.")).toBeVisible();
+      await expect(page.getByText("Unfinished normal practice", { exact: true }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: "Go to Today to continue" })).toBeVisible();
+      await expect(page.getByText("Entry has unfinished normal practice. Continue from Today, then come back for more evidence.")).toBeVisible();
+      await expect(page.getByText("Mid has unfinished normal practice. Continue from Today, then come back for more evidence.")).toBeVisible();
+      await expect(page.getByText("all-time answered items", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("all-time completed normal groups", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("1 active")).toHaveCount(0);
+      await expect(page.getByText("1 active groups")).toHaveCount(0);
       const screenshotPath = test.info().outputPath("m8-mid-level-mobile.png");
       await page.screenshot({ fullPage: true, path: screenshotPath });
       await test.info().attach("m8-mid-level-mobile", {

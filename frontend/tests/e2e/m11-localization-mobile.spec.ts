@@ -47,6 +47,14 @@ const copy = {
     recentReviewLabel: "近期错题复习: 1 / 1",
     progress: "进度",
     progressHeading: "入门 需要回顾的声音",
+    progressTodayLabel: "今日练习状态",
+    progressAnsweredLabel: "累计作答项目",
+    progressCompletedLabel: "累计完成普通组",
+    progressCompletedToday: "今日完成 1 组",
+    progressCompletedAllTime: "累计完成 1 组",
+    progressAnsweredAllTime: "累计作答 2 项",
+    progressUnfinishedTitle: "有未完成的普通练习",
+    progressUnfinishedAction: "回到今日继续",
     focusAction: "聚焦 /ʃ/",
     focusedLabel: "聚焦练习组: 1 / 1",
     emptyReview: "没有可供复习的近期错误记录。",
@@ -76,6 +84,14 @@ const copy = {
     recentReviewLabel: "Recent mistake review: 1 / 1",
     progress: "Progress",
     progressHeading: "Sounds to revisit in Entry",
+    progressTodayLabel: "today's practice state",
+    progressAnsweredLabel: "all-time answered items",
+    progressCompletedLabel: "all-time completed normal groups",
+    progressCompletedToday: "1 completed today",
+    progressCompletedAllTime: "1 all-time completed groups",
+    progressAnsweredAllTime: "2 all-time answered items",
+    progressUnfinishedTitle: "Unfinished normal practice",
+    progressUnfinishedAction: "Go to Today to continue",
     focusAction: "Focus /ʃ/",
     focusedLabel: "Focused group: 1 / 1",
     emptyReview: "No recent incorrect attempts are available for review.",
@@ -254,13 +270,15 @@ function settingsResponse(state: MockState) {
 }
 
 function progressResponse(state: MockState) {
+  const entryNormalGroups = state.completed.entry + (state.activeGroup === "entry" ? 1 : 0);
+  const midNormalGroups = state.completed.mid;
   return {
     today_completed: false,
     today_status: state.activeGroup === "none" ? "none" : "in_progress",
     streak_days: 0,
     total_attempts: 2,
     total_sessions: 1,
-    total_normal_groups: 1,
+    total_normal_groups: entryNormalGroups + midNormalGroups,
     stat_scope: "global",
     level_stats: {
       entry: {
@@ -269,7 +287,7 @@ function progressResponse(state: MockState) {
         attempts: 2,
         correct_attempts: 1,
         accuracy: 0.5,
-        normal_groups: 1,
+        normal_groups: entryNormalGroups,
         completed_normal_groups: state.completed.entry,
         completed_normal_groups_today: state.completed.entry,
         weak_phonemes: [
@@ -289,7 +307,7 @@ function progressResponse(state: MockState) {
         attempts: 0,
         correct_attempts: 0,
         accuracy: null,
-        normal_groups: 0,
+        normal_groups: midNormalGroups,
         completed_normal_groups: 0,
         completed_normal_groups_today: 0,
         weak_phonemes: [],
@@ -545,6 +563,20 @@ async function expectNoZhCnBlockerLeaks(page: Page, label: string) {
   expect(visibleText, `${label}: unresolved locale placeholders`).not.toMatch(/\{(?:level|groupIndex|selectedLevel|currentLevel)\}/);
 }
 
+async function expectNoPassiveActiveStats(page: Page, locale: Locale, label: string) {
+  const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  const forbidden = locale === "zh-CN"
+    ? ["1 组进行中"]
+    : ["1 active", "1 active groups"];
+  for (const text of forbidden) {
+    expect(visibleText, `${label}: should not show passive active-group stat ${text}`).not.toContain(text);
+  }
+}
+
+async function expectVisibleText(page: Page, text: string) {
+  await expect(page.getByText(text, { exact: true }).first()).toBeVisible();
+}
+
 test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
   for (const locale of ["zh-CN", "en-US"] as const) {
     test(`${locale} mobile learner workflow surfaces keep localized copy visible and fitted`, async ({ page }) => {
@@ -611,9 +643,17 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
         await attachScreenshot(page, `m11-${locale}-recent-review`);
         await expectMobileTextFit(page, `${locale} recent review`);
 
-        await page.getByRole("button", { name: copy[locale].progress }).click();
+        await page.getByRole("button", { name: copy[locale].progress, exact: true }).click();
         await expect(page.getByRole("heading", { name: copy[locale].progress, exact: true })).toBeVisible();
+        await expectVisibleText(page, copy[locale].progressTodayLabel);
+        await expectVisibleText(page, copy[locale].progressAnsweredLabel);
+        await expectVisibleText(page, copy[locale].progressCompletedLabel);
+        await expectVisibleText(page, copy[locale].progressCompletedToday);
+        await expectVisibleText(page, copy[locale].progressCompletedAllTime);
+        await expectVisibleText(page, copy[locale].progressAnsweredAllTime);
         await expect(page.getByRole("heading", { name: copy[locale].progressHeading })).toBeVisible();
+        await expect(page.getByText(copy[locale].progressUnfinishedTitle)).toHaveCount(0);
+        await expectNoPassiveActiveStats(page, locale, `${locale} progress completed normal group`);
         await expectMobileTextFit(page, `${locale} progress`);
         if (locale === "zh-CN") {
           await expectNoZhCnBlockerLeaks(page, `${locale} progress`);
@@ -642,6 +682,14 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
       });
 
       await page.goto("/");
+      await page.getByRole("button", { name: copy[locale].progress, exact: true }).click();
+      await expectVisibleText(page, copy[locale].progressUnfinishedTitle);
+      await expect(page.getByRole("button", { name: copy[locale].progressUnfinishedAction })).toBeVisible();
+      await expectNoPassiveActiveStats(page, locale, `${locale} progress unfinished callout`);
+      await expectMobileTextFit(page, `${locale} progress unfinished callout`);
+      await page.getByRole("button", { name: copy[locale].progressUnfinishedAction }).click();
+      await expect(page.getByRole("button", { name: copy[locale].resumeGroup })).toBeVisible();
+
       await page.getByRole("button", { name: copy[locale].resumeGroup }).click();
       await page.getByRole("button", { name: new RegExp(locale === "zh-CN" ? "浏览器语音" : "browser voice", "i") }).click();
       await expect(page.getByText(copy[locale].audioUnavailable)).toBeVisible();
@@ -650,6 +698,10 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
 
       state.activeGroup = "none";
       await page.goto("/");
+      await page.getByRole("button", { name: copy[locale].progress, exact: true }).click();
+      await expect(page.getByText(copy[locale].progressUnfinishedTitle)).toHaveCount(0);
+      await expectNoPassiveActiveStats(page, locale, `${locale} progress no unfinished callout`);
+      await page.getByRole("button", { name: copy[locale].backToday }).click();
       await page.getByRole("button", { name: copy[locale].recentReviewAction }).click();
       await expect(page.getByText(copy[locale].emptyReview)).toBeVisible();
       await attachScreenshot(page, `m11-${locale}-empty-review`);

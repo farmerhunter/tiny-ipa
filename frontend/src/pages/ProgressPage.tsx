@@ -41,7 +41,7 @@ function todayMotivation(data: ProgressResponse, t: Translator): { value: string
   if (data.today_completed) {
     return { value: t("progress.today_status.done"), label: t("progress.today_status.done_label") };
   }
-  if (data.today_status !== "none" || data.total_attempts > 0) {
+  if (data.today_status !== "none") {
     return {
       value: t("progress.today_status.started"),
       label: t("progress.today_status.started_label"),
@@ -58,9 +58,8 @@ function activeGroupCount(stats: LevelProgressStats): number {
 }
 
 function levelProgressHint(stats: LevelProgressStats, t: Translator): string {
-  const activeGroups = activeGroupCount(stats);
   const level = learnerLevelLabel(stats.learner_level, t);
-  if (stats.attempts === 0 && activeGroups > 0) {
+  if (activeGroupCount(stats) > 0) {
     return t("progress.level.hint.active", { level });
   }
   if (stats.attempts === 0) {
@@ -78,6 +77,11 @@ function levelWeakEmptyCopy(stats: LevelProgressStats, t: Translator): string {
     return t("progress.weak.level.empty_pending", { level });
   }
   return t("progress.weak.level.empty", { level });
+}
+
+function unfinishedNormalGroupCount(data: ProgressResponse): number {
+  if (!data.level_stats) return 0;
+  return activeGroupCount(data.level_stats.entry) + activeGroupCount(data.level_stats.mid);
 }
 
 function LevelStatsSection({
@@ -104,7 +108,6 @@ function LevelStatsSection({
       <div className="level-stat-grid">
         <span>{t("progress.stats.completed_today", { count: stats.completed_normal_groups_today })}</span>
         <span>{t("progress.stats.completed_groups", { count: stats.completed_normal_groups })}</span>
-        <span>{t("progress.stats.active_groups", { count: activeGroupCount(stats) })}</span>
         <span>{t("progress.stats.answered_items", { count: stats.attempts })}</span>
         <span>{formatAccuracy(stats.accuracy, t)}</span>
       </div>
@@ -214,9 +217,7 @@ export default function ProgressPage({
   const completedGroups = data.level_stats
     ? data.level_stats.entry.completed_normal_groups + data.level_stats.mid.completed_normal_groups
     : data.total_normal_groups;
-  const activeGroups = data.level_stats
-    ? activeGroupCount(data.level_stats.entry) + activeGroupCount(data.level_stats.mid)
-    : 0;
+  const unfinishedGroups = unfinishedNormalGroupCount(data);
 
   return (
     <main className="practice-container">
@@ -259,11 +260,21 @@ export default function ProgressPage({
         <div className="stat-card">
           <span className="stat-number">{completedGroups}</span>
           <span className="stat-label">{t("progress.stats.completed_groups.label")}</span>
-          {activeGroups > 0 && (
-            <span className="stat-subtext">{t("progress.stats.active", { count: activeGroups })}</span>
-          )}
         </div>
       </div>
+
+      {unfinishedGroups > 0 && (
+        <section className="focus-panel progress-resume-callout">
+          <span className="focus-panel-label">{t("progress.unfinished.label")}</span>
+          <strong>{t("progress.unfinished.title")}</strong>
+          <p className="section-copy">
+            {t("progress.unfinished.copy")}
+          </p>
+          <button className="primary-action-btn" onClick={onBack} type="button">
+            {t("progress.unfinished.action")}
+          </button>
+        </section>
+      )}
 
       {data.level_stats && (
         <div className="level-progress-list">

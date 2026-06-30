@@ -622,7 +622,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{level} has an active group. Answer a few items to unlock accuracy and sound signals.",
+      "current": "{level} has unfinished normal practice. Continue from Today, then come back for more evidence.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -630,7 +630,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{level} has no answered items yet. Start a group when this level is selected.",
+      "current": "{level} has no all-time answered items yet. Select this level in Settings, then start from Today.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -638,7 +638,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{level} is looking steady so far. Keep practicing to confirm strong sounds.",
+      "current": "{level} has no clear weak sound right now. Keep practicing from Today to confirm the long-term signal.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -654,7 +654,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
-      "current": "{level} has an active group. Answer a few items to unlock accuracy and sound signals. / {level} has no answered items yet. / {level} has sounds ready for focused practice."
+      "current": "{level} has unfinished normal practice. / {level} has no all-time answered items yet. / {level} has sounds ready for focused practice."
     },
     {
       "key": "progress.level.title",
@@ -676,14 +676,14 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
-      "current": "answered items / completed groups / active / {accuracy}% accuracy / Accuracy appears after answers"
+      "current": "all-time answered items / all-time completed normal groups / completed normal groups today / all-time {accuracy}% accuracy / Accuracy appears after answers"
     },
     {
       "key": "progress.stats.accuracy",
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{accuracy}% accuracy",
+      "current": "All-time {accuracy}% accuracy",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -695,27 +695,11 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
-      "key": "progress.stats.active",
-      "surface": "progress",
-      "classification": "translatable",
-      "source": "frontend/src",
-      "current": "{count} active",
-      "notes": "Runtime key added during #216 frontend copy extraction."
-    },
-    {
-      "key": "progress.stats.active_groups",
-      "surface": "progress",
-      "classification": "translatable",
-      "source": "frontend/src",
-      "current": "{count} active groups",
-      "notes": "Runtime key added during #216 frontend copy extraction."
-    },
-    {
       "key": "progress.stats.answered_items",
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{count} answered items",
+      "current": "{count} all-time answered items",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -723,7 +707,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "answered items",
+      "current": "all-time answered items",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -731,7 +715,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{count} completed groups",
+      "current": "{count} all-time completed groups",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -739,7 +723,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "completed groups",
+      "current": "all-time completed normal groups",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -770,7 +754,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
-      "current": "Done / Started / Ready / practice completed today / practice underway today / start today's practice"
+      "current": "Done / In progress / Ready / today's practice state"
     },
     {
       "key": "progress.today_status.done",
@@ -785,7 +769,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "practice completed today",
+      "current": "today's practice state",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -801,7 +785,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "start today's practice",
+      "current": "today's practice state",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -809,7 +793,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Started",
+      "current": "In progress",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -817,7 +801,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "practice underway today",
+      "current": "today's practice state",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -827,6 +811,38 @@
       "source": "frontend/src",
       "current": "day streak",
       "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.unfinished.action",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Go to Today to continue",
+      "notes": "Routes to Today; Progress does not own cancel or restart lifecycle."
+    },
+    {
+      "key": "progress.unfinished.copy",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Progress does not manage normal practice groups. Today will let you resume the current group or start today's practice using the existing flow.",
+      "notes": "Explains unfinished normal practice without exposing a passive active-group stat."
+    },
+    {
+      "key": "progress.unfinished.label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Next action",
+      "notes": "Callout label for unfinished normal practice."
+    },
+    {
+      "key": "progress.unfinished.title",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Unfinished normal practice",
+      "notes": "Callout heading for unfinished normal practice."
     },
     {
       "key": "progress.weak.global",
