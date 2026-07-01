@@ -24,6 +24,7 @@ from app.services.db_store import (
     get_settings,
     get_word_by_id,
     mark_session_abandoned,
+    mark_session_completed,
     upsert_settings,
 )
 from app.services.questions import generate_question
@@ -61,6 +62,10 @@ def _seed_from_group(session_date: str, group_index: int, group_type: str) -> in
     return _stable_hash(f"{session_date}:{group_index}:{group_type}")
 
 
+def _all_session_items_complete(items: List[SessionItem]) -> bool:
+    return bool(items) and all(item.status == "complete" for item in items)
+
+
 def build_today_response(
     conn,
     *,
@@ -89,6 +94,17 @@ def build_today_response(
     existing = get_active_session_for_date(conn, user_id, session_date, accent, "normal")
     if existing is not None:
         items = get_session_items(conn, existing.id)
+        if _all_session_items_complete(items):
+            mark_session_completed(conn, existing.id, _now_iso())
+            return _normal_empty_response(
+                conn,
+                user_id=user_id,
+                session_date=session_date,
+                accent=accent,
+                daily_word_count=daily_word_count,
+                selected_level=selected_level,
+                focus_phonemes=settings.focus_phonemes,
+            )
         return _build_response(
             session=existing,
             items=items,
@@ -134,6 +150,17 @@ def build_next_normal_group_response(
     existing = get_active_session_for_date(conn, user_id, session_date, accent, "normal")
     if existing is not None:
         items = get_session_items(conn, existing.id)
+        if _all_session_items_complete(items):
+            mark_session_completed(conn, existing.id, _now_iso())
+            return _create_normal_group_response(
+                conn,
+                user_id=user_id,
+                session_date=session_date,
+                accent=accent,
+                settings=settings,
+                origin="normal_next",
+                source_scope="normal_next",
+            )
         return _build_response(
             session=existing,
             items=items,

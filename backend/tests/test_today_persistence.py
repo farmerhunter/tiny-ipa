@@ -215,6 +215,104 @@ class TestTodayPersistence:
         }
         assert "last_attempt" not in resumed["items"][2]
 
+    def test_today_reconciles_fully_answered_active_group_without_next_group(
+        self, client, seeded_db
+    ):
+        client.put("/api/settings", json={"daily_word_count": 2})
+        first = client.post("/api/practice/next-normal").json()
+        for item in first["items"]:
+            client.post("/api/attempt", json={
+                "session_item_id": item["session_item_id"],
+                "selected_answer": item["display_ipa"],
+            })
+
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE daily_sessions
+            SET status = 'in_progress', completed_at = NULL
+            WHERE id = ?
+            """,
+            (first["session_id"],),
+        )
+        conn.commit()
+        conn.close()
+
+        today = client.get("/api/today").json()
+        assert today["origin"] == "normal_empty"
+        assert today["status"] == "idle"
+        assert today["word_count"] == 0
+        assert today["completed_normal_groups_today"] == {
+            "entry": 1,
+            "mid": 0,
+            "total": 1,
+        }
+
+        conn = get_connection(seeded_db)
+        rows = conn.execute(
+            """
+            SELECT id, status, completed_at
+            FROM daily_sessions
+            WHERE session_date = ?
+            """,
+            (date.today().isoformat(),),
+        ).fetchall()
+        conn.close()
+
+        assert len(rows) == 1
+        assert rows[0]["id"] == first["session_id"]
+        assert rows[0]["status"] == "completed"
+        assert rows[0]["completed_at"] is not None
+
+    def test_next_normal_reconciles_fully_answered_active_group_and_is_idempotent(
+        self, client, seeded_db
+    ):
+        client.put("/api/settings", json={"daily_word_count": 2})
+        first = client.post("/api/practice/next-normal").json()
+        for item in first["items"]:
+            client.post("/api/attempt", json={
+                "session_item_id": item["session_item_id"],
+                "selected_answer": item["display_ipa"],
+            })
+
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE daily_sessions
+            SET status = 'in_progress', completed_at = NULL
+            WHERE id = ?
+            """,
+            (first["session_id"],),
+        )
+        conn.commit()
+        conn.close()
+
+        second = client.post("/api/practice/next-normal").json()
+        assert second["origin"] == "normal_next"
+        assert second["session_id"] != first["session_id"]
+        assert second["group_index"] == first["group_index"] + 1
+        assert second["resume_index"] == 0
+        assert second["completed_item_count"] == 0
+        assert {item["status"] for item in second["items"]} == {"pending"}
+
+        repeated = client.post("/api/practice/next-normal").json()
+        assert repeated["origin"] == "normal_resume"
+        assert repeated["session_id"] == second["session_id"]
+        assert repeated["group_index"] == second["group_index"]
+        assert repeated["resume_index"] == 0
+
+        conn = get_connection(seeded_db)
+        count = conn.execute(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM daily_sessions
+            WHERE session_date = ?
+            """,
+            (date.today().isoformat(),),
+        ).fetchone()
+        conn.close()
+        assert count["cnt"] == 2
+
     def test_second_today_creates_no_duplicate(self, client, seeded_db):
         client.post("/api/practice/next-normal")
         client.get("/api/today")
