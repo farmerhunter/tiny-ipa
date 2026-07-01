@@ -22,6 +22,7 @@ async function selectCorrectAnswer(page: Page) {
 test.describe("M11 real backend Today/Progress/Settings consistency", () => {
   test("unfinished regular practice is resumable and clears after completion", async ({ page }) => {
     test.setTimeout(90_000);
+    let firstNormalGroupId = "";
 
     await test.step("Settings review strength persists and affects the next regular group", async () => {
       await page.goto("/");
@@ -54,6 +55,9 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
       const progress = await progressResponse.json();
       expect(progress.resumable_normal_groups).toBe(1);
       expect(progress.level_stats.entry.resumable_normal_groups).toBe(1);
+      const todayResponse = await page.request.get(`${apiBase}/today`);
+      const today = await todayResponse.json();
+      firstNormalGroupId = today.group_id;
 
       await attachScreenshot(page, "m11-real-extra-review-group");
     });
@@ -73,23 +77,41 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
       await attachScreenshot(page, "m11-real-today-resume");
     });
 
-    await test.step("Completing the group clears unfinished Progress state", async () => {
+    await test.step("Completion summary starts a new next group instead of resuming the completed one", async () => {
       await page.getByRole("button", { name: "Resume Entry group" }).click();
       await selectCorrectAnswer(page);
       await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
         timeout: 10_000,
       });
+      const idleTodayResponse = await page.request.get(`${apiBase}/today`);
+      const idleToday = await idleTodayResponse.json();
+      expect(idleToday.origin).toBe("normal_empty");
+      expect(idleToday.word_count).toBe(0);
 
+      await page.getByRole("button", { name: "Start next Entry group" }).click();
+      await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
+      const nextTodayResponse = await page.request.get(`${apiBase}/today`);
+      const nextToday = await nextTodayResponse.json();
+      expect(nextToday.group_id).not.toBe(firstNormalGroupId);
+      expect(nextToday.group_index).toBeGreaterThan(1);
+      expect(nextToday.resume_index).toBe(0);
+      expect(nextToday.completed_item_count).toBe(0);
+      await attachScreenshot(page, "m11-real-next-group-after-completion");
+
+      await selectCorrectAnswer(page);
+      await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
+        timeout: 10_000,
+      });
       await page.getByRole("button", { name: "Progress", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
       await expect(page.getByText("Unfinished regular practice", { exact: true })).toHaveCount(0);
-      await expect(page.getByText("1 completed today")).toBeVisible();
+      await expect(page.getByText("2 completed today")).toBeVisible();
 
       const progressResponse = await page.request.get(`${apiBase}/progress`);
       const progress = await progressResponse.json();
       expect(progress.resumable_normal_groups).toBe(0);
       expect(progress.today_status).toBe("completed");
-      expect(progress.level_stats.entry.completed_normal_groups_today).toBe(1);
+      expect(progress.level_stats.entry.completed_normal_groups_today).toBe(2);
 
       await attachScreenshot(page, "m11-real-progress-completed");
     });
@@ -123,7 +145,7 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
 
       await page.getByRole("button", { name: "Progress", exact: true }).click();
       await expect(page.getByText("Unfinished regular practice", { exact: true })).toHaveCount(0);
-      await expect(page.getByText("2 completed today")).toBeVisible();
+      await expect(page.getByText("3 completed today")).toBeVisible();
       await attachScreenshot(page, "m11-real-resume-breakpoint-completed");
     });
 
