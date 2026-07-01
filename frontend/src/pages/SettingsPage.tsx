@@ -172,7 +172,10 @@ export default function SettingsPage({
         </label>
 
         <label className="setting-row">
-          <span>{t("settings.review_strength.title")}</span>
+          <span>
+            {t("settings.review_strength.title")}
+            <small>{t("settings.review_strength.description")}</small>
+          </span>
           <select value={settings.review_strength}
             onChange={e => update({ review_strength: e.target.value })}>
             <option value="quick">{t("settings.review_strength.quick")}</option>

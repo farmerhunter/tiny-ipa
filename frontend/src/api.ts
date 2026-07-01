@@ -260,6 +260,7 @@ export interface LevelProgressStats {
   normal_groups: number;
   completed_normal_groups: number;
   completed_normal_groups_today: number;
+  resumable_normal_groups: number;
   weak_phonemes: PhonemeStat[];
   strong_phonemes: PhonemeStat[];
 }
@@ -271,6 +272,7 @@ export interface ProgressResponse {
   total_attempts: number;
   total_sessions: number;
   total_normal_groups: number;
+  resumable_normal_groups: number;
   weak_phonemes: PhonemeStat[];
   strong_phonemes: PhonemeStat[];
   stat_scope?: "global";

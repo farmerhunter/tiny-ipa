@@ -190,6 +190,7 @@ async function routeMock(route: Route, state: MockState) {
         total_attempts: 6,
         total_sessions: 2,
         total_normal_groups: 2,
+        resumable_normal_groups: state.activeLevel === null ? 0 : 1,
         stat_scope: "global",
         level_stats: {
           entry: {
@@ -201,6 +202,7 @@ async function routeMock(route: Route, state: MockState) {
             normal_groups: 1,
             completed_normal_groups: state.completed.entry,
             completed_normal_groups_today: state.completed.entry,
+            resumable_normal_groups: state.activeLevel === "entry" ? 1 : 0,
             weak_phonemes: [
               {
                 phoneme: "/ʃ/",
@@ -221,6 +223,7 @@ async function routeMock(route: Route, state: MockState) {
             normal_groups: 1,
             completed_normal_groups: state.completed.mid,
             completed_normal_groups_today: state.completed.mid,
+            resumable_normal_groups: state.activeLevel === "mid" ? 1 : 0,
             weak_phonemes: [],
             strong_phonemes: [
               {
@@ -288,12 +291,12 @@ test.describe("M8 learner level selection walkthrough", () => {
       await expect(page.getByRole("heading", { name: "Entry progress" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Mid progress" })).toBeVisible();
       await expect(page.getByText("Sounds to revisit overall")).toHaveCount(0);
-      await expect(page.getByText("Unfinished normal practice", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("Unfinished regular practice", { exact: true }).first()).toBeVisible();
       await expect(page.getByRole("button", { name: "Go to Today to continue" })).toBeVisible();
-      await expect(page.getByText("Entry has unfinished normal practice. Continue from Today, then come back for more evidence.")).toBeVisible();
-      await expect(page.getByText("Mid has unfinished normal practice. Continue from Today, then come back for more evidence.")).toBeVisible();
+      await expect(page.getByText("Entry has unfinished regular practice. Continue from Today, then come back for more evidence.")).toHaveCount(0);
+      await expect(page.getByText("Mid has unfinished regular practice. Continue from Today, then come back for more evidence.")).toBeVisible();
       await expect(page.getByText("all-time answered items", { exact: true }).first()).toBeVisible();
-      await expect(page.getByText("all-time completed normal groups", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("all-time completed regular groups", { exact: true }).first()).toBeVisible();
       await expect(page.getByText("1 active")).toHaveCount(0);
       await expect(page.getByText("1 active groups")).toHaveCount(0);
       const screenshotPath = test.info().outputPath("m8-mid-level-mobile.png");

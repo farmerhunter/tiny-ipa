@@ -54,7 +54,7 @@ function todayMotivation(data: ProgressResponse, t: Translator): { value: string
 }
 
 function activeGroupCount(stats: LevelProgressStats): number {
-  return Math.max(0, stats.normal_groups - stats.completed_normal_groups);
+  return stats.resumable_normal_groups;
 }
 
 function levelProgressHint(stats: LevelProgressStats, t: Translator): string {

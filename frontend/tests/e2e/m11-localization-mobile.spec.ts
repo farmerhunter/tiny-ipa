@@ -49,11 +49,11 @@ const copy = {
     progressHeading: "入门 需要回顾的声音",
     progressTodayLabel: "今日练习状态",
     progressAnsweredLabel: "累计作答项目",
-    progressCompletedLabel: "累计完成普通组",
+    progressCompletedLabel: "累计完成常规练习组",
     progressCompletedToday: "今日完成 1 组",
     progressCompletedAllTime: "累计完成 1 组",
     progressAnsweredAllTime: "累计作答 2 项",
-    progressUnfinishedTitle: "有未完成的普通练习",
+    progressUnfinishedTitle: "有未完成的常规练习",
     progressUnfinishedAction: "回到今日继续",
     focusAction: "聚焦 /ʃ/",
     focusedLabel: "聚焦练习组: 1 / 1",
@@ -86,11 +86,11 @@ const copy = {
     progressHeading: "Sounds to revisit in Entry",
     progressTodayLabel: "today's practice state",
     progressAnsweredLabel: "all-time answered items",
-    progressCompletedLabel: "all-time completed normal groups",
+    progressCompletedLabel: "all-time completed regular groups",
     progressCompletedToday: "1 completed today",
     progressCompletedAllTime: "1 all-time completed groups",
     progressAnsweredAllTime: "2 all-time answered items",
-    progressUnfinishedTitle: "Unfinished normal practice",
+    progressUnfinishedTitle: "Unfinished regular practice",
     progressUnfinishedAction: "Go to Today to continue",
     focusAction: "Focus /ʃ/",
     focusedLabel: "Focused group: 1 / 1",
@@ -272,6 +272,7 @@ function settingsResponse(state: MockState) {
 function progressResponse(state: MockState) {
   const entryNormalGroups = state.completed.entry + (state.activeGroup === "entry" ? 1 : 0);
   const midNormalGroups = state.completed.mid;
+  const entryResumableGroups = state.activeGroup === "entry" ? 1 : 0;
   return {
     today_completed: false,
     today_status: state.activeGroup === "none" ? "none" : "in_progress",
@@ -279,6 +280,7 @@ function progressResponse(state: MockState) {
     total_attempts: 2,
     total_sessions: 1,
     total_normal_groups: entryNormalGroups + midNormalGroups,
+    resumable_normal_groups: entryResumableGroups,
     stat_scope: "global",
     level_stats: {
       entry: {
@@ -290,6 +292,7 @@ function progressResponse(state: MockState) {
         normal_groups: entryNormalGroups,
         completed_normal_groups: state.completed.entry,
         completed_normal_groups_today: state.completed.entry,
+        resumable_normal_groups: entryResumableGroups,
         weak_phonemes: [
           {
             phoneme: "/ʃ/",
@@ -310,6 +313,7 @@ function progressResponse(state: MockState) {
         normal_groups: midNormalGroups,
         completed_normal_groups: 0,
         completed_normal_groups_today: 0,
+        resumable_normal_groups: 0,
         weak_phonemes: [],
         strong_phonemes: [],
       },
@@ -553,6 +557,7 @@ async function expectNoZhCnBlockerLeaks(page: Page, label: string) {
     "Mid practice",
     "Entry group",
     "Mid group",
+    "普通",
     "Sounds to revisit in Entry",
     "Sounds to revisit in Mid",
     "Sound Compare practice is not available yet. It needs at least two safe words with pair metadata.",

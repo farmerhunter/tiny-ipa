@@ -247,6 +247,7 @@ function progressResponse() {
     total_attempts: 8,
     total_sessions: 2,
     total_normal_groups: 2,
+    resumable_normal_groups: 1,
     stat_scope: "global",
     level_stats: {
       entry: {
@@ -258,6 +259,7 @@ function progressResponse() {
         normal_groups: 2,
         completed_normal_groups: 1,
         completed_normal_groups_today: 1,
+        resumable_normal_groups: 1,
         weak_phonemes: [
           {
             phoneme: "/ʃ/",
@@ -278,6 +280,7 @@ function progressResponse() {
         normal_groups: 0,
         completed_normal_groups: 0,
         completed_normal_groups_today: 0,
+        resumable_normal_groups: 0,
         weak_phonemes: [],
         strong_phonemes: [],
       },
@@ -564,7 +567,7 @@ test.describe("M7 v2 learner workflow walkthrough", () => {
     await expect(page.getByText("Entry focused practice for /ʃ/.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Clear focus" })).toBeVisible();
     await page.getByRole("button", { name: "Clear focus" }).click();
-    await expect(page.getByText("Focus cleared. Back to normal practice.")).toBeVisible();
+    await expect(page.getByText("Focus cleared. Back to regular practice.")).toBeVisible();
     const screenshotPath = test.info().outputPath("m7-focus-mobile.png");
     await page.screenshot({ fullPage: true, path: screenshotPath });
     await test.info().attach("m7-focus-mobile", {

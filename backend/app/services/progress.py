@@ -10,8 +10,8 @@ GET /api/progress reads ``phoneme_stats``, ``attempts``, and
 
 from __future__ import annotations
 
-import sqlite3
 import json
+import sqlite3
 from datetime import date, timedelta
 from typing import List, Optional, Tuple
 
@@ -264,6 +264,9 @@ def build_progress_response(
         conn, user_id, primary_accent
     )
     level_stats = _compute_level_stats(conn, user_id, primary_accent, today_str)
+    resumable_normal_groups = sum(
+        stats["resumable_normal_groups"] for stats in level_stats.values()
+    )
 
     return {
         "today_completed": today_completed,
@@ -272,6 +275,7 @@ def build_progress_response(
         "total_attempts": total_attempts,
         "total_sessions": total_sessions,
         "total_normal_groups": total_normal_groups,
+        "resumable_normal_groups": resumable_normal_groups,
         "weak_phonemes": weak_phonemes,
         "strong_phonemes": strong_phonemes,
         "stat_scope": "global",
@@ -335,6 +339,7 @@ def _compute_level_stats(
             "normal_groups": 0,
             "completed_normal_groups": 0,
             "completed_normal_groups_today": 0,
+            "resumable_normal_groups": 0,
             "weak_phonemes": [],
             "strong_phonemes": [],
         }
@@ -357,6 +362,8 @@ def _compute_level_stats(
             result[level]["completed_normal_groups"] += int(row["cnt"])
             if row["session_date"] == today_str:
                 result[level]["completed_normal_groups_today"] += int(row["cnt"])
+        elif row["status"] == "in_progress" and row["session_date"] == today_str:
+            result[level]["resumable_normal_groups"] += int(row["cnt"])
 
     attempt_rows = conn.execute(
         """
