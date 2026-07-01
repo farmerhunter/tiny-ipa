@@ -576,6 +576,7 @@ GET /api/progress
   "total_attempts": 120,
   "total_sessions": 12,
   "total_normal_groups": 9,
+  "resumable_normal_groups": 1,
   "stat_scope": "global",
   "level_stats": {
     "entry": {
@@ -587,6 +588,7 @@ GET /api/progress
       "normal_groups": 5,
       "completed_normal_groups": 4,
       "completed_normal_groups_today": 1,
+      "resumable_normal_groups": 1,
       "weak_phonemes": [],
       "strong_phonemes": []
     },
@@ -599,6 +601,7 @@ GET /api/progress
       "normal_groups": 4,
       "completed_normal_groups": 3,
       "completed_normal_groups_today": 0,
+      "resumable_normal_groups": 0,
       "weak_phonemes": [],
       "strong_phonemes": []
     }
@@ -611,6 +614,13 @@ GET /api/progress
   ]
 }
 ```
+
+`resumable_normal_groups` is the only Progress field that should drive an
+unfinished-practice resume affordance. It counts current-day regular practice
+groups that are still `in_progress` and therefore can be resumed by Today.
+It must not be inferred from `normal_groups - completed_normal_groups`, because
+that historical difference can include abandoned or otherwise non-resumable
+groups.
 
 ### Settings
 
@@ -734,6 +744,10 @@ other values      400 SETTINGS_INVALID
 phoneme symbols, accent identifiers, source word content, `meaning_zh`, grading
 logic, or scheduler behavior.
 
+`review_strength` is a scheduling preference for future newly created regular
+practice groups. Updating it persists through `GET /api/settings`, but it does
+not mutate an already active regular group.
+
 If the UI exposes `mid` before the Mid content set is ready, the action must fail
 with a clear disabled/hold state or a structured backend error. Final M8
 acceptance requires Mid to be selectable and usable, so the preferred completed
@@ -742,10 +756,11 @@ state is not fallback-to-Entry but verified Core 1000 readiness.
 Practice generation contract:
 
 ```text
-Changing learner_level affects future generated normal practice groups.
-An already active normal group remains resumable until completed.
-Entry normal groups select only Entry/Core 300 runtime content.
-Mid normal groups select only Mid/Core 1000 runtime content.
+Changing learner_level affects future generated regular practice groups.
+Changing review_strength affects future generated regular practice groups.
+An already active regular group remains resumable until completed.
+Entry regular groups select only Entry/Core 300 runtime content.
+Mid regular groups select only Mid/Core 1000 runtime content.
 Current-group review reuses the source group's items regardless of later level changes.
 Recent-mistake review may include previously missed words from the user's history,
 but its UI must label it as review rather than as a fresh Entry/Mid group.
@@ -757,10 +772,10 @@ Frontend workflow contract:
 
 ```text
 Settings shows a Practice level control with Entry and Mid options.
-Today Practice displays the active level for normal practice groups.
-Normal practice wording must not imply Mid is only a larger daily quota; it is a
-different content pool.
-Review/focus groups remain visually distinct from normal Entry/Mid practice.
+Today Practice displays the active level for regular practice groups.
+Regular practice wording must not imply Mid is only a larger daily quota; it is
+a different content pool.
+Review/focus groups remain visually distinct from regular Entry/Mid practice.
 If Mid is unavailable in a developer or partial-import state, the UI explains
 the hold instead of silently starting Entry practice.
 ```
@@ -770,12 +785,12 @@ Walkthrough gate:
 ```text
 Entry smoke:
   default settings show learner_level=entry
-  a normal group starts from Core 300 content
+  a regular group starts from Core 300 content
   completing a group keeps M7 next/review/focus actions coherent
 
 Mid smoke:
   switching to Mid is visible in Settings and Today Practice
-  the next normal group uses Core 1000 content
+  the next regular group uses Core 1000 content
   sample Mid words include visibly more two-syllable or multi-syllable items
   switching levels does not corrupt Entry progress or current-group review
 

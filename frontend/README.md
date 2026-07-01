@@ -24,6 +24,16 @@ pnpm test:e2e:m10
 
 The harness uses desktop and Pixel 5 Chromium projects with route-mocked disposable API data. It preserves the #174 audit scenarios as repeatable evidence: Today start, wrong-answer feedback, current-group review, recent mistakes, Entry/Mid switching, Progress focus entry, Settings changes, audio/TTS visible status, mobile Today, and mobile Settings. It does not connect to the local backend or mutate `backend/tiny_ipa.sqlite`. Screenshots are attached to Playwright test results under `test-results/m10-walkthrough`; the HTML report is written under `playwright-report/m10`.
 
+## M11 Real Backend State Walkthrough
+
+Run the M11 Today/Progress/Settings consistency harness from this directory:
+
+```bash
+pnpm test:e2e:m11-real
+```
+
+The harness starts FastAPI against an isolated `/tmp/tiny-ipa-m11-real-*.sqlite` database, imports the small backend content fixture, seeds deterministic weak-phoneme state, and runs the frontend against that backend through `VITE_API_BASE`. It covers Settings review-strength persistence, future regular-group scheduling, Progress unfinished/resume callout behavior, Today resume, completion clearing the callout, and zh-CN visible-copy regression checks. It does not mutate `backend/tiny_ipa.sqlite`.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)

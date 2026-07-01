@@ -890,6 +890,47 @@ class TestTodayPersistence:
 
         assert [item["word_id"] for item in data["items"]] == ["cat"]
 
+    def test_review_strength_setting_changes_future_normal_group_selection(
+        self, client, seeded_db
+    ):
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE settings
+            SET daily_word_count = 1, focus_phonemes = ?, review_strength = 'quick'
+            WHERE user_id = 'default'
+            """,
+            (json.dumps(["/æ/"]),),
+        )
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO phoneme_stats (
+                user_id, primary_accent, phoneme_id, attempt_count, correct_count,
+                last_attempt_at, last_wrong_at, mastery_status
+            ) VALUES (
+                'default', 'US', '/ʃ/', 8, 0,
+                '2026-06-09T00:00:00Z', '2026-06-09T00:00:00Z', 'weak'
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        quick = client.post("/api/practice/next-normal").json()
+        assert [item["word_id"] for item in quick["items"]] == ["cat"]
+
+        conn = get_connection(seeded_db)
+        conn.execute("DELETE FROM session_items")
+        conn.execute("DELETE FROM daily_sessions")
+        conn.commit()
+        conn.close()
+
+        client.put("/api/settings", json={"review_strength": "extra_review"})
+        extra_review = client.post("/api/practice/next-normal").json()
+
+        assert extra_review["items"][0]["word_id"] in {"ship", "sheep"}
+        assert "/ʃ/" in extra_review["items"][0]["target_phonemes"]
+
     def test_recent_words_are_suppressed_for_fresh_today_session(self, client, seeded_db):
         conn = get_connection(seeded_db)
         conn.execute("UPDATE settings SET daily_word_count = 1 WHERE user_id = 'default'")

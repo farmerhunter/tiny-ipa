@@ -328,7 +328,7 @@
       "surface": "review_focus",
       "classification": "translatable",
       "source": "frontend/src/pages/TodayPractice.tsx frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py",
-      "current": "Clear focus / Focus cleared. Back to normal practice. / Focus selection cleared."
+      "current": "Clear focus / Focus cleared. Back to regular practice. / Focus selection cleared."
     },
     {
       "key": "focus.action.clear_button",
@@ -343,7 +343,7 @@
       "surface": "review_focus",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Focus cleared. Back to normal practice.",
+      "current": "Focus cleared. Back to regular practice.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -390,7 +390,7 @@
       "surface": "review_focus",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Focus changes the next focused practice group. Clear it to return to normal practice.",
+      "current": "Focus changes the next focused practice group. Clear it to return to regular practice.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -406,7 +406,7 @@
       "surface": "review_focus",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx",
-      "current": "Current focus / Next group focus / Focus changes the next focused practice group. Clear it to return to normal practice."
+      "current": "Current focus / Next group focus / Focus changes the next focused practice group. Clear it to return to regular practice."
     },
     {
       "key": "focus.next.label",
@@ -622,7 +622,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{level} has unfinished normal practice. Continue from Today, then come back for more evidence.",
+      "current": "{level} has unfinished regular practice. Continue from Today, then come back for more evidence.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -654,7 +654,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
-      "current": "{level} has unfinished normal practice. / {level} has no all-time answered items yet. / {level} has sounds ready for focused practice."
+      "current": "{level} has unfinished regular practice. / {level} has no all-time answered items yet. / {level} has sounds ready for focused practice."
     },
     {
       "key": "progress.level.title",
@@ -676,7 +676,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
-      "current": "all-time answered items / all-time completed normal groups / completed normal groups today / all-time {accuracy}% accuracy / Accuracy appears after answers"
+      "current": "all-time answered items / all-time completed regular groups / completed regular groups today / all-time {accuracy}% accuracy / Accuracy appears after answers"
     },
     {
       "key": "progress.stats.accuracy",
@@ -723,7 +723,7 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "all-time completed normal groups",
+      "current": "all-time completed regular groups",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -825,8 +825,8 @@
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
-      "current": "Progress does not manage normal practice groups. Today will let you resume the current group or start today's practice using the existing flow.",
-      "notes": "Explains unfinished normal practice without exposing a passive active-group stat."
+      "current": "Progress does not manage regular practice groups. Today will let you resume the current group or start today's practice using the existing flow.",
+      "notes": "Explains unfinished regular practice without exposing a passive active-group stat."
     },
     {
       "key": "progress.unfinished.label",
@@ -834,15 +834,15 @@
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
       "current": "Next action",
-      "notes": "Callout label for unfinished normal practice."
+      "notes": "Callout label for unfinished regular practice."
     },
     {
       "key": "progress.unfinished.title",
       "surface": "progress",
       "classification": "translatable",
       "source": "frontend/src/pages/ProgressPage.tsx",
-      "current": "Unfinished normal practice",
-      "notes": "Callout heading for unfinished normal practice."
+      "current": "Unfinished regular practice",
+      "notes": "Callout heading for unfinished regular practice."
     },
     {
       "key": "progress.weak.global",
@@ -1032,14 +1032,14 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
-      "current": "Entry / Starter word pool for the next new normal group."
+      "current": "Entry / Starter word pool for the next new regular group."
     },
     {
       "key": "settings.level.entry.description",
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Starter word pool for the next new normal group.",
+      "current": "Starter word pool for the next new regular group.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -1055,14 +1055,14 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
-      "current": "Mid / Broader word pool for the next new normal group."
+      "current": "Mid / Broader word pool for the next new regular group."
     },
     {
       "key": "settings.level.mid.description",
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Broader word pool for the next new normal group.",
+      "current": "Broader word pool for the next new regular group.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -1085,14 +1085,14 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
-      "current": "Practice level / Choose the level for the next new normal group."
+      "current": "Practice level / Choose the level for the next new regular group."
     },
     {
       "key": "settings.practice_level.description",
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Choose the level for the next new normal group. If a group is already in progress, Today will keep it active and offer an explicit switch.",
+      "current": "Choose the level for the next new regular group. If a group is already in progress, Today will keep it active and offer an explicit switch.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -1108,7 +1108,15 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
-      "current": "Review strength / Quick / Normal / Extra review"
+      "current": "Review strength / Affects future regular practice groups only. / Quick / Standard / Extra review"
+    },
+    {
+      "key": "settings.review_strength.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Affects future regular practice groups only. Existing active groups stay unchanged.",
+      "notes": "Clarifies the future-group boundary for #228 Settings review intensity."
     },
     {
       "key": "settings.review_strength.extra_review",
@@ -1123,7 +1131,7 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Normal",
+      "current": "Standard",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -1596,7 +1604,7 @@
       "surface": "today_hub",
       "classification": "translatable",
       "source": "frontend/src/pages/TodayPractice.tsx",
-      "current": "Ready when you are / {selectedLevel} listening group / {count} words per normal group"
+      "current": "Ready when you are / {selectedLevel} listening group / {count} words per regular group"
     },
     {
       "key": "today.hub.status.ready.label",
@@ -1611,7 +1619,7 @@
       "surface": "today_hub",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{count} words per normal group",
+      "current": "{count} words per regular group",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
