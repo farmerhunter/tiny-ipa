@@ -146,6 +146,8 @@ class TestTodayPersistence:
         assert data["selected_learner_level"] == "entry"
         assert data["pending_level_change"] is False
         assert data["word_count"] == 0
+        assert data["resume_index"] == 0
+        assert data["completed_item_count"] == 0
         assert data["source_session_item_ids"] == []
         assert data["date"] == date.today().isoformat()
         assert data["primary_accent"] == "US"
@@ -166,6 +168,52 @@ class TestTodayPersistence:
         for a, b in zip(first["items"], second["items"]):
             assert a["session_item_id"] == b["session_item_id"]
             assert a["word_id"] == b["word_id"]
+
+    def test_partial_normal_group_resume_metadata_keeps_completed_items(
+        self, client, seeded_db
+    ):
+        client.put("/api/settings", json={"daily_word_count": 3})
+        first = client.post("/api/practice/next-normal").json()
+        assert first["resume_index"] == 0
+        assert first["completed_item_count"] == 0
+        assert [item["status"] for item in first["items"]] == ["pending"] * 3
+
+        first_item, second_item = first["items"][:2]
+        client.post("/api/attempt", json={
+            "session_item_id": first_item["session_item_id"],
+            "selected_answer": first_item["display_ipa"],
+        })
+        wrong_choice = next(
+            choice
+            for choice in second_item["question"]["choices"]
+            if choice != second_item["display_ipa"]
+        )
+        client.post("/api/attempt", json={
+            "session_item_id": second_item["session_item_id"],
+            "selected_answer": wrong_choice,
+        })
+
+        resumed = client.get("/api/today").json()
+        assert resumed["session_id"] == first["session_id"]
+        assert resumed["origin"] == "normal_resume"
+        assert resumed["resume_index"] == 2
+        assert resumed["completed_item_count"] == 2
+        assert [item["status"] for item in resumed["items"]] == [
+            "completed",
+            "completed",
+            "pending",
+        ]
+        assert resumed["items"][0]["last_attempt"] == {
+            "selected_answer": first_item["display_ipa"],
+            "correct_answer": first_item["display_ipa"],
+            "is_correct": True,
+        }
+        assert resumed["items"][1]["last_attempt"] == {
+            "selected_answer": wrong_choice,
+            "correct_answer": second_item["display_ipa"],
+            "is_correct": False,
+        }
+        assert "last_attempt" not in resumed["items"][2]
 
     def test_second_today_creates_no_duplicate(self, client, seeded_db):
         client.post("/api/practice/next-normal")

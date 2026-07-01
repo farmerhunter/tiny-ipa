@@ -702,9 +702,9 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
       await page.getByRole("button", { name: "Settings" }).click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-      await expect(page.getByText("Choose the level for the next new regular group.")).toBeVisible();
-      await expect(page.getByRole("button", { name: /Mid\s+Broader word pool/ })).toBeVisible();
-      await page.getByRole("button", { name: /Mid\s+Broader word pool/ }).click();
+      await expect(page.getByText("Entry uses the starter word pool. Mid uses the larger intermediate word pool. This choice applies to the next new regular group; active groups stay unchanged.")).toBeVisible();
+      await expect(page.getByRole("button", { name: /Mid\s+Larger intermediate word pool/ })).toBeVisible();
+      await page.getByRole("button", { name: /Mid\s+Larger intermediate word pool/ }).click();
       await expect(page.getByText("Saved")).toBeVisible();
       await page.getByRole("button", { name: "Today", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Entry practice in progress" })).toBeVisible();

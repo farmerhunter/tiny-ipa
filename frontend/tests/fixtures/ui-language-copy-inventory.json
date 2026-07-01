@@ -1032,14 +1032,14 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
-      "current": "Entry / Starter word pool for the next new regular group."
+      "current": "Entry / Starter word pool for early practice."
     },
     {
       "key": "settings.level.entry.description",
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Starter word pool for the next new regular group.",
+      "current": "Starter word pool for early practice.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -1055,14 +1055,14 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
-      "current": "Mid / Broader word pool for the next new regular group."
+      "current": "Mid / Larger intermediate word pool for broader practice."
     },
     {
       "key": "settings.level.mid.description",
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Broader word pool for the next new regular group.",
+      "current": "Larger intermediate word pool for broader practice.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
@@ -1092,7 +1092,7 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "Choose the level for the next new regular group. If a group is already in progress, Today will keep it active and offer an explicit switch.",
+      "current": "Entry uses the starter word pool. Mid uses the larger intermediate word pool. This choice applies to the next new regular group; active groups stay unchanged.",
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {

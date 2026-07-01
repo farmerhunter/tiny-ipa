@@ -15,6 +15,7 @@ from app.services.db_store import (
     create_session,
     create_session_item,
     get_active_session_for_date,
+    get_latest_attempts_for_session_items,
     get_next_session_group_index,
     get_recent_incorrect_attempt_sources,
     get_session_by_id,
@@ -1134,6 +1135,8 @@ def _normal_empty_response(
             daily_word_count=daily_word_count,
         ),
         "word_count": 0,
+        "resume_index": 0,
+        "completed_item_count": 0,
         "status": "idle",
         "origin": "normal_empty",
         "source_scope": "normal_none",
@@ -1204,6 +1207,15 @@ def _build_response(
     settings = get_settings(conn, session.user_id)
     show_accent_compare = bool(settings and settings.show_accent_compare)
     distractor_pool = _build_distractor_pool(conn, accent)
+    latest_attempts = get_latest_attempts_for_session_items(
+        conn,
+        [item.id for item in items],
+    )
+    completed_item_count = sum(1 for item in items if item.status == "complete")
+    resume_index = next(
+        (idx for idx, item in enumerate(items) if item.status != "complete"),
+        len(items),
+    )
     item_dicts: List[dict] = []
     for item in items:
         word = get_word_by_id(conn, item.word_id)
@@ -1226,9 +1238,13 @@ def _build_response(
                 "meaning_zh": word.meaning_zh,
                 "audio_url": word.audio_us if accent == "US" else word.audio_uk,
                 "target_phonemes": item.target_phonemes,
+                "status": "completed" if item.status == "complete" else "pending",
                 "question": question,
             }
         )
+        latest_attempt = latest_attempts.get(item.id)
+        if latest_attempt is not None:
+            item_dicts[-1]["last_attempt"] = latest_attempt
         accent_compare = _build_accent_compare(
             word,
             enabled=accent == "US" and show_accent_compare,
@@ -1264,6 +1280,8 @@ def _build_response(
             daily_word_count=daily_word_count,
         ),
         "word_count": len(item_dicts),
+        "resume_index": resume_index,
+        "completed_item_count": completed_item_count,
         "status": session.status,
         "source_session_item_ids": session.source_session_item_ids,
         "items": item_dicts,
