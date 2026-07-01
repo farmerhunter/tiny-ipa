@@ -48,6 +48,25 @@ interface PracticeResult {
   isCorrect: boolean;
 }
 
+function initialIndexForSession(session: TodayResponse): number {
+  const index = session.resume_index ?? 0;
+  return Math.min(Math.max(index, 0), session.items.length);
+}
+
+function previousResultsForSession(session: TodayResponse): PracticeResult[] {
+  return session.items
+    .filter((item) => item.status === "completed" && item.last_attempt)
+    .map((item) => ({
+      sessionItemId: item.session_item_id,
+      wordId: item.word_id,
+      word: item.word,
+      targetPhonemes: item.target_phonemes,
+      selectedAnswer: item.last_attempt?.selected_answer ?? "",
+      correctAnswer: item.last_attempt?.correct_answer ?? item.display_ipa,
+      isCorrect: Boolean(item.last_attempt?.is_correct),
+    }));
+}
+
 function canonicalFocus(phonemes: string[]): string[] {
   return Array.from(new Set(phonemes.map((item) => item.trim()).filter(Boolean))).sort();
 }
@@ -188,10 +207,11 @@ export default function TodayPractice({
       setError(t("error.generic.failed", { error: data.error }));
       return;
     }
+    const resumeIndex = initialIndexForSession(data);
     setSession(data);
-    setCurrentIndex(0);
-    setResults([]);
-    setFinished(data.items.length === 0);
+    setCurrentIndex(resumeIndex);
+    setResults(previousResultsForSession(data));
+    setFinished(data.items.length === 0 || resumeIndex >= data.items.length);
     setShowHub(options.showHub ?? false);
     setLastSummarySession(null);
     setNotice(null);

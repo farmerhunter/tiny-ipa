@@ -208,6 +208,33 @@ GET /api/progress
 GET/PUT /api/settings
 ```
 
+Normal practice responses from `GET /api/today` and
+`POST /api/practice/next-normal` expose backend-authoritative resume metadata:
+
+```json
+{
+  "resume_index": 2,
+  "completed_item_count": 2,
+  "items": [
+    {
+      "status": "completed",
+      "last_attempt": {
+        "selected_answer": "/ʃɪp/",
+        "correct_answer": "/ʃɪp/",
+        "is_correct": true
+      }
+    },
+    {
+      "status": "pending"
+    }
+  ]
+}
+```
+
+`resume_index` is zero-based and points at the first pending item. The frontend
+must treat it as authoritative when resuming a normal group, so answered items
+are not presented as unanswered.
+
 Shared content reads may remain global, but must not leak another user's
 runtime attempts, settings, sessions, or stats.
 

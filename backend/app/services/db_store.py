@@ -484,6 +484,41 @@ def get_session_items(
     return [_session_item_from_row(r) for r in rows]
 
 
+def get_latest_attempts_for_session_items(
+    conn: sqlite3.Connection,
+    session_item_ids: List[str],
+) -> dict[str, dict]:
+    """Return the latest persisted attempt for each requested session item."""
+    if not session_item_ids:
+        return {}
+
+    placeholders = ",".join("?" for _ in session_item_ids)
+    rows = conn.execute(
+        f"""
+        SELECT a.*
+        FROM attempts a
+        JOIN (
+            SELECT session_item_id, MAX(created_at) AS created_at
+            FROM attempts
+            WHERE session_item_id IN ({placeholders})
+            GROUP BY session_item_id
+        ) latest
+          ON latest.session_item_id = a.session_item_id
+         AND latest.created_at = a.created_at
+        ORDER BY a.created_at DESC
+        """,
+        session_item_ids,
+    ).fetchall()
+    return {
+        row["session_item_id"]: {
+            "selected_answer": row["selected_answer"],
+            "correct_answer": row["correct_answer"],
+            "is_correct": bool(row["is_correct"]),
+        }
+        for row in rows
+    }
+
+
 def get_recent_incorrect_attempt_sources(
     conn: sqlite3.Connection,
     *,

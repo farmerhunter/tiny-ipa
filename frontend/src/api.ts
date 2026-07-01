@@ -60,6 +60,12 @@ export interface TodayItem {
   meaning_zh: string | null;
   audio_url: string | null;
   target_phonemes: string[];
+  status?: "pending" | "completed";
+  last_attempt?: {
+    selected_answer: string | null;
+    correct_answer: string;
+    is_correct: boolean;
+  };
   question: {
     type: string;
     prompt: string;
@@ -107,6 +113,8 @@ export interface TodayResponse {
   daily_word_count: number;
   recent_mistake_count?: number;
   word_count?: number;
+  resume_index?: number;
+  completed_item_count?: number;
   status: string;
   source_session_item_ids?: string[];
   target_phoneme_options?: {

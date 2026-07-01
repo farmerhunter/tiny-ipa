@@ -10,12 +10,13 @@ async function attachScreenshot(page: Page, name: string) {
 }
 
 async function selectCorrectAnswer(page: Page) {
-  const ship = page.getByRole("button", { name: "Select /ʃɪp/" });
-  if (await ship.isVisible()) {
-    await ship.click();
-    return;
-  }
-  await page.getByRole("button", { name: "Select /ʃiːp/" }).click();
+  const todayResponse = await page.request.get(`${apiBase}/today`);
+  expect(todayResponse.ok()).toBeTruthy();
+  const today = await todayResponse.json();
+  const resumeIndex = today.resume_index ?? 0;
+  const currentItem = today.items[resumeIndex];
+  expect(currentItem, `expected an item at resume_index ${resumeIndex}`).toBeTruthy();
+  await page.getByRole("button", { name: `Select ${currentItem.display_ipa}` }).click();
 }
 
 test.describe("M11 real backend Today/Progress/Settings consistency", () => {
@@ -27,6 +28,7 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
       await expect(page.getByText("Affects future regular practice groups only. Existing active groups stay unchanged.")).toBeVisible();
+      await expect(page.getByText("Entry uses the starter word pool. Mid uses the larger intermediate word pool. This choice applies to the next new regular group; active groups stay unchanged.")).toBeVisible();
 
       const reviewStrength = page.getByLabel(/Review strength/);
       await reviewStrength.selectOption("extra_review");
@@ -92,10 +94,44 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
       await attachScreenshot(page, "m11-real-progress-completed");
     });
 
+    await test.step("Partial regular group resumes at the first unanswered item", async () => {
+      const settingsResponse = await page.request.put(`${apiBase}/settings`, {
+        data: { learner_level: "entry", daily_word_count: 3 },
+      });
+      expect(settingsResponse.ok()).toBeTruthy();
+
+      await page.getByRole("button", { name: "Today", exact: true }).click();
+      await expect(page.getByText("Today practice hub")).toBeVisible();
+      await page.getByRole("button", { name: /Start (next )?Entry group/ }).click();
+      await expect(page.getByText("Practice group: 1 / 3")).toBeVisible();
+
+      await selectCorrectAnswer(page);
+      await expect(page.getByText("Practice group: 2 / 3")).toBeVisible({ timeout: 10_000 });
+      await selectCorrectAnswer(page);
+      await expect(page.getByText("Practice group: 3 / 3")).toBeVisible({ timeout: 10_000 });
+
+      await page.getByRole("button", { name: "Progress", exact: true }).click();
+      await expect(page.getByText("Unfinished regular practice", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "Go to Today to continue" }).click();
+      await expect(page.getByRole("button", { name: "Resume Entry group" })).toBeVisible();
+      await page.getByRole("button", { name: "Resume Entry group" }).click();
+      await expect(page.getByText("Practice group: 3 / 3")).toBeVisible();
+      await attachScreenshot(page, "m11-real-resume-breakpoint-third-item");
+
+      await selectCorrectAnswer(page);
+      await expect(page.getByText("3 / 3 correct")).toBeVisible({ timeout: 10_000 });
+
+      await page.getByRole("button", { name: "Progress", exact: true }).click();
+      await expect(page.getByText("Unfinished regular practice", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("2 completed today")).toBeVisible();
+      await attachScreenshot(page, "m11-real-resume-breakpoint-completed");
+    });
+
     await test.step("zh-CN real-state Progress copy avoids unexplained 普通", async () => {
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await page.getByLabel(/UI language/).selectOption("zh-CN");
       await expect(page.getByText("已保存")).toBeVisible();
+      await expect(page.getByText("入门使用适合起步练习的入门词库；进阶使用更大的进阶词库。此选择影响下一组新的常规练习，已进行中的练习组保持不变。")).toBeVisible();
       await page.getByRole("button", { name: "进度" }).click();
       await expect(page.getByText("累计完成常规练习组")).toBeVisible();
       await expect(page.getByText("有未完成的常规练习")).toHaveCount(0);
