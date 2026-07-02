@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import {
   type SettingsData,
   type TodayResponse,
+  type CurrentUser,
   clearPracticeFocus,
   fetchSettings,
   saveSettings,
@@ -17,6 +18,7 @@ import { createTranslator, type Locale } from "../locales";
 
 interface Props {
   uiLanguage: Locale;
+  currentUser: CurrentUser;
   onBack: () => void;
   onLanguageChange: (locale: Locale) => void;
   onFocusChange: (focusPhonemes: string[]) => void;
@@ -56,6 +58,7 @@ function canonicalFocus(phonemes: string[]): string[] {
 
 export default function SettingsPage({
   uiLanguage,
+  currentUser,
   onBack,
   onLanguageChange,
   onFocusChange,
@@ -198,8 +201,8 @@ export default function SettingsPage({
           <div className="account-box">
             <div className="account-icon" aria-hidden="true">人</div>
             <div>
-              <strong>{t("app.login.disabled.title")}</strong>
-              <span>{t("app.login.disabled.details")}</span>
+              <strong>{t("auth.settings.title")}</strong>
+              <span>{t("auth.settings.current", { username: currentUser.username })}</span>
             </div>
           </div>
 

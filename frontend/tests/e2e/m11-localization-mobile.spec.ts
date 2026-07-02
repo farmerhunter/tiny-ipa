@@ -359,6 +359,13 @@ async function routeMock(route: Route, state: MockState) {
     return;
   }
 
+  if (path === "/auth/me") {
+    await route.fulfill({
+      json: { authenticated: true, user: { id: "default", username: "owner", is_owner: true } },
+    });
+    return;
+  }
+
   if (path === "/settings") {
     if (request.method() === "PUT") {
       const body = request.postDataJSON() as {
@@ -728,6 +735,11 @@ test.describe("M11 bilingual mobile walkthrough and text-fit evidence", () => {
       });
       await page.route("**/api/settings", async (route) => {
         await route.fulfill({ json: settingsResponse(state) });
+      });
+      await page.route("**/api/auth/me", async (route) => {
+        await route.fulfill({
+          json: { authenticated: true, user: { id: "default", username: "owner", is_owner: true } },
+        });
       });
       await page.route("**/api/today", async (route) => {
         await route.fulfill({ status: 500, json: { detail: "forced test failure" } });

@@ -58,36 +58,100 @@
       "current": "每天几分钟，把声音和 IPA 对上号。"
     },
     {
-      "key": "app.login.disabled",
+      "key": "auth.current_user",
       "surface": "app_shell",
       "classification": "translatable",
-      "source": "frontend/src/App.tsx frontend/src/pages/SettingsPage.tsx",
-      "current": "登录 / 登录后同步练习 / 账号入口暂未启用；后续可用于同步进度和错题。",
-      "notes": "Visible auth placeholder; no auth behavior changes in M11."
+      "source": "frontend/src/App.tsx",
+      "current": "当前用户：{username}",
+      "notes": "M12 current-user shell display."
     },
     {
-      "key": "app.login.disabled.details",
-      "surface": "app_shell",
+      "key": "auth.error.invalid_credentials",
+      "surface": "loading_error",
       "classification": "translatable",
-      "source": "frontend/src",
-      "current": "Account access is not enabled yet; it can later sync progress and missed items.",
-      "notes": "Runtime key added during #216 frontend copy extraction."
+      "source": "frontend/src/App.tsx",
+      "current": "用户名或密码不正确。",
+      "notes": "M12 login failure copy."
     },
     {
-      "key": "app.login.disabled.short",
-      "surface": "app_shell",
+      "key": "auth.error.logout_failed",
+      "surface": "loading_error",
       "classification": "translatable",
-      "source": "frontend/src",
-      "current": "Sign in",
-      "notes": "Runtime key added during #216 frontend copy extraction."
+      "source": "frontend/src/App.tsx",
+      "current": "退出登录失败",
+      "notes": "M12 logout failure copy."
     },
     {
-      "key": "app.login.disabled.title",
+      "key": "auth.error.session_check_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "检查登录状态失败",
+      "notes": "M12 initial auth-state check copy."
+    },
+    {
+      "key": "auth.login.action",
       "surface": "app_shell",
       "classification": "translatable",
-      "source": "frontend/src",
-      "current": "Sync practice after sign-in",
-      "notes": "Runtime key added during #216 frontend copy extraction."
+      "source": "frontend/src/App.tsx",
+      "current": "登录",
+      "notes": "M12 login form submit action."
+    },
+    {
+      "key": "auth.login.description",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "登录后才能查看和更新自己的练习、进度与设置。",
+      "notes": "M12 login form explanation."
+    },
+    {
+      "key": "auth.login.password",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "密码",
+      "notes": "M12 login form field label."
+    },
+    {
+      "key": "auth.login.title",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "登录后开始练习",
+      "notes": "M12 login-required state title."
+    },
+    {
+      "key": "auth.login.username",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "用户名",
+      "notes": "M12 login form field label."
+    },
+    {
+      "key": "auth.logout.action",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "退出",
+      "notes": "M12 logout action."
+    },
+    {
+      "key": "auth.settings.current",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "已登录为 {username}。练习、进度和设置只属于当前用户。",
+      "notes": "M12 Settings current-user display."
+    },
+    {
+      "key": "auth.settings.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "账号",
+      "notes": "M12 Settings account panel title."
     },
     {
       "key": "app.nav.progress",
