@@ -49,6 +49,32 @@ class Phoneme:
 
 
 # ---------------------------------------------------------------------------
+# Users and auth sessions
+# ---------------------------------------------------------------------------
+
+@dataclass
+class User:
+    id: str
+    username: str
+    password_hash: str
+    is_owner: bool
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+
+@dataclass
+class AuthSession:
+    id: str
+    user_id: str
+    token_hash: str
+    created_at: str
+    last_seen_at: str
+    expires_at: str
+    revoked_at: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
 

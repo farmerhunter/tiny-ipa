@@ -62,12 +62,14 @@ class TestSchemaInitialisation:
         names = table_names(conn)
         conn.close()
         for expected in [
+            "auth_sessions",
             "attempts",
             "daily_sessions",
             "phoneme_stats",
             "phonemes",
             "session_items",
             "settings",
+            "users",
             "words",
         ]:
             assert expected in names, f"Table '{expected}' missing from {names}"
