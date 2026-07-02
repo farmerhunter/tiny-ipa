@@ -1042,6 +1042,57 @@ cd frontend && pnpm test:e2e:m8
 ```
 ```
 
+## M12 default-owner claim dry-run
+
+Existing local data may still be owned by the legacy `default` user id. Before
+any real/private SQLite data is claimed by an authenticated owner, the project
+must produce a dry-run report and preserve a restorable backup.
+
+Dry-run command:
+
+```text
+cd backend
+python scripts/default_owner_claim.py --db-url path/to/tiny_ipa.sqlite
+```
+
+Report contract:
+
+```text
+dry_run = true
+mutation_authorized = false
+apply_mode_available = false
+
+row_counts includes:
+  users_default
+  settings_default
+  daily_sessions_default
+  session_items_owned_by_default_sessions
+  attempts_default_user
+  attempts_on_default_session_items
+  phoneme_stats_default
+  auth_sessions_default
+
+breakdown includes:
+  daily_sessions_by_status
+  daily_sessions_by_group_type
+  session_items_by_session_status
+  session_items_by_group_type
+```
+
+Backup guidance before any future real apply mode:
+
+```text
+Stop the backend.
+Copy the SQLite database file and sibling -wal / -shm files to a timestamped
+backup path.
+Run the dry-run report against both backup and source database.
+Do not mutate real/private data until a separate Human Decision Contract
+authorizes the exact apply operation and rollback evidence.
+```
+
+The #242 artifact intentionally has no apply mode. Temp DB tests may describe
+the owner-claim sequence, but real/private mutation remains Human-gated.
+
 ## 服务端领域规则
 
 后端负责：
