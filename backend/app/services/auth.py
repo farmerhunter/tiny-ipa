@@ -75,6 +75,12 @@ class ResolvedSession:
     user: User
 
 
+@dataclass(frozen=True)
+class AuthenticatedUser:
+    user: User
+    password_needs_rehash: bool
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -104,6 +110,24 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def password_hash_needs_rehash(password_hash: str) -> bool:
     return _PASSWORD_HASHER.check_needs_rehash(password_hash)
+
+
+def authenticate_user(
+    conn: sqlite3.Connection,
+    *,
+    username: str,
+    password: str,
+) -> Optional[AuthenticatedUser]:
+    username = _normalize_username(username)
+    user = get_user_by_username(conn, username)
+    if user is None or not user.is_active:
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return AuthenticatedUser(
+        user=user,
+        password_needs_rehash=password_hash_needs_rehash(user.password_hash),
+    )
 
 
 def bootstrap_owner(
