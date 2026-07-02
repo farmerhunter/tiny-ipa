@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.auth_dependencies import require_current_user
 from app.db import get_db
-from app.models import Settings
+from app.models import Settings, User
 from app.services.db_store import get_settings, upsert_settings
 
 router = APIRouter()
@@ -20,10 +21,10 @@ _VALID_UI_LANGUAGES = {"zh-CN", "en-US"}
 
 
 @router.get("/settings")
-def settings_get():
+def settings_get(current_user: User = Depends(require_current_user)):
     """Return current settings for the default user."""
     with get_db() as conn:
-        s = get_settings(conn, "default")
+        s = get_settings(conn, current_user.id)
         if s is None:
             # Return defaults if never initialised
             return {
@@ -51,7 +52,10 @@ def settings_get():
 
 
 @router.put("/settings")
-async def settings_put(request: Request):
+async def settings_put(
+    request: Request,
+    current_user: User = Depends(require_current_user),
+):
     """Update settings for the default user.
 
     Accepts a partial update — only provided fields are changed.
@@ -59,9 +63,9 @@ async def settings_put(request: Request):
     body = await request.json()
 
     with get_db() as conn:
-        existing = get_settings(conn, "default")
+        existing = get_settings(conn, current_user.id)
         if existing is None:
-            existing = Settings(user_id="default")
+            existing = Settings(user_id=current_user.id)
 
         # Validate and apply each field
         errors = []

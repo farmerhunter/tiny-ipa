@@ -411,7 +411,7 @@ def build_current_group_review_response(
         }
 
     source_session = get_session_by_id(conn, source_group_id)
-    if source_session is None:
+    if source_session is None or source_session.user_id != user_id:
         return {
             "error": "GROUP_NOT_FOUND",
             "detail": f"No practice group found for {source_group_id}.",

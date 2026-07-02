@@ -18,6 +18,7 @@ from import_words import import_words  # noqa: E402
 from app.db import get_connection  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services.progress import _compute_mastery, update_phoneme_stats  # noqa: E402
+from tests.auth_helpers import authenticated_client, bootstrap_owner_user  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CONTENT_SAMPLE = FIXTURES / "content_sample.json"
@@ -37,13 +38,14 @@ def seeded_db_fixture(tmp_path: Path) -> str:
 
     orig = db_mod.DEFAULT_DB_PATH
     db_mod.DEFAULT_DB_PATH = db_path
+    bootstrap_owner_user(db_path)
     yield db_path
     db_mod.DEFAULT_DB_PATH = orig
 
 
 @pytest.fixture(name="client")
 def client_fixture(seeded_db: str) -> TestClient:
-    return TestClient(app)
+    return authenticated_client(TestClient(app))
 
 
 def _get_first_item(client: TestClient) -> dict:
