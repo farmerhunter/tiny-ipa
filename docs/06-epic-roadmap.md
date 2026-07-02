@@ -439,8 +439,8 @@ personal VPS deployment exposes Tiny IPA beyond a single local default user.
 Roadmap status:
 
 ```text
-Ready for Architect decomposition. Epic #210 is the next active roadmap gate
-after #209. Child issues are not planned or released yet.
+Decomposed. #238 is the released P0 contract/test-matrix issue. #239 through
+#244 remain dependency-gated until #238 is reviewed and accepted.
 ```
 
 Expected child issue areas:
