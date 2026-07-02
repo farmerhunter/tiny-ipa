@@ -66,6 +66,14 @@
       "notes": "M12 current-user shell display."
     },
     {
+      "key": "auth.current_user.label",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "当前用户",
+      "notes": "M12 #252 app-shell identity indicator label."
+    },
+    {
       "key": "auth.error.invalid_credentials",
       "surface": "loading_error",
       "classification": "translatable",
@@ -1179,8 +1187,8 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
-      "current": "Affects future regular practice groups only. Existing active groups stay unchanged.",
-      "notes": "Clarifies the future-group boundary for #228 Settings review intensity."
+      "current": "Affects future regular practice groups only, and becomes visible when weak sounds or mistake history exist. Existing active groups stay unchanged.",
+      "notes": "Clarifies the future-group and conditional-evidence boundary for #252 Settings review strength."
     },
     {
       "key": "settings.review_strength.extra_review",
@@ -1229,6 +1237,14 @@
       "current": "Show translation"
     },
     {
+      "key": "settings.show_translation.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "When off, practice cards hide Chinese meanings; turning it back on shows available meanings on the next render.",
+      "notes": "M12 #252 Settings effect explanation."
+    },
+    {
       "key": "settings.ui_language.en_us",
       "surface": "settings",
       "classification": "translatable",
@@ -1258,6 +1274,14 @@
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
       "current": "Words per group"
+    },
+    {
+      "key": "settings.words_per_group.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Affects future regular groups only; active groups keep their existing item count.",
+      "notes": "M12 #252 Settings effect explanation."
     },
     {
       "key": "specialty.label",

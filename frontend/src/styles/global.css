@@ -177,15 +177,25 @@ summary:focus-visible {
 .account-menu {
   align-items: flex-end;
   display: grid;
-  gap: 4px;
+  gap: 3px;
   justify-items: end;
-  min-width: 108px;
+  min-width: 132px;
+  padding: 7px 8px;
+  border: 1px solid rgba(210, 201, 189, 0.86);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
 }
 
-.account-menu span {
+.account-menu-label {
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 700;
+  line-height: 1.2;
+}
+
+.account-menu strong {
+  color: var(--ink);
+  font-size: 0.92rem;
   line-height: 1.2;
   max-width: 142px;
   overflow: hidden;

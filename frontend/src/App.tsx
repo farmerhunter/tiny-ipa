@@ -119,7 +119,8 @@ function App() {
           <span>{t("app.brand.tagline")}</span>
         </div>
         <div className="account-menu">
-          <span>{t("auth.current_user", { username: authUser.username })}</span>
+          <span className="account-menu-label">{t("auth.current_user.label")}</span>
+          <strong title={authUser.username}>{authUser.username}</strong>
           <button className="account-action" type="button" onClick={() => void handleLogout()}>
             {t("auth.logout.action")}
           </button>

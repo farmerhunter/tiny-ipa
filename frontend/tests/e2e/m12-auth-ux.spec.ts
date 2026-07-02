@@ -133,10 +133,14 @@ test.describe("M12 localized auth UX", () => {
 
     await page.getByLabel("密码").fill("secret");
     await page.getByRole("button", { name: "登录" }).click();
-    await expect(page.getByText("当前用户：owner")).toBeVisible();
+    await expect(page.locator(".account-menu")).toContainText("当前用户");
+    await expect(page.locator(".account-menu")).toContainText("owner");
 
     await page.getByRole("button", { name: "设置" }).click();
     await expect(page.getByText("已登录为 owner。练习、进度和设置只属于当前用户。")).toBeVisible();
+    await expect(page.getByText("只影响之后新建的常规练习组；已进行中的练习组词数不变。")).toBeVisible();
+    await expect(page.getByText("关闭后，练习卡片不显示中文释义；重新开启后，下一次渲染会显示可用释义。")).toBeVisible();
+    await expect(page.getByText("只影响之后新建的常规练习组，并且需要已有薄弱音或错题信号才会明显改变选词。已经进行中的练习组不会改变。")).toBeVisible();
 
     await page.getByRole("button", { name: "退出" }).click();
     await expect(page.getByRole("heading", { name: "登录后开始练习" })).toBeVisible();
@@ -151,10 +155,14 @@ test.describe("M12 localized auth UX", () => {
     await page.getByLabel("Username").fill("owner");
     await page.getByLabel("Password").fill("secret");
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByText("Current user: owner")).toBeVisible();
+    await expect(page.locator(".account-menu")).toContainText("Current user");
+    await expect(page.locator(".account-menu")).toContainText("owner");
 
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.getByText("Signed in as owner. Practice, progress, and settings belong to this user only.")).toBeVisible();
+    await expect(page.getByText("Affects future regular groups only; active groups keep their existing item count.")).toBeVisible();
+    await expect(page.getByText("When off, practice cards hide Chinese meanings; turning it back on shows available meanings on the next render.")).toBeVisible();
+    await expect(page.getByText("Affects future regular practice groups only, and becomes visible when weak sounds or mistake history exist. Existing active groups stay unchanged.")).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page.getByRole("heading", { name: "Sign in to practice" })).toBeVisible();

@@ -154,13 +154,19 @@ export default function SettingsPage({
         {/* ---- MVP-supported controls ---- */}
 
         <label className="setting-row">
-          <span>{t("settings.words_per_group")}</span>
+          <span>
+            {t("settings.words_per_group")}
+            <small>{t("settings.words_per_group.description")}</small>
+          </span>
           <input type="number" min={1} max={50} value={settings.daily_word_count}
             onChange={e => update({ daily_word_count: Number(e.target.value) })} />
         </label>
 
         <label className="setting-row">
-          <span>{t("settings.show_translation")}</span>
+          <span>
+            {t("settings.show_translation")}
+            <small>{t("settings.show_translation.description")}</small>
+          </span>
           <input type="checkbox" checked={settings.show_translation}
             onChange={e => update({ show_translation: e.target.checked })} />
         </label>
