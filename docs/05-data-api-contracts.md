@@ -112,6 +112,27 @@ phonemes(
   description_zh TEXT
 )
 
+users(
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  is_owner INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)
+
+auth_sessions(
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+)
+
 settings(
   user_id TEXT PRIMARY KEY,
   primary_accent TEXT NOT NULL,
@@ -245,6 +266,25 @@ login rotates or replaces any existing session id
 deployed session secret is required and must not have an insecure built-in default
 local-dev secret/bootstrap behavior is documented and visibly non-production
 ```
+
+The #239 bootstrap foundation provides a CLI setup path without enabling route
+behavior:
+
+```bash
+cd backend
+python scripts/bootstrap_auth.py --db-url /path/to/tiny_ipa.sqlite owner \
+  --username owner --password 'change-me-long-password'
+
+python scripts/bootstrap_auth.py --db-url /tmp/tiny_ipa_dev.sqlite dev-user \
+  --enable-local-dev --environment development \
+  --username local-dev --password 'local-dev-password'
+```
+
+Owner bootstrap creates the first owner and fails closed if an owner already
+exists. Local dev bootstrap is explicit, creates a normal user instead of an
+auth bypass, and refuses `production`, `prod`, `deployed`, or `deploy`
+environments. Password hashes use Argon2 via `argon2-cffi`; auth session rows
+store a hash of the opaque session token, not the raw token.
 
 Same-origin SPA/API deployment is the default. If a split origin is introduced,
 the CORS allowlist must be exact and credentials-aware; wildcard origins are not

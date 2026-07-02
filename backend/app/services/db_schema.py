@@ -11,6 +11,35 @@ from typing import List
 
 TABLES_DDL: List[str] = [
     # ------------------------------------------------------------------
+    # users
+    # ------------------------------------------------------------------
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id             TEXT PRIMARY KEY,
+        username       TEXT    NOT NULL UNIQUE,
+        password_hash  TEXT    NOT NULL,
+        is_owner       INTEGER NOT NULL DEFAULT 0,
+        is_active      INTEGER NOT NULL DEFAULT 1,
+        created_at     TEXT    NOT NULL,
+        updated_at     TEXT    NOT NULL
+    )
+    """,
+    # ------------------------------------------------------------------
+    # auth_sessions
+    # ------------------------------------------------------------------
+    """
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+        id            TEXT PRIMARY KEY,
+        user_id       TEXT    NOT NULL,
+        token_hash    TEXT    NOT NULL UNIQUE,
+        created_at    TEXT    NOT NULL,
+        last_seen_at  TEXT    NOT NULL,
+        expires_at    TEXT    NOT NULL,
+        revoked_at    TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    """,
+    # ------------------------------------------------------------------
     # words
     # ------------------------------------------------------------------
     """
@@ -145,8 +174,54 @@ def init_db(conn: sqlite3.Connection) -> None:
     """
     for ddl in TABLES_DDL:
         conn.execute(ddl)
+    ensure_users_schema(conn)
+    ensure_auth_sessions_schema(conn)
     ensure_settings_schema(conn)
     ensure_daily_sessions_schema(conn)
+
+
+def ensure_users_schema(conn: sqlite3.Connection) -> None:
+    """Apply compatibility patches for existing users tables."""
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+    ).fetchone()
+    if table is None:
+        return
+
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(users)").fetchall()
+    }
+    if "is_owner" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0")
+    if "is_active" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+    if "created_at" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN created_at TEXT NOT NULL DEFAULT ''")
+    if "updated_at" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''")
+
+
+def ensure_auth_sessions_schema(conn: sqlite3.Connection) -> None:
+    """Apply compatibility patches for existing auth_sessions tables."""
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='auth_sessions'"
+    ).fetchone()
+    if table is None:
+        return
+
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(auth_sessions)").fetchall()
+    }
+    if "last_seen_at" not in columns:
+        conn.execute(
+            "ALTER TABLE auth_sessions ADD COLUMN last_seen_at TEXT NOT NULL DEFAULT ''"
+        )
+    if "expires_at" not in columns:
+        conn.execute("ALTER TABLE auth_sessions ADD COLUMN expires_at TEXT NOT NULL DEFAULT ''")
+    if "revoked_at" not in columns:
+        conn.execute("ALTER TABLE auth_sessions ADD COLUMN revoked_at TEXT")
 
 
 def ensure_settings_schema(conn: sqlite3.Connection) -> None:
