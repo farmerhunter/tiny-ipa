@@ -16,9 +16,23 @@ from app.routes.settings import router as settings_router
 
 app = FastAPI(title="Tiny IPA", version="0.1.0")
 
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("TINY_IPA_CORS_ORIGINS")
+    if raw:
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5182",
+        "http://localhost:5182",
+    ]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

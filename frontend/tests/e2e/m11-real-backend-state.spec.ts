@@ -26,9 +26,17 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
 
     await test.step("Settings review strength persists and affects the next regular group", async () => {
       await page.goto("/");
+      await page.getByLabel("界面语言").selectOption("en-US");
+      await page.getByLabel("Username").fill("owner");
+      await page.getByLabel("Password").fill("secret123");
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await expect(page.locator(".account-menu")).toContainText("Current user");
+      await expect(page.locator(".account-menu")).toContainText("owner");
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-      await expect(page.getByText("Affects future regular practice groups only. Existing active groups stay unchanged.")).toBeVisible();
+      await expect(page.getByText("Affects future regular practice groups only, and becomes visible when weak sounds or mistake history exist. Existing active groups stay unchanged.")).toBeVisible();
+      await expect(page.getByText("Affects future regular groups only; active groups keep their existing item count.")).toBeVisible();
+      await expect(page.getByText("When off, practice cards hide Chinese meanings; turning it back on shows available meanings on the next render.")).toBeVisible();
       await expect(page.getByText("Entry uses the starter word pool. Mid uses the larger intermediate word pool. This choice applies to the next new regular group; active groups stay unchanged.")).toBeVisible();
 
       const reviewStrength = page.getByLabel(/Review strength/);

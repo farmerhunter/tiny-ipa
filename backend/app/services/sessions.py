@@ -1233,6 +1233,7 @@ def _build_response(
     """Assemble the /api/today JSON response from session + items."""
     settings = get_settings(conn, session.user_id)
     show_accent_compare = bool(settings and settings.show_accent_compare)
+    show_translation = bool(settings.show_translation) if settings is not None else True
     distractor_pool = _build_distractor_pool(conn, accent)
     latest_attempts = get_latest_attempts_for_session_items(
         conn,
@@ -1262,7 +1263,7 @@ def _build_response(
                 "word_id": word.id,
                 "display_ipa": word.ipa_us if accent == "US" else (word.ipa_uk or ""),
                 "word": word.word,
-                "meaning_zh": word.meaning_zh,
+                "meaning_zh": word.meaning_zh if show_translation else None,
                 "audio_url": word.audio_us if accent == "US" else word.audio_uk,
                 "target_phonemes": item.target_phonemes,
                 "status": "completed" if item.status == "complete" else "pending",

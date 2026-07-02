@@ -31,8 +31,8 @@ export default defineConfig({
   webServer: [
     {
       command: [
-        `python3 tests/e2e/support/prepare_m11_real_db.py ${dbPath}`,
-        `cd ../backend && TINY_IPA_DB_PATH=${dbPath} UV_CACHE_DIR=${uvCacheDir} uv run uvicorn app.main:app --host 127.0.0.1 --port ${backendPort}`,
+        `cd ../backend && UV_CACHE_DIR=${uvCacheDir} uv run python ../frontend/tests/e2e/support/prepare_m11_real_db.py ${dbPath}`,
+        `cd ../backend && TINY_IPA_DB_PATH=${dbPath} TINY_IPA_CORS_ORIGINS=${frontendURL} UV_CACHE_DIR=${uvCacheDir} uv run uvicorn app.main:app --host 127.0.0.1 --port ${backendPort}`,
       ].join(" && "),
       url: `${backendURL}/api/health`,
       reuseExistingServer: false,
