@@ -6,18 +6,23 @@ interface AuthState {
   authenticated: boolean;
   locale: Locale;
   username: string | null;
+  invalidDailyWordCountRequests: number;
+  settings: {
+    daily_word_count: number;
+    review_strength: "quick" | "normal" | "extra_review";
+  };
 }
 
-function settingsResponse(locale: Locale) {
+function settingsResponse(state: AuthState) {
   return {
     primary_accent: "US",
-    daily_word_count: 3,
+    daily_word_count: state.settings.daily_word_count,
     show_translation: true,
     show_accent_compare: false,
     practice_mode: "normal",
-    review_strength: "normal",
+    review_strength: state.settings.review_strength,
     learner_level: "entry",
-    ui_language: locale,
+    ui_language: state.locale,
     focus_phonemes: [],
   };
 }
@@ -40,6 +45,11 @@ async function setupAuthApi(page: Page, locale: Locale) {
     authenticated: false,
     locale,
     username: null,
+    invalidDailyWordCountRequests: 0,
+    settings: {
+      daily_word_count: 3,
+      review_strength: "normal",
+    },
   };
 
   await page.route("**/api/**", async (route) => {
@@ -105,10 +115,35 @@ async function routeMock(route: Route, state: AuthState) {
       return;
     }
     if (request.method() === "PUT") {
-      const body = request.postDataJSON() as { ui_language?: Locale };
+      const body = request.postDataJSON() as {
+        ui_language?: Locale;
+        daily_word_count?: number;
+        review_strength?: AuthState["settings"]["review_strength"];
+      };
       if (body.ui_language) state.locale = body.ui_language;
+      if (body.daily_word_count !== undefined) {
+        if (
+          !Number.isInteger(body.daily_word_count) ||
+          body.daily_word_count < 1 ||
+          body.daily_word_count > 50
+        ) {
+          state.invalidDailyWordCountRequests += 1;
+          await route.fulfill({
+            status: 400,
+            json: {
+              detail: {
+                error: "SETTINGS_INVALID",
+                detail: "daily_word_count must be an integer between 1 and 50",
+              },
+            },
+          });
+          return;
+        }
+        state.settings.daily_word_count = body.daily_word_count;
+      }
+      if (body.review_strength) state.settings.review_strength = body.review_strength;
     }
-    await route.fulfill({ json: settingsResponse(state.locale) });
+    await route.fulfill({ json: settingsResponse(state) });
     return;
   }
 
@@ -122,7 +157,7 @@ async function routeMock(route: Route, state: AuthState) {
 
 test.describe("M12 localized auth UX", () => {
   test("zh-CN login, current-user display, and logout use localized copy", async ({ page }) => {
-    await setupAuthApi(page, "zh-CN");
+    const state = await setupAuthApi(page, "zh-CN");
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "登录后开始练习" })).toBeVisible();
@@ -138,9 +173,26 @@ test.describe("M12 localized auth UX", () => {
 
     await page.getByRole("button", { name: "设置" }).click();
     await expect(page.getByText("已登录为 owner。练习、进度和设置只属于当前用户。")).toBeVisible();
-    await expect(page.getByText("只影响之后新建的常规练习组；已进行中的练习组词数不变。")).toBeVisible();
+    await expect(page.getByText("保存 1 到 50 之间的整数。只影响之后新建的常规练习组；今日已经进行中的组会保持原来的词数。")).toBeVisible();
     await expect(page.getByText("关闭后，练习卡片不显示中文释义；重新开启后，下一次渲染会显示可用释义。")).toBeVisible();
-    await expect(page.getByText("只影响之后新建的常规练习组，并且需要已有薄弱音或错题信号才会明显改变选词。已经进行中的练习组不会改变。")).toBeVisible();
+    await expect(page.getByText("只影响之后新建的常规练习组；已经进行中的练习组不会改变。需要已有薄弱音或错题信号时，差异才会明显。")).toBeVisible();
+    await expect(page.getByText("快速：下一组常规练习会减少薄弱音和错题占用的空间，更偏向轻量练习。")).toBeVisible();
+    await expect(page.getByText("标准：下一组常规练习保持新词和薄弱音复习的平衡。")).toBeVisible();
+    await expect(page.getByText("加强复习：下一组常规练习会在有薄弱音或近期错题时，更优先安排这些声音。")).toBeVisible();
+
+    const wordCountInput = page.getByLabel(/每组词数/);
+    await wordCountInput.fill("");
+    await wordCountInput.blur();
+    await expect(page.getByText("请输入 1 到 50 之间的整数。已进行中的练习组不会改变；下一组新建的常规练习会使用保存后的设置。")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("SETTINGS_INVALID");
+    await wordCountInput.fill("0");
+    await wordCountInput.press("Enter");
+    await expect(page.getByText("请输入 1 到 50 之间的整数。已进行中的练习组不会改变；下一组新建的常规练习会使用保存后的设置。")).toBeVisible();
+    await wordCountInput.fill("4");
+    await wordCountInput.press("Enter");
+    await expect(page.getByText("已保存")).toBeVisible();
+    await expect(wordCountInput).toHaveValue("4");
+    expect(state.invalidDailyWordCountRequests).toBe(0);
 
     await page.getByRole("button", { name: "退出" }).click();
     await expect(page.getByRole("heading", { name: "登录后开始练习" })).toBeVisible();
@@ -160,9 +212,12 @@ test.describe("M12 localized auth UX", () => {
 
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.getByText("Signed in as owner. Practice, progress, and settings belong to this user only.")).toBeVisible();
-    await expect(page.getByText("Affects future regular groups only; active groups keep their existing item count.")).toBeVisible();
+    await expect(page.getByText("Save a whole number from 1 to 50. It affects future regular groups only; today's active group keeps its original item count.")).toBeVisible();
     await expect(page.getByText("When off, practice cards hide Chinese meanings; turning it back on shows available meanings on the next render.")).toBeVisible();
-    await expect(page.getByText("Affects future regular practice groups only, and becomes visible when weak sounds or mistake history exist. Existing active groups stay unchanged.")).toBeVisible();
+    await expect(page.getByText("Affects future regular practice groups only; existing active groups stay unchanged. The difference is visible when weak sounds or mistake history exist.")).toBeVisible();
+    await expect(page.getByText("Quick: future regular groups spend less room on weak or mistaken sounds for lighter practice.")).toBeVisible();
+    await expect(page.getByText("Standard: future regular groups keep a balanced mix of new words and weak-sound review.")).toBeVisible();
+    await expect(page.getByText("Extra review: future regular groups give weak sounds or recent mistakes more priority when that evidence exists.")).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page.getByRole("heading", { name: "Sign in to practice" })).toBeVisible();

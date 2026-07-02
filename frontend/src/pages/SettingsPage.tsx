@@ -67,7 +67,9 @@ export default function SettingsPage({
   const t = createTranslator(uiLanguage);
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [focusInput, setFocusInput] = useState("");
+  const [dailyWordCountInput, setDailyWordCountInput] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -76,13 +78,14 @@ export default function SettingsPage({
       .then((data) => {
         setSettings(data);
         setFocusInput(data.focus_phonemes.join(", "));
+        setDailyWordCountInput(String(data.daily_word_count));
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <main className="practice-container"><p>{t("settings.loading")}</p></main>;
-  if (error) return <main className="practice-container"><p className="error">{error}</p></main>;
+  if (loadError) return <main className="practice-container"><p className="error">{loadError}</p></main>;
   if (!settings) return null;
 
   const update = async (patch: Partial<SettingsData>) => {
@@ -92,12 +95,30 @@ export default function SettingsPage({
       const updated = await saveSettings(patch);
       setSettings(updated);
       setFocusInput(updated.focus_phonemes.join(", "));
+      setDailyWordCountInput(String(updated.daily_word_count));
       onLanguageChange(updated.ui_language);
       onFocusChange(updated.focus_phonemes);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : t("error.settings.save_failed"));
+      if (e instanceof Error && e.message.includes("SETTINGS_INVALID")) {
+        setError(t("error.settings.invalid"));
+      } else {
+        setError(t("error.settings.save_failed"));
+      }
+    }
+  };
+
+  const saveDailyWordCount = () => {
+    const normalized = dailyWordCountInput.trim();
+    const value = Number(normalized);
+    if (!/^\d+$/.test(normalized) || value < 1 || value > 50) {
+      setError(t("error.settings.invalid"));
+      setSaved(false);
+      return;
+    }
+    if (value !== settings.daily_word_count) {
+      void update({ daily_word_count: value });
     }
   };
 
@@ -158,8 +179,22 @@ export default function SettingsPage({
             {t("settings.words_per_group")}
             <small>{t("settings.words_per_group.description")}</small>
           </span>
-          <input type="number" min={1} max={50} value={settings.daily_word_count}
-            onChange={e => update({ daily_word_count: Number(e.target.value) })} />
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={dailyWordCountInput}
+            onBlur={saveDailyWordCount}
+            onChange={e => {
+              setError(null);
+              setDailyWordCountInput(e.target.value);
+            }}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
+          />
         </label>
 
         <label className="setting-row">
@@ -192,6 +227,11 @@ export default function SettingsPage({
             <option value="extra_review">{t("settings.review_strength.extra_review")}</option>
           </select>
         </label>
+        <ul className="settings-help-list">
+          <li>{t("settings.review_strength.quick.description")}</li>
+          <li>{t("settings.review_strength.normal.description")}</li>
+          <li>{t("settings.review_strength.extra_review.description")}</li>
+        </ul>
 
         <label className="setting-row">
           <span>{t("settings.ui_language.title")}</span>
