@@ -10,8 +10,22 @@ import json
 import sqlite3
 from typing import List, Optional
 
-from app.models import Attempt, DailySession, Phoneme, SessionItem, Settings, Word
-from app.services.db_schema import ensure_daily_sessions_schema, ensure_settings_schema
+from app.models import (
+    Attempt,
+    AuthSession,
+    DailySession,
+    Phoneme,
+    SessionItem,
+    Settings,
+    User,
+    Word,
+)
+from app.services.db_schema import (
+    ensure_auth_sessions_schema,
+    ensure_daily_sessions_schema,
+    ensure_settings_schema,
+    ensure_users_schema,
+)
 
 # ============================================================================
 # Serialisation helpers
@@ -80,6 +94,30 @@ def _phoneme_from_row(row: sqlite3.Row) -> Phoneme:
     )
 
 
+def _user_from_row(row: sqlite3.Row) -> User:
+    return User(
+        id=row["id"],
+        username=row["username"],
+        password_hash=row["password_hash"],
+        is_owner=bool(row["is_owner"]),
+        is_active=bool(row["is_active"]),
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def _auth_session_from_row(row: sqlite3.Row) -> AuthSession:
+    return AuthSession(
+        id=row["id"],
+        user_id=row["user_id"],
+        token_hash=row["token_hash"],
+        created_at=row["created_at"],
+        last_seen_at=row["last_seen_at"],
+        expires_at=row["expires_at"],
+        revoked_at=row["revoked_at"],
+    )
+
+
 def _settings_from_row(row: sqlite3.Row) -> Settings:
     return Settings(
         user_id=row["user_id"],
@@ -93,6 +131,126 @@ def _settings_from_row(row: sqlite3.Row) -> Settings:
         ui_language=row["ui_language"],
         focus_phonemes=_parse_list(row["focus_phonemes"]) or [],
         updated_at=row["updated_at"],
+    )
+
+
+# ============================================================================
+# Users
+# ============================================================================
+
+
+def create_user(conn: sqlite3.Connection, user: User) -> str:
+    """Insert a user row. Returns the user id."""
+    ensure_users_schema(conn)
+    conn.execute(
+        """
+        INSERT INTO users (
+            id, username, password_hash, is_owner, is_active, created_at, updated_at
+        ) VALUES (
+            :id, :username, :password_hash, :is_owner, :is_active, :created_at, :updated_at
+        )
+        """,
+        {
+            "id": user.id,
+            "username": user.username,
+            "password_hash": user.password_hash,
+            "is_owner": int(user.is_owner),
+            "is_active": int(user.is_active),
+            "created_at": user.created_at,
+            "updated_at": user.updated_at,
+        },
+    )
+    return user.id
+
+
+def get_user_by_id(conn: sqlite3.Connection, user_id: str) -> Optional[User]:
+    ensure_users_schema(conn)
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if row is None:
+        return None
+    return _user_from_row(row)
+
+
+def get_user_by_username(conn: sqlite3.Connection, username: str) -> Optional[User]:
+    ensure_users_schema(conn)
+    row = conn.execute(
+        "SELECT * FROM users WHERE username = ?", (username,)
+    ).fetchone()
+    if row is None:
+        return None
+    return _user_from_row(row)
+
+
+def count_owner_users(conn: sqlite3.Connection) -> int:
+    ensure_users_schema(conn)
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM users WHERE is_owner = 1"
+    ).fetchone()
+    return int(row["cnt"] if row else 0)
+
+
+# ============================================================================
+# Auth sessions
+# ============================================================================
+
+
+def create_auth_session(conn: sqlite3.Connection, session: AuthSession) -> str:
+    """Insert a server-side auth session row. Returns the session id."""
+    ensure_auth_sessions_schema(conn)
+    conn.execute(
+        """
+        INSERT INTO auth_sessions (
+            id, user_id, token_hash, created_at, last_seen_at, expires_at, revoked_at
+        ) VALUES (
+            :id, :user_id, :token_hash, :created_at, :last_seen_at, :expires_at, :revoked_at
+        )
+        """,
+        {
+            "id": session.id,
+            "user_id": session.user_id,
+            "token_hash": session.token_hash,
+            "created_at": session.created_at,
+            "last_seen_at": session.last_seen_at,
+            "expires_at": session.expires_at,
+            "revoked_at": session.revoked_at,
+        },
+    )
+    return session.id
+
+
+def get_auth_session_by_token_hash(
+    conn: sqlite3.Connection, token_hash: str
+) -> Optional[AuthSession]:
+    ensure_auth_sessions_schema(conn)
+    row = conn.execute(
+        "SELECT * FROM auth_sessions WHERE token_hash = ?", (token_hash,)
+    ).fetchone()
+    if row is None:
+        return None
+    return _auth_session_from_row(row)
+
+
+def touch_auth_session(
+    conn: sqlite3.Connection, session_id: str, last_seen_at: str
+) -> None:
+    ensure_auth_sessions_schema(conn)
+    conn.execute(
+        "UPDATE auth_sessions SET last_seen_at = ? WHERE id = ?",
+        (last_seen_at, session_id),
+    )
+
+
+def revoke_auth_session_by_token_hash(
+    conn: sqlite3.Connection, token_hash: str, revoked_at: str
+) -> None:
+    ensure_auth_sessions_schema(conn)
+    conn.execute(
+        """
+        UPDATE auth_sessions
+        SET revoked_at = ?
+        WHERE token_hash = ? AND revoked_at IS NULL
+        """,
+        (revoked_at, token_hash),
     )
 
 

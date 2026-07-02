@@ -62,6 +62,29 @@ write permission.
 
 Do not put `needs:implementer` on an Epic. Implementers pick up child issues, not Epic containers. If an Epic-level concern requires execution, create a child task such as integration QA, cross-issue gap fixing, or final manual QA evidence.
 
+## Local auth bootstrap
+
+M12 adds auth storage before login/logout routes. For personal deployment setup,
+create the first owner explicitly:
+
+```bash
+cd backend
+python scripts/bootstrap_auth.py --db-url ./tiny_ipa.sqlite owner \
+  --username owner --password 'change-me-long-password'
+```
+
+For local development, use the guarded dev-user path:
+
+```bash
+cd backend
+python scripts/bootstrap_auth.py --db-url /tmp/tiny_ipa_dev.sqlite dev-user \
+  --enable-local-dev --environment development \
+  --username local-dev --password 'local-dev-password'
+```
+
+The local-dev command refuses production/deployed environments and does not
+enable an auth bypass. It only creates a normal user record for local testing.
+
 `Ready + needs:implementer` may represent an Implementer queue, not only work that can start immediately. Implementers should read all ready issues in the queue, sort them by the `Depends on` line in each `Execution Contract`, and execute only the issues whose dependencies are satisfied.
 
 Do not make every child issue review a queue-wide stop. A previous issue's review blocks later implementation only when the later issue's `Execution Contract` says so with a hard `Depends on` gate, or when the Architect posts an explicit hold on the Epic. Otherwise the Implementer may continue through the ready queue and let review feedback converge through the normal PR cycle.

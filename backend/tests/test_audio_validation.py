@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -13,8 +12,9 @@ _SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from validate_content import _check_audio_files, load_words  # noqa: E402
-from app.main import app  # noqa: E402
+from validate_content import _check_audio_files  # noqa: E402
+
+from tests.auth_helpers import authenticated_client, bootstrap_owner_user  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CONTENT_SAMPLE = FIXTURES / "content_sample.json"
@@ -37,6 +37,7 @@ class TestAudioStaticServing:
         monkeypatch.setenv("TINY_IPA_AUDIO_DIR", str(tmp_path / "audio"))
         # Rebuild app with the new audio dir
         import importlib
+
         import app.main as main_mod
         importlib.reload(main_mod)
 
@@ -52,6 +53,7 @@ class TestAudioStaticServing:
         monkeypatch.setenv("TINY_IPA_AUDIO_DIR", str(audio_dir))
 
         import importlib
+
         import app.main as main_mod
         importlib.reload(main_mod)
 
@@ -171,9 +173,14 @@ class TestTodayAudioUrl:
         from import_words import import_words  # noqa: E402
         import_words(
             source_path=CONTENT_SAMPLE,
-            phonemes_path=Path(__file__).resolve().parent.parent.parent / "content" / "phonemes.json",
+            phonemes_path=(
+                Path(__file__).resolve().parent.parent.parent
+                / "content"
+                / "phonemes.json"
+            ),
             db_path=db_path,
         )
+        bootstrap_owner_user(db_path)
         import app.db as db_mod
         self._orig_db = db_mod.DEFAULT_DB_PATH
         db_mod.DEFAULT_DB_PATH = db_path
@@ -183,9 +190,10 @@ class TestTodayAudioUrl:
         audio_dir.mkdir()
         monkeypatch.setenv("TINY_IPA_AUDIO_DIR", str(audio_dir))
         import importlib
+
         import app.main as main_mod
         importlib.reload(main_mod)
-        self.client = TestClient(main_mod.app)
+        self.client = authenticated_client(TestClient(main_mod.app))
 
         yield
         db_mod.DEFAULT_DB_PATH = self._orig_db

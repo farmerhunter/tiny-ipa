@@ -112,6 +112,27 @@ phonemes(
   description_zh TEXT
 )
 
+users(
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  is_owner INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)
+
+auth_sessions(
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  FOREIGN KEY(user_id) REFERENCES users(id)
+)
+
 settings(
   user_id TEXT PRIMARY KEY,
   primary_accent TEXT NOT NULL,
@@ -183,17 +204,146 @@ phoneme_stats(
 
 ### Current user and auth boundary
 
-Pre-auth local development may continue to use a documented dev/default user.
-M12 must make the current-user source explicit before VPS deployment:
+M12 treats auth as a personal-VPS data-isolation boundary, not as broad account
+management. The deployment target is a private Tiny IPA instance reached through
+an HTTPS reverse proxy by a small known learner set. The contract must protect
+runtime learning data from cross-user reads/writes, avoid silent fallback to the
+old `default` user in deployed mode, and keep local development simple enough to
+run without OAuth or an external identity provider.
+
+Explicit non-goals for M12:
 
 ```text
-anonymous local dev user     allowed only in documented dev mode
-authenticated runtime user   required for deployed learner data
-owner/admin bootstrap        minimal personal deployment setup
+OAuth or social login
+email verification or password reset
+family dashboard, billing, analytics, or broad admin/account UX
+provider-specific VPS, DNS, reverse-proxy, or backup automation
+real/private SQLite migration without Human-gated dry-run evidence
 ```
 
 Runtime endpoints that read or mutate learner data must resolve the current
-user before touching user-scoped tables:
+user before touching user-scoped tables. The deployed runtime current-user
+source is the authenticated session cookie. The local-dev current-user source
+may be an explicit documented dev user only when dev mode is enabled.
+
+Resolution order:
+
+```text
+1. Parse and validate the server-side session cookie.
+2. Resolve the session to an active user record.
+3. Set current_user.id for the request.
+4. Reject learner-data requests with AUTH_REQUIRED when no current user exists.
+```
+
+Production learner-data endpoints cannot silently use `default`. The only
+allowed `default` behavior is an explicit local-dev bootstrap path that is
+disabled or fail-closed in deployed mode. Any endpoint that detects a missing
+current user after auth middleware must return a structured error such as:
+
+```json
+{
+  "error": "AUTH_REQUIRED",
+  "detail": "Sign in required."
+}
+```
+
+#### Session, cookie, secret, CORS, and CSRF policy
+
+M12 implementation issues should use a server-side opaque session identifier in
+an `HttpOnly` cookie. Session identity must not be stored in frontend
+`localStorage` or sent as a long-lived bearer token by the SPA.
+
+Required deployed cookie/secret behavior:
+
+```text
+HttpOnly cookie
+Secure cookie when served over HTTPS
+SameSite=Lax or stricter unless a later explicit cross-site flow requires more
+Path=/
+bounded session lifetime
+logout invalidates the server-side session and clears the cookie
+login rotates or replaces any existing session id
+deployed session secret is required and must not have an insecure built-in default
+local-dev secret/bootstrap behavior is documented and visibly non-production
+```
+
+The #239 bootstrap foundation provides a CLI setup path without enabling route
+behavior:
+
+```bash
+cd backend
+python scripts/bootstrap_auth.py --db-url /path/to/tiny_ipa.sqlite owner \
+  --username owner --password 'change-me-long-password'
+
+python scripts/bootstrap_auth.py --db-url /tmp/tiny_ipa_dev.sqlite dev-user \
+  --enable-local-dev --environment development \
+  --username local-dev --password 'local-dev-password'
+```
+
+Owner bootstrap creates the first owner and fails closed if an owner already
+exists. Local dev bootstrap is explicit, creates a normal user instead of an
+auth bypass, and refuses `production`, `prod`, `deployed`, or `deploy`
+environments. Password hashes use Argon2 via `argon2-cffi`; auth session rows
+store a hash of the opaque session token, not the raw token.
+
+Same-origin SPA/API deployment is the default. If a split origin is introduced,
+the CORS allowlist must be exact and credentials-aware; wildcard origins are not
+allowed with cookies. Unsafe requests such as `POST`, `PUT`, `PATCH`, and
+`DELETE` must pass an Origin/Referer check against the configured app origin.
+SameSite cookies plus Origin validation are the minimum CSRF boundary for M12;
+if future cross-site credentialed requests are needed, a CSRF token contract must
+be added before release.
+
+#### User-scoped and global data matrix
+
+```text
+Data / behavior                         Scope
+settings                                user-scoped by user_id
+daily_sessions                          user-scoped by user_id
+session_items                           scoped through owning daily_session
+attempts                                user-scoped by user_id and session item ownership
+phoneme_stats                           user-scoped by user_id + accent + phoneme
+review/focus state                      user-scoped through settings/sessions/attempts
+progress summaries                      user-scoped aggregation over attempts/stats/sessions
+auth sessions                           user-scoped session records
+owner/admin bootstrap record            global setup state, not broad admin UX
+words                                   global shared source/runtime content
+phonemes                                global shared source/runtime content
+static audio assets                     global shared source/runtime content
+source reports and curation artifacts   global versioned artifacts
+health/content readiness                global and must not expose learner data
+```
+
+Shared content may remain global, but content reads must not leak another user's
+runtime attempts, settings, sessions, review/focus state, or stats.
+
+#### Endpoint auth-required matrix
+
+```text
+GET /api/health                                  no learner auth; no user data
+POST /api/auth/login                             no prior auth; creates/rotates session
+POST /api/auth/logout                            clears session; idempotent if already anonymous
+GET /api/auth/me                                 no prior auth; reports anonymous or current user
+GET /api/today                                   auth required
+POST /api/practice/next-normal                   auth required
+POST /api/practice/abandon-current-and-next      auth required
+POST /api/practice/focus                         auth required
+POST /api/practice/clear-focus                   auth required
+POST /api/review/current-group                   auth required
+POST /api/review/recent-mistakes                 auth required
+POST /api/attempt                                auth required
+GET /api/progress                                auth required
+GET /api/settings                                auth required
+PUT /api/settings                                auth required
+```
+
+Auth failures must use stable structured errors, preferably `AUTH_REQUIRED` for
+anonymous requests and `CURRENT_USER_MISSING` only for internal invariant
+failures after auth middleware has already run. User-scoped endpoints must never
+return another user's rows; test failures for that class should use or assert
+`USER_DATA_SCOPE_VIOLATION` where an explicit guard detects it.
+
+Runtime endpoints that must resolve current user:
 
 ```text
 GET /api/today
@@ -206,6 +356,76 @@ POST /api/review/recent-mistakes
 POST /api/attempt
 GET /api/progress
 GET/PUT /api/settings
+```
+
+#### Default-data owner-claim and migration gate
+
+Existing rows for the old `default` user are not automatically owned by the
+first authenticated user. Any real/private SQLite owner claim or migration is
+Human-gated and must start with a dry-run report.
+
+The dry-run must report:
+
+```text
+database path and backup guidance
+whether a backup exists or the command to create one
+target owner user id
+tables and row counts currently owned by default
+conflicts with existing target-user rows
+rows that would be updated, skipped, or left global
+irreversible or manual-review risks
+exact apply command, if an apply mode is later accepted
+```
+
+Apply mode, if introduced by a later issue, must require an explicit flag and
+must not run against a real/private DB without backup evidence and explicit
+Human approval. Source content imports remain global and are not part of the
+owner-claim mutation.
+
+#### M12 child issue test matrix
+
+```text
+#239 User model, session storage, owner bootstrap
+  - user table/session storage schema tests
+  - owner bootstrap creates exactly one personal owner path
+  - deployed mode fails closed without a configured session secret
+  - dev bootstrap path is explicit and marked non-production
+
+#240 Auth endpoints and current-user dependency
+  - login success/failure, logout invalidation, session rotation
+  - /api/auth/me anonymous and authenticated responses
+  - learner-data endpoints return AUTH_REQUIRED when anonymous
+  - current-user dependency never falls back to default in deployed mode
+
+#241 User data isolation across runtime endpoints
+  - two users cannot read/write each other's settings
+  - Today normal/review/focus sessions are scoped by user
+  - attempts and phoneme_stats aggregate only current user's rows
+  - progress summaries and unfinished-practice callouts are user-scoped
+
+#242 Default-user owner claim dry-run
+  - dry-run reports default row counts by table and backup guidance
+  - dry-run detects target-user conflicts and does not mutate DB
+  - apply mode, if added, is explicit and refuses missing backup evidence
+  - source content tables remain global and are not owner-claimed
+
+#243 Localized login/logout/current-user frontend UX
+  - unauthenticated learner sees localized auth gate before protected practice data
+  - login/logout/current-user states use M11 locale resources
+  - authenticated UI does not render raw backend auth errors
+  - no auth UI changes IPA/content/grading semantics
+
+#244 M12 isolation/readiness review
+  - full backend auth/isolation regression suite passes
+  - real-backend browser walkthrough covers login, practice, logout, re-login isolation
+  - cookie flags, Origin/CSRF checks, and CORS allowlist behavior are evidenced
+  - default-data dry-run evidence is linked for any existing private DB
+
+#27 VPS deployment prerequisite evidence
+  - M12 readiness comment links auth/session/cookie/origin evidence
+  - user-isolation tests and real-backend walkthrough evidence are accepted
+  - backup and owner-claim dry-run guidance exists before deployment release
+  - local dev remains runnable without VPS-specific assumptions
 ```
 
 Normal practice responses from `GET /api/today` and
@@ -237,17 +457,6 @@ are not presented as unanswered.
 
 Shared content reads may remain global, but must not leak another user's
 runtime attempts, settings, sessions, or stats.
-
-M12 should define the concrete auth endpoints. Expected minimum shape:
-
-```http
-POST /api/auth/login
-POST /api/auth/logout
-GET /api/auth/me
-```
-
-The final contract must specify cookie/session behavior, secret configuration,
-local dev bootstrap, and failure states before M13 deployment releases.
 
 ### Health
 
@@ -832,6 +1041,57 @@ Route-mocked browser command:
 cd frontend && pnpm test:e2e:m8
 ```
 ```
+
+## M12 default-owner claim dry-run
+
+Existing local data may still be owned by the legacy `default` user id. Before
+any real/private SQLite data is claimed by an authenticated owner, the project
+must produce a dry-run report and preserve a restorable backup.
+
+Dry-run command:
+
+```text
+cd backend
+python scripts/default_owner_claim.py --db-url path/to/tiny_ipa.sqlite
+```
+
+Report contract:
+
+```text
+dry_run = true
+mutation_authorized = false
+apply_mode_available = false
+
+row_counts includes:
+  users_default
+  settings_default
+  daily_sessions_default
+  session_items_owned_by_default_sessions
+  attempts_default_user
+  attempts_on_default_session_items
+  phoneme_stats_default
+  auth_sessions_default
+
+breakdown includes:
+  daily_sessions_by_status
+  daily_sessions_by_group_type
+  session_items_by_session_status
+  session_items_by_group_type
+```
+
+Backup guidance before any future real apply mode:
+
+```text
+Stop the backend.
+Copy the SQLite database file and sibling -wal / -shm files to a timestamped
+backup path.
+Run the dry-run report against both backup and source database.
+Do not mutate real/private data until a separate Human Decision Contract
+authorizes the exact apply operation and rollback evidence.
+```
+
+The #242 artifact intentionally has no apply mode. Temp DB tests may describe
+the owner-claim sequence, but real/private mutation remains Human-gated.
 
 ## 服务端领域规则
 

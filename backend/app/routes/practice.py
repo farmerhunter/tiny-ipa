@@ -1,8 +1,10 @@
 """Practice endpoints — daily session and action-specific group starts."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.auth_dependencies import require_current_user
 from app.db import get_db
+from app.models import User
 from app.services.sessions import (
     build_abandon_current_and_next_response,
     build_clear_focus_response,
@@ -19,46 +21,49 @@ router = APIRouter()
 
 
 @router.get("/today")
-def today():
+def today(current_user: User = Depends(require_current_user)):
     """Return today's practice hub state without creating a new group.
 
     Refresh-safe: repeated calls on the same date return the active normal group
     if one exists, otherwise a no-active hub response.
     """
     with get_db() as conn:
-        return build_today_response(conn)
+        return build_today_response(conn, user_id=current_user.id)
 
 
 @router.post("/practice/next-normal")
-def next_normal_group():
+def next_normal_group(current_user: User = Depends(require_current_user)):
     """Resume active normal group or explicitly create the first/next normal group."""
     with get_db() as conn:
-        return build_next_normal_group_response(conn)
+        return build_next_normal_group_response(conn, user_id=current_user.id)
 
 
 @router.post("/practice/abandon-current-and-next")
-def abandon_current_and_next_group():
+def abandon_current_and_next_group(current_user: User = Depends(require_current_user)):
     """Abandon active normal group and create the next selected-level group."""
     with get_db() as conn:
-        return build_abandon_current_and_next_response(conn)
+        return build_abandon_current_and_next_response(conn, user_id=current_user.id)
 
 
 @router.post("/review/recent-mistakes")
-def recent_mistake_review():
+def recent_mistake_review(current_user: User = Depends(require_current_user)):
     """Create or resume a review group from recent wrong answers."""
     with get_db() as conn:
-        return build_recent_mistake_review_response(conn)
+        return build_recent_mistake_review_response(conn, user_id=current_user.id)
 
 
 @router.post("/practice/minimal-pairs")
-def minimal_pair_group():
+def minimal_pair_group(current_user: User = Depends(require_current_user)):
     """Create or resume a confusing-sound comparison specialty group."""
     with get_db() as conn:
-        return build_minimal_pair_group_response(conn)
+        return build_minimal_pair_group_response(conn, user_id=current_user.id)
 
 
 @router.post("/practice/target-phoneme")
-async def target_phoneme_group(request: Request):
+async def target_phoneme_group(
+    request: Request,
+    current_user: User = Depends(require_current_user),
+):
     """Create or resume an intentional chosen-sound specialty group."""
     body = await request.json()
     phoneme = body.get("phoneme")
@@ -71,11 +76,18 @@ async def target_phoneme_group(request: Request):
             },
         )
     with get_db() as conn:
-        return build_target_phoneme_group_response(conn, phoneme=phoneme.strip())
+        return build_target_phoneme_group_response(
+            conn,
+            user_id=current_user.id,
+            phoneme=phoneme.strip(),
+        )
 
 
 @router.post("/review/current-group")
-async def current_group_review(request: Request):
+async def current_group_review(
+    request: Request,
+    current_user: User = Depends(require_current_user),
+):
     """Create a review group from wrong answers in one completed/current group."""
     body = await request.json()
     group_id = body.get("group_id") or body.get("source_group_id")
@@ -89,7 +101,9 @@ async def current_group_review(request: Request):
         )
     with get_db() as conn:
         response = build_current_group_review_response(
-            conn, source_group_id=group_id.strip()
+            conn,
+            user_id=current_user.id,
+            source_group_id=group_id.strip(),
         )
     if response.get("error") == "GROUP_NOT_FOUND":
         raise HTTPException(status_code=404, detail=response)
@@ -97,7 +111,10 @@ async def current_group_review(request: Request):
 
 
 @router.post("/practice/focus")
-async def focused_group(request: Request):
+async def focused_group(
+    request: Request,
+    current_user: User = Depends(require_current_user),
+):
     """Select focus phonemes and start or resume focused practice."""
     body = await request.json()
     focus_phonemes = body.get("focus_phonemes")
@@ -119,12 +136,13 @@ async def focused_group(request: Request):
     with get_db() as conn:
         return build_focused_group_response(
             conn,
+            user_id=current_user.id,
             focus_phonemes=[item.strip() for item in focus_phonemes],
         )
 
 
 @router.post("/practice/clear-focus")
-def clear_focus():
+def clear_focus(current_user: User = Depends(require_current_user)):
     """Clear focus phonemes and return normal practice state."""
     with get_db() as conn:
-        return build_clear_focus_response(conn)
+        return build_clear_focus_response(conn, user_id=current_user.id)

@@ -417,6 +417,13 @@ async function routeMock(route: Route, state: MockState) {
     return;
   }
 
+  if (path === "/auth/me") {
+    await route.fulfill({
+      json: { authenticated: true, user: { id: "default", username: "owner", is_owner: true } },
+    });
+    return;
+  }
+
   if (path === "/settings") {
     if (request.method() === "PUT") {
       const body = request.postDataJSON() as {

@@ -4,6 +4,7 @@
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+const AUTH_CREDENTIALS: RequestCredentials = "include";
 
 /**
  * Normalises FastAPI structured errors into a user-friendly string.
@@ -30,6 +31,10 @@ async function normalizeApiError(res: Response): Promise<string> {
   return message;
 }
 
+export function isAuthRequiredError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("AUTH_REQUIRED");
+}
+
 // ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
@@ -46,6 +51,52 @@ export async function fetchHealth(): Promise<HealthResponse> {
     throw new Error(`Health check failed: ${res.status}`);
   }
   return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export interface CurrentUser {
+  id: string;
+  username: string;
+  is_owner: boolean;
+}
+
+export interface AuthState {
+  authenticated: boolean;
+  user: CurrentUser | null;
+}
+
+export async function fetchAuthState(): Promise<AuthState> {
+  const res = await fetch(`${API_BASE}/auth/me`, { credentials: AUTH_CREDENTIALS });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function login(username: string, password: string): Promise<AuthState> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    credentials: AUTH_CREDENTIALS,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
+  return res.json();
+}
+
+export async function logout(): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/logout`, {
+    method: "POST",
+    credentials: AUTH_CREDENTIALS,
+  });
+  if (!res.ok) {
+    throw new Error(await normalizeApiError(res));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +181,7 @@ export interface TodayResponse {
 }
 
 export async function fetchToday(): Promise<TodayResponse> {
-  const res = await fetch(`${API_BASE}/today`);
+  const res = await fetch(`${API_BASE}/today`, { credentials: AUTH_CREDENTIALS });
   if (!res.ok) {
     throw new Error(`GET /api/today failed: ${res.status}`);
   }
@@ -140,6 +191,7 @@ export async function fetchToday(): Promise<TodayResponse> {
 export async function startNextNormalGroup(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/practice/next-normal`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
   });
   if (!res.ok) {
     throw new Error(await normalizeApiError(res));
@@ -150,6 +202,7 @@ export async function startNextNormalGroup(): Promise<TodayResponse> {
 export async function abandonCurrentAndStartNext(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/practice/abandon-current-and-next`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
   });
   if (!res.ok) {
     throw new Error(await normalizeApiError(res));
@@ -162,6 +215,7 @@ export async function startCurrentGroupReview(
 ): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/review/current-group`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ group_id: groupId }),
   });
@@ -174,6 +228,7 @@ export async function startCurrentGroupReview(
 export async function startRecentMistakeReview(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/review/recent-mistakes`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
   });
   if (!res.ok) {
     throw new Error(await normalizeApiError(res));
@@ -184,6 +239,7 @@ export async function startRecentMistakeReview(): Promise<TodayResponse> {
 export async function startMinimalPairPractice(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/practice/minimal-pairs`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
   });
   if (!res.ok) {
     throw new Error(await normalizeApiError(res));
@@ -196,6 +252,7 @@ export async function startTargetPhonemePractice(
 ): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/practice/target-phoneme`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phoneme }),
   });
@@ -210,6 +267,7 @@ export async function startFocusedPractice(
 ): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/practice/focus`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ focus_phonemes: focusPhonemes }),
   });
@@ -222,6 +280,7 @@ export async function startFocusedPractice(
 export async function clearPracticeFocus(): Promise<TodayResponse> {
   const res = await fetch(`${API_BASE}/practice/clear-focus`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
   });
   if (!res.ok) {
     throw new Error(await normalizeApiError(res));
@@ -288,7 +347,7 @@ export interface ProgressResponse {
 }
 
 export async function fetchProgress(): Promise<ProgressResponse> {
-  const res = await fetch(`${API_BASE}/progress`);
+  const res = await fetch(`${API_BASE}/progress`, { credentials: AUTH_CREDENTIALS });
   if (!res.ok) {
     throw new Error(`GET /api/progress failed: ${res.status}`);
   }
@@ -305,6 +364,7 @@ export async function submitAttempt(
 ): Promise<AttemptResponse> {
   const res = await fetch(`${API_BASE}/attempt`, {
     method: "POST",
+    credentials: AUTH_CREDENTIALS,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       session_item_id: sessionItemId,
@@ -334,7 +394,7 @@ export interface SettingsData {
 }
 
 export async function fetchSettings(): Promise<SettingsData> {
-  const res = await fetch(`${API_BASE}/settings`);
+  const res = await fetch(`${API_BASE}/settings`, { credentials: AUTH_CREDENTIALS });
   if (!res.ok) {
     throw new Error(`GET /api/settings failed: ${res.status}`);
   }
@@ -346,6 +406,7 @@ export async function saveSettings(
 ): Promise<SettingsData> {
   const res = await fetch(`${API_BASE}/settings`, {
     method: "PUT",
+    credentials: AUTH_CREDENTIALS,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });

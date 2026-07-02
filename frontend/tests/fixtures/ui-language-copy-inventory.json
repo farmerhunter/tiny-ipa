@@ -58,36 +58,108 @@
       "current": "每天几分钟，把声音和 IPA 对上号。"
     },
     {
-      "key": "app.login.disabled",
+      "key": "auth.current_user",
       "surface": "app_shell",
       "classification": "translatable",
-      "source": "frontend/src/App.tsx frontend/src/pages/SettingsPage.tsx",
-      "current": "登录 / 登录后同步练习 / 账号入口暂未启用；后续可用于同步进度和错题。",
-      "notes": "Visible auth placeholder; no auth behavior changes in M11."
+      "source": "frontend/src/App.tsx",
+      "current": "当前用户：{username}",
+      "notes": "M12 current-user shell display."
     },
     {
-      "key": "app.login.disabled.details",
+      "key": "auth.current_user.label",
       "surface": "app_shell",
       "classification": "translatable",
-      "source": "frontend/src",
-      "current": "Account access is not enabled yet; it can later sync progress and missed items.",
-      "notes": "Runtime key added during #216 frontend copy extraction."
+      "source": "frontend/src/App.tsx",
+      "current": "当前用户",
+      "notes": "M12 #252 app-shell identity indicator label."
     },
     {
-      "key": "app.login.disabled.short",
-      "surface": "app_shell",
+      "key": "auth.error.invalid_credentials",
+      "surface": "loading_error",
       "classification": "translatable",
-      "source": "frontend/src",
-      "current": "Sign in",
-      "notes": "Runtime key added during #216 frontend copy extraction."
+      "source": "frontend/src/App.tsx",
+      "current": "用户名或密码不正确。",
+      "notes": "M12 login failure copy."
     },
     {
-      "key": "app.login.disabled.title",
+      "key": "auth.error.logout_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "退出登录失败",
+      "notes": "M12 logout failure copy."
+    },
+    {
+      "key": "auth.error.session_check_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "检查登录状态失败",
+      "notes": "M12 initial auth-state check copy."
+    },
+    {
+      "key": "auth.login.action",
       "surface": "app_shell",
       "classification": "translatable",
-      "source": "frontend/src",
-      "current": "Sync practice after sign-in",
-      "notes": "Runtime key added during #216 frontend copy extraction."
+      "source": "frontend/src/App.tsx",
+      "current": "登录",
+      "notes": "M12 login form submit action."
+    },
+    {
+      "key": "auth.login.description",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "登录后才能查看和更新自己的练习、进度与设置。",
+      "notes": "M12 login form explanation."
+    },
+    {
+      "key": "auth.login.password",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "密码",
+      "notes": "M12 login form field label."
+    },
+    {
+      "key": "auth.login.title",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "登录后开始练习",
+      "notes": "M12 login-required state title."
+    },
+    {
+      "key": "auth.login.username",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "用户名",
+      "notes": "M12 login form field label."
+    },
+    {
+      "key": "auth.logout.action",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "退出",
+      "notes": "M12 logout action."
+    },
+    {
+      "key": "auth.settings.current",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "已登录为 {username}。练习、进度和设置只属于当前用户。",
+      "notes": "M12 Settings current-user display."
+    },
+    {
+      "key": "auth.settings.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "账号",
+      "notes": "M12 Settings account panel title."
     },
     {
       "key": "app.nav.progress",
@@ -313,7 +385,8 @@
       "surface": "loading_error",
       "classification": "translatable",
       "source": "backend/app/routes/settings.py",
-      "current": "primary_accent must be one of ... / daily_word_count must be an integer between 1 and 50 / focus_phonemes must be a list of non-empty strings"
+      "current": "Enter a whole number from 1 to 50. Active practice groups stay unchanged; the next new regular group uses the saved setting.",
+      "notes": "Localized actionable Settings validation; raw backend SETTINGS_INVALID detail must not be displayed."
     },
     {
       "key": "error.settings.save_failed",
@@ -1115,8 +1188,8 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
-      "current": "Affects future regular practice groups only. Existing active groups stay unchanged.",
-      "notes": "Clarifies the future-group boundary for #228 Settings review intensity."
+      "current": "Affects future regular practice groups only; existing active groups stay unchanged. The difference is visible when weak sounds or mistake history exist.",
+      "notes": "Clarifies the future-group and conditional-evidence boundary for #252 Settings review strength."
     },
     {
       "key": "settings.review_strength.extra_review",
@@ -1127,6 +1200,14 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "settings.review_strength.extra_review.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Extra review: future regular groups give weak sounds or recent mistakes more priority when that evidence exists.",
+      "notes": "M12 #254 user-perceived review strength explanation."
+    },
+    {
       "key": "settings.review_strength.normal",
       "surface": "settings",
       "classification": "translatable",
@@ -1135,12 +1216,28 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "settings.review_strength.normal.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Standard: future regular groups keep a balanced mix of new words and weak-sound review.",
+      "notes": "M12 #254 user-perceived review strength explanation."
+    },
+    {
       "key": "settings.review_strength.quick",
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
       "current": "Quick",
       "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.review_strength.quick.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Quick: future regular groups spend less room on weak or mistaken sounds for lighter practice.",
+      "notes": "M12 #254 user-perceived review strength explanation."
     },
     {
       "key": "settings.review_strength.title",
@@ -1163,6 +1260,14 @@
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
       "current": "Show translation"
+    },
+    {
+      "key": "settings.show_translation.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "When off, practice cards hide Chinese meanings; turning it back on shows available meanings on the next render.",
+      "notes": "M12 #252 Settings effect explanation."
     },
     {
       "key": "settings.ui_language.en_us",
@@ -1194,6 +1299,14 @@
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
       "current": "Words per group"
+    },
+    {
+      "key": "settings.words_per_group.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Save a whole number from 1 to 50. It affects future regular groups only; today's active group keeps its original item count.",
+      "notes": "M12 #252 Settings effect explanation."
     },
     {
       "key": "specialty.label",

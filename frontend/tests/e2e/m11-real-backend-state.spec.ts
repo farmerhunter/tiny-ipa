@@ -26,9 +26,20 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
 
     await test.step("Settings review strength persists and affects the next regular group", async () => {
       await page.goto("/");
+      await page.getByLabel("界面语言").selectOption("en-US");
+      await page.getByLabel("Username").fill("owner");
+      await page.getByLabel("Password").fill("secret123");
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await expect(page.locator(".account-menu")).toContainText("Current user");
+      await expect(page.locator(".account-menu")).toContainText("owner");
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-      await expect(page.getByText("Affects future regular practice groups only. Existing active groups stay unchanged.")).toBeVisible();
+      await expect(page.getByText("Affects future regular practice groups only; existing active groups stay unchanged. The difference is visible when weak sounds or mistake history exist.")).toBeVisible();
+      await expect(page.getByText("Quick: future regular groups spend less room on weak or mistaken sounds for lighter practice.")).toBeVisible();
+      await expect(page.getByText("Standard: future regular groups keep a balanced mix of new words and weak-sound review.")).toBeVisible();
+      await expect(page.getByText("Extra review: future regular groups give weak sounds or recent mistakes more priority when that evidence exists.")).toBeVisible();
+      await expect(page.getByText("Save a whole number from 1 to 50. It affects future regular groups only; today's active group keeps its original item count.")).toBeVisible();
+      await expect(page.getByText("When off, practice cards hide Chinese meanings; turning it back on shows available meanings on the next render.")).toBeVisible();
       await expect(page.getByText("Entry uses the starter word pool. Mid uses the larger intermediate word pool. This choice applies to the next new regular group; active groups stay unchanged.")).toBeVisible();
 
       const reviewStrength = page.getByLabel(/Review strength/);
@@ -77,8 +88,33 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
       await attachScreenshot(page, "m11-real-today-resume");
     });
 
-    await test.step("Completion summary starts a new next group instead of resuming the completed one", async () => {
+    await test.step("Changing words per group keeps the active group stable", async () => {
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      const wordCountInput = page.getByLabel(/Words per group/);
+      await wordCountInput.fill("2");
+      await wordCountInput.press("Enter");
+      await expect(page.getByText("Saved")).toBeVisible();
+      await expect(wordCountInput).toHaveValue("2");
+
+      const settingsResponse = await page.request.get(`${apiBase}/settings`);
+      expect(settingsResponse.ok()).toBeTruthy();
+      const settings = await settingsResponse.json();
+      expect(settings.daily_word_count).toBe(2);
+
+      await page.getByRole("button", { name: "Today", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Resume Entry group" })).toBeVisible();
       await page.getByRole("button", { name: "Resume Entry group" }).click();
+      await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
+
+      const todayResponse = await page.request.get(`${apiBase}/today`);
+      const today = await todayResponse.json();
+      expect(today.group_id).toBe(firstNormalGroupId);
+      expect(today.word_count).toBe(1);
+      expect(today.items).toHaveLength(1);
+      await attachScreenshot(page, "m11-real-daily-count-active-group-stable");
+    });
+
+    await test.step("Completion summary starts a new next group instead of resuming the completed one", async () => {
       await selectCorrectAnswer(page);
       await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
         timeout: 10_000,
@@ -89,15 +125,19 @@ test.describe("M11 real backend Today/Progress/Settings consistency", () => {
       expect(idleToday.word_count).toBe(0);
 
       await page.getByRole("button", { name: "Start next Entry group" }).click();
-      await expect(page.getByText("Practice group: 1 / 1")).toBeVisible();
+      await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
       const nextTodayResponse = await page.request.get(`${apiBase}/today`);
       const nextToday = await nextTodayResponse.json();
       expect(nextToday.group_id).not.toBe(firstNormalGroupId);
       expect(nextToday.group_index).toBeGreaterThan(1);
       expect(nextToday.resume_index).toBe(0);
       expect(nextToday.completed_item_count).toBe(0);
+      expect(nextToday.word_count).toBe(2);
+      expect(nextToday.items).toHaveLength(2);
       await attachScreenshot(page, "m11-real-next-group-after-completion");
 
+      await selectCorrectAnswer(page);
+      await expect(page.getByText("Practice group: 2 / 2")).toBeVisible({ timeout: 10_000 });
       await selectCorrectAnswer(page);
       await expect(page.getByRole("heading", { name: "Practice group complete" })).toBeVisible({
         timeout: 10_000,

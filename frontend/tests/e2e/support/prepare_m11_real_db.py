@@ -12,6 +12,9 @@ sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BACKEND_SCRIPTS))
 
 from app.db import get_connection  # noqa: E402
+from app.models import User  # noqa: E402
+from app.services.auth import hash_password  # noqa: E402
+from app.services.db_store import create_user, get_user_by_id  # noqa: E402
 from import_words import import_words  # noqa: E402
 
 
@@ -32,6 +35,19 @@ def main() -> None:
         raise SystemExit(json.dumps(report["errors"], ensure_ascii=False))
 
     with get_connection(db_path) as conn:
+        if get_user_by_id(conn, "default") is None:
+            create_user(
+                conn,
+                User(
+                    id="default",
+                    username="owner",
+                    password_hash=hash_password("secret123"),
+                    is_owner=True,
+                    is_active=True,
+                    created_at="2026-07-02T00:00:00+00:00",
+                    updated_at="2026-07-02T00:00:00+00:00",
+                ),
+            )
         conn.execute(
             """
             UPDATE settings
