@@ -16,6 +16,7 @@ _VALID_ACCENTS = {"US", "UK"}
 _VALID_MODES = {"ipa_first", "reveal_first"}
 _VALID_STRENGTHS = {"normal", "extra_review", "quick"}
 _VALID_LEARNER_LEVELS = {"entry", "mid"}
+_VALID_UI_LANGUAGES = {"zh-CN", "en-US"}
 
 
 @router.get("/settings")
@@ -33,6 +34,7 @@ def settings_get():
                 "practice_mode": "ipa_first",
                 "review_strength": "normal",
                 "learner_level": "entry",
+                "ui_language": "zh-CN",
                 "focus_phonemes": [],
             }
         return {
@@ -43,6 +45,7 @@ def settings_get():
             "practice_mode": s.practice_mode,
             "review_strength": s.review_strength,
             "learner_level": s.learner_level,
+            "ui_language": s.ui_language,
             "focus_phonemes": s.focus_phonemes,
         }
 
@@ -112,6 +115,13 @@ async def settings_put(request: Request):
             else:
                 existing.learner_level = v
 
+        if "ui_language" in body:
+            v = body["ui_language"]
+            if v not in _VALID_UI_LANGUAGES:
+                errors.append(f"ui_language must be one of {_VALID_UI_LANGUAGES}")
+            else:
+                existing.ui_language = v
+
         if "focus_phonemes" in body:
             v = body["focus_phonemes"]
             if not isinstance(v, list) or any(
@@ -138,5 +148,6 @@ async def settings_put(request: Request):
             "practice_mode": existing.practice_mode,
             "review_strength": existing.review_strength,
             "learner_level": existing.learner_level,
+            "ui_language": existing.ui_language,
             "focus_phonemes": existing.focus_phonemes,
         }

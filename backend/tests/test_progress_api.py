@@ -80,6 +80,64 @@ class TestProgressApi:
         data = resp.json()
         assert data["today_status"] == "in_progress"
         assert data["today_completed"] is False
+        assert data["resumable_normal_groups"] == 1
+        assert data["level_stats"]["entry"]["resumable_normal_groups"] == 1
+
+    def test_resumable_progress_matches_today_resume_group(self, client, seeded_db):
+        client.put("/api/settings", json={"daily_word_count": 1})
+        started = client.post("/api/practice/next-normal").json()
+
+        progress = client.get("/api/progress").json()
+        today = client.get("/api/today").json()
+
+        assert progress["resumable_normal_groups"] == 1
+        assert progress["level_stats"]["entry"]["resumable_normal_groups"] == 1
+        assert progress["level_stats"]["mid"]["resumable_normal_groups"] == 0
+        assert today["session_id"] == started["session_id"]
+        assert today["origin"] == "normal_resume"
+        assert today["source_scope"] == "normal_current"
+
+    def test_completed_group_clears_resumable_progress_and_updates_counts(
+        self, client, seeded_db
+    ):
+        client.put("/api/settings", json={"daily_word_count": 1})
+        today = client.post("/api/practice/next-normal").json()
+        item = today["items"][0]
+
+        client.post("/api/attempt", json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": item["display_ipa"],
+        })
+
+        progress = client.get("/api/progress").json()
+
+        assert progress["today_status"] == "completed"
+        assert progress["today_completed"] is True
+        assert progress["resumable_normal_groups"] == 0
+        assert progress["level_stats"]["entry"]["resumable_normal_groups"] == 0
+        assert progress["level_stats"]["entry"]["completed_normal_groups_today"] == 1
+
+    def test_abandoned_normal_group_is_not_resumable_progress(self, client, seeded_db):
+        client.put("/api/settings", json={"daily_word_count": 1})
+        started = client.post("/api/practice/next-normal").json()
+        client.post("/api/practice/abandon-current-and-next")
+
+        conn = get_connection(seeded_db)
+        conn.execute(
+            "UPDATE daily_sessions SET status = 'abandoned' WHERE status = 'in_progress'"
+        )
+        conn.commit()
+        conn.close()
+
+        progress = client.get("/api/progress").json()
+        today = client.get("/api/today").json()
+
+        assert progress["total_normal_groups"] >= 1
+        assert progress["level_stats"]["entry"]["normal_groups"] >= 1
+        assert progress["resumable_normal_groups"] == 0
+        assert progress["level_stats"]["entry"]["resumable_normal_groups"] == 0
+        assert today.get("session_id") != started["session_id"]
+        assert today["origin"] == "normal_empty"
 
     def test_total_attempts_counted(self, client, seeded_db):
         """After submitting attempts, total_attempts increases."""
@@ -147,9 +205,12 @@ class TestProgressApi:
         for key in (
             "today_completed", "today_status", "streak_days",
             "total_attempts", "total_sessions", "total_normal_groups",
-            "weak_phonemes", "strong_phonemes", "stat_scope", "level_stats",
+            "resumable_normal_groups", "weak_phonemes", "strong_phonemes",
+            "stat_scope", "level_stats",
         ):
             assert key in data, f"missing key: {key}"
+        for level in ("entry", "mid"):
+            assert "resumable_normal_groups" in data["level_stats"][level]
 
     def test_level_stats_scope_normal_practice_by_entry_and_mid(self, seeded_db):
         conn = get_connection(seeded_db)

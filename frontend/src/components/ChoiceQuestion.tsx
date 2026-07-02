@@ -9,6 +9,7 @@
 import { useState } from "react";
 import type { TodayItem } from "../api";
 import { submitAttempt } from "../api";
+import type { Translator } from "../locales";
 import { AudioButton } from "./AudioButton";
 
 export interface ChoiceResult {
@@ -18,20 +19,23 @@ export interface ChoiceResult {
   correctAnswer: string;
 }
 
-function buildFocusHint(targetPhonemes: string[]): string {
+function buildFocusHint(targetPhonemes: string[], t: Translator): string {
   if (targetPhonemes.length === 0) {
-    return "Focus on the IPA difference, then listen again.";
+    return t("practice.feedback.focus_hint.default");
   }
-  return `Focus on ${targetPhonemes.join(" ")} before choosing.`;
+  return t("practice.feedback.focus_hint.phonemes", {
+    phonemes: targetPhonemes.join(" "),
+  });
 }
 
 interface Props {
   item: TodayItem;
+  t: Translator;
   onResult: (result: ChoiceResult) => void;
   onContinue?: () => void;
 }
 
-export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
+export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -81,6 +85,7 @@ export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
           <AudioButton
             audioUrl={item.audio_url}
             word={item.word}
+            t={t}
             disabled={submitting}
           />
         </span>
@@ -110,7 +115,7 @@ export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
               className={className}
               onClick={() => handleSelect(choice)}
               disabled={submitting || isAnswered}
-              aria-label={`Select ${choice}`}
+              aria-label={t("practice.choice.select", { choice })}
             >
               {choice}
             </button>
@@ -118,7 +123,7 @@ export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
         })}
       </div>
 
-      {submitting && <p className="submit-status">Submitting…</p>}
+      {submitting && <p className="submit-status">{t("practice.feedback.submitting")}</p>}
 
       {isAnswered && (
         <div
@@ -126,26 +131,28 @@ export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
           role="alert"
         >
           {feedback.isCorrect ? (
-            <p>✅ Correct!</p>
+            <p>{t("practice.feedback.correct")}</p>
           ) : (
             <div className="missed-answer-explanation">
-              <p>❌ Not quite.</p>
+              <p>{t("practice.feedback.incorrect")}</p>
               <div className="explanation-grid">
-                <span>You picked</span>
+                <span>{t("practice.feedback.label.selected")}</span>
                 <code>{feedback.selectedAnswer}</code>
-                <span>Correct IPA</span>
+                <span>{t("practice.feedback.label.correct_ipa")}</span>
                 <code>{feedback.correctAnswer}</code>
-                <span>Target sound</span>
-                <strong>{item.target_phonemes.join(" ") || "IPA contrast"}</strong>
+                <span>{t("practice.feedback.label.target_sound")}</span>
+                <strong>
+                  {item.target_phonemes.join(" ") || t("practice.feedback.target_sound.default")}
+                </strong>
               </div>
-              <p className="focus-hint">{buildFocusHint(item.target_phonemes)}</p>
+              <p className="focus-hint">{buildFocusHint(item.target_phonemes, t)}</p>
               {onContinue && (
                 <button
                   className="feedback-continue-btn"
                   onClick={onContinue}
                   type="button"
                 >
-                  Continue
+                  {t("practice.action.continue")}
                 </button>
               )}
             </div>
@@ -154,7 +161,7 @@ export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
       )}
 
       {isAnswered && item.accent_compare && (
-        <aside className="accent-compare-note" aria-label="Accent comparison">
+        <aside className="accent-compare-note" aria-label={t("practice.accent_compare.label")}>
           <span>{item.accent_compare.primary.label}</span>
           <code>{item.accent_compare.primary.ipa}</code>
           <span>{item.accent_compare.comparison.label}</span>
@@ -165,7 +172,7 @@ export function ChoiceQuestion({ item, onResult, onContinue }: Props) {
 
       {isError && (
         <div className="feedback feedback-error" role="alert">
-          <p>⚠️ Failed to submit: {error}</p>
+          <p>{t("practice.feedback.submit_failed", { error: error ?? "" })}</p>
         </div>
       )}
     </div>

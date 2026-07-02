@@ -1,19 +1,27 @@
-import { fetchHealth, type TodayResponse } from "./api";
+import { fetchHealth, fetchSettings, type TodayResponse } from "./api";
 import { useEffect, useState } from "react";
 import TodayPractice from "./pages/TodayPractice";
 import ProgressPage from "./pages/ProgressPage";
 import SettingsPage from "./pages/SettingsPage";
+import { DEFAULT_LOCALE, createTranslator, type Locale } from "./locales";
 
 function App() {
   const [backendReady, setBackendReady] = useState<boolean>(false);
   const [checking, setChecking] = useState(true);
   const [page, setPage] = useState<"today" | "progress" | "settings">("today");
+  const [uiLanguage, setUiLanguage] = useState<Locale>(DEFAULT_LOCALE);
   const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
   const [practiceSession, setPracticeSession] = useState<TodayResponse | null>(null);
+  const t = createTranslator(uiLanguage);
 
   useEffect(() => {
     fetchHealth()
-      .then(() => setBackendReady(true))
+      .then(() => {
+        setBackendReady(true);
+        return fetchSettings()
+          .then((settings) => setUiLanguage(settings.ui_language))
+          .catch(() => undefined);
+      })
       .catch(() => setBackendReady(false))
       .finally(() => setChecking(false));
   }, []);
@@ -21,8 +29,8 @@ function App() {
   if (checking) {
     return (
       <main className="practice-container">
-        <h1>小音标</h1>
-        <p>Connecting to backend…</p>
+        <h1>{t("app.brand.name")}</h1>
+        <p>{t("app.backend.connecting")}</p>
       </main>
     );
   }
@@ -30,9 +38,9 @@ function App() {
   if (!backendReady) {
     return (
       <main className="practice-container">
-        <h1>小音标</h1>
+        <h1>{t("app.brand.name")}</h1>
         <p style={{ color: "#c00" }}>
-          Cannot reach backend. Make sure it is running on port 8010.
+          {t("app.backend.unreachable")}
         </p>
       </main>
     );
@@ -40,26 +48,27 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-brand" aria-label="小音标">
+      <header className="app-brand" aria-label={t("app.brand.name")}>
         <div className="brand-mark" aria-hidden="true">小</div>
         <div className="brand-copy">
-          <strong>小音标</strong>
-          <span>每天几分钟，把声音和 IPA 对上号。</span>
+          <strong>{t("app.brand.name")}</strong>
+          <span>{t("app.brand.tagline")}</span>
         </div>
         <button className="login-placeholder" type="button" disabled>
-          登录
+          {t("app.login.disabled.short")}
         </button>
       </header>
       <nav className="nav-bar">
         <button className={`nav-tab ${page === "today" ? "nav-active" : ""}`}
-          onClick={() => setPage("today")}>Today</button>
+          onClick={() => setPage("today")}>{t("app.nav.today")}</button>
         <button className={`nav-tab ${page === "progress" ? "nav-active" : ""}`}
-          onClick={() => setPage("progress")}>Progress</button>
+          onClick={() => setPage("progress")}>{t("app.nav.progress")}</button>
         <button className={`nav-tab ${page === "settings" ? "nav-active" : ""}`}
-          onClick={() => setPage("settings")}>Settings</button>
+          onClick={() => setPage("settings")}>{t("app.nav.settings")}</button>
       </nav>
       {page === "progress"
         ? <ProgressPage
+            uiLanguage={uiLanguage}
             onBack={() => setPage("today")}
             focusPhonemes={focusPhonemes}
             onFocusChange={setFocusPhonemes}
@@ -70,7 +79,9 @@ function App() {
           />
         : page === "settings"
         ? <SettingsPage
+            uiLanguage={uiLanguage}
             onBack={() => setPage("today")}
+            onLanguageChange={setUiLanguage}
             onFocusChange={setFocusPhonemes}
             onStartPractice={(session) => {
               setPracticeSession(session);
@@ -78,6 +89,7 @@ function App() {
             }}
           />
         : <TodayPractice
+            uiLanguage={uiLanguage}
             focusPhonemes={focusPhonemes}
             onFocusChange={setFocusPhonemes}
             onOpenProgress={() => setPage("progress")}

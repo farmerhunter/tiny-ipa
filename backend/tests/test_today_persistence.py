@@ -146,6 +146,8 @@ class TestTodayPersistence:
         assert data["selected_learner_level"] == "entry"
         assert data["pending_level_change"] is False
         assert data["word_count"] == 0
+        assert data["resume_index"] == 0
+        assert data["completed_item_count"] == 0
         assert data["source_session_item_ids"] == []
         assert data["date"] == date.today().isoformat()
         assert data["primary_accent"] == "US"
@@ -166,6 +168,150 @@ class TestTodayPersistence:
         for a, b in zip(first["items"], second["items"]):
             assert a["session_item_id"] == b["session_item_id"]
             assert a["word_id"] == b["word_id"]
+
+    def test_partial_normal_group_resume_metadata_keeps_completed_items(
+        self, client, seeded_db
+    ):
+        client.put("/api/settings", json={"daily_word_count": 3})
+        first = client.post("/api/practice/next-normal").json()
+        assert first["resume_index"] == 0
+        assert first["completed_item_count"] == 0
+        assert [item["status"] for item in first["items"]] == ["pending"] * 3
+
+        first_item, second_item = first["items"][:2]
+        client.post("/api/attempt", json={
+            "session_item_id": first_item["session_item_id"],
+            "selected_answer": first_item["display_ipa"],
+        })
+        wrong_choice = next(
+            choice
+            for choice in second_item["question"]["choices"]
+            if choice != second_item["display_ipa"]
+        )
+        client.post("/api/attempt", json={
+            "session_item_id": second_item["session_item_id"],
+            "selected_answer": wrong_choice,
+        })
+
+        resumed = client.get("/api/today").json()
+        assert resumed["session_id"] == first["session_id"]
+        assert resumed["origin"] == "normal_resume"
+        assert resumed["resume_index"] == 2
+        assert resumed["completed_item_count"] == 2
+        assert [item["status"] for item in resumed["items"]] == [
+            "completed",
+            "completed",
+            "pending",
+        ]
+        assert resumed["items"][0]["last_attempt"] == {
+            "selected_answer": first_item["display_ipa"],
+            "correct_answer": first_item["display_ipa"],
+            "is_correct": True,
+        }
+        assert resumed["items"][1]["last_attempt"] == {
+            "selected_answer": wrong_choice,
+            "correct_answer": second_item["display_ipa"],
+            "is_correct": False,
+        }
+        assert "last_attempt" not in resumed["items"][2]
+
+    def test_today_reconciles_fully_answered_active_group_without_next_group(
+        self, client, seeded_db
+    ):
+        client.put("/api/settings", json={"daily_word_count": 2})
+        first = client.post("/api/practice/next-normal").json()
+        for item in first["items"]:
+            client.post("/api/attempt", json={
+                "session_item_id": item["session_item_id"],
+                "selected_answer": item["display_ipa"],
+            })
+
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE daily_sessions
+            SET status = 'in_progress', completed_at = NULL
+            WHERE id = ?
+            """,
+            (first["session_id"],),
+        )
+        conn.commit()
+        conn.close()
+
+        today = client.get("/api/today").json()
+        assert today["origin"] == "normal_empty"
+        assert today["status"] == "idle"
+        assert today["word_count"] == 0
+        assert today["completed_normal_groups_today"] == {
+            "entry": 1,
+            "mid": 0,
+            "total": 1,
+        }
+
+        conn = get_connection(seeded_db)
+        rows = conn.execute(
+            """
+            SELECT id, status, completed_at
+            FROM daily_sessions
+            WHERE session_date = ?
+            """,
+            (date.today().isoformat(),),
+        ).fetchall()
+        conn.close()
+
+        assert len(rows) == 1
+        assert rows[0]["id"] == first["session_id"]
+        assert rows[0]["status"] == "completed"
+        assert rows[0]["completed_at"] is not None
+
+    def test_next_normal_reconciles_fully_answered_active_group_and_is_idempotent(
+        self, client, seeded_db
+    ):
+        client.put("/api/settings", json={"daily_word_count": 2})
+        first = client.post("/api/practice/next-normal").json()
+        for item in first["items"]:
+            client.post("/api/attempt", json={
+                "session_item_id": item["session_item_id"],
+                "selected_answer": item["display_ipa"],
+            })
+
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE daily_sessions
+            SET status = 'in_progress', completed_at = NULL
+            WHERE id = ?
+            """,
+            (first["session_id"],),
+        )
+        conn.commit()
+        conn.close()
+
+        second = client.post("/api/practice/next-normal").json()
+        assert second["origin"] == "normal_next"
+        assert second["session_id"] != first["session_id"]
+        assert second["group_index"] == first["group_index"] + 1
+        assert second["resume_index"] == 0
+        assert second["completed_item_count"] == 0
+        assert {item["status"] for item in second["items"]} == {"pending"}
+
+        repeated = client.post("/api/practice/next-normal").json()
+        assert repeated["origin"] == "normal_resume"
+        assert repeated["session_id"] == second["session_id"]
+        assert repeated["group_index"] == second["group_index"]
+        assert repeated["resume_index"] == 0
+
+        conn = get_connection(seeded_db)
+        count = conn.execute(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM daily_sessions
+            WHERE session_date = ?
+            """,
+            (date.today().isoformat(),),
+        ).fetchone()
+        conn.close()
+        assert count["cnt"] == 2
 
     def test_second_today_creates_no_duplicate(self, client, seeded_db):
         client.post("/api/practice/next-normal")
@@ -889,6 +1035,47 @@ class TestTodayPersistence:
         data = resp.json()
 
         assert [item["word_id"] for item in data["items"]] == ["cat"]
+
+    def test_review_strength_setting_changes_future_normal_group_selection(
+        self, client, seeded_db
+    ):
+        conn = get_connection(seeded_db)
+        conn.execute(
+            """
+            UPDATE settings
+            SET daily_word_count = 1, focus_phonemes = ?, review_strength = 'quick'
+            WHERE user_id = 'default'
+            """,
+            (json.dumps(["/æ/"]),),
+        )
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO phoneme_stats (
+                user_id, primary_accent, phoneme_id, attempt_count, correct_count,
+                last_attempt_at, last_wrong_at, mastery_status
+            ) VALUES (
+                'default', 'US', '/ʃ/', 8, 0,
+                '2026-06-09T00:00:00Z', '2026-06-09T00:00:00Z', 'weak'
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        quick = client.post("/api/practice/next-normal").json()
+        assert [item["word_id"] for item in quick["items"]] == ["cat"]
+
+        conn = get_connection(seeded_db)
+        conn.execute("DELETE FROM session_items")
+        conn.execute("DELETE FROM daily_sessions")
+        conn.commit()
+        conn.close()
+
+        client.put("/api/settings", json={"review_strength": "extra_review"})
+        extra_review = client.post("/api/practice/next-normal").json()
+
+        assert extra_review["items"][0]["word_id"] in {"ship", "sheep"}
+        assert "/ʃ/" in extra_review["items"][0]["target_phonemes"]
 
     def test_recent_words_are_suppressed_for_fresh_today_session(self, client, seeded_db):
         conn = get_connection(seeded_db)

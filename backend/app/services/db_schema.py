@@ -57,6 +57,7 @@ TABLES_DDL: List[str] = [
         practice_mode        TEXT    NOT NULL,
         review_strength      TEXT    NOT NULL,
         learner_level        TEXT    NOT NULL DEFAULT 'entry',
+        ui_language          TEXT    NOT NULL DEFAULT 'zh-CN',
         focus_phonemes       TEXT    NOT NULL DEFAULT '[]', -- JSON array
         updated_at           TEXT    NOT NULL
     )
@@ -167,6 +168,10 @@ def ensure_settings_schema(conn: sqlite3.Connection) -> None:
     if "learner_level" not in columns:
         conn.execute(
             "ALTER TABLE settings ADD COLUMN learner_level TEXT NOT NULL DEFAULT 'entry'"
+        )
+    if "ui_language" not in columns:
+        conn.execute(
+            "ALTER TABLE settings ADD COLUMN ui_language TEXT NOT NULL DEFAULT 'zh-CN'"
         )
 
 

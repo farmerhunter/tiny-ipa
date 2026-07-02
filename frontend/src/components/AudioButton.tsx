@@ -7,16 +7,18 @@
  */
 
 import { useState, useEffect } from "react";
+import type { Translator } from "../locales";
 
 type PlayStatus = "idle" | "playing" | "tts" | "fallback" | "error";
 
 interface Props {
   audioUrl: string | null;
   word: string;
+  t: Translator;
   disabled?: boolean;
 }
 
-export function AudioButton({ audioUrl, word, disabled = false }: Props) {
+export function AudioButton({ audioUrl, word, t, disabled = false }: Props) {
   const [status, setStatus] = useState<PlayStatus>("idle");
 
   // Cleanup on unmount — guard for browsers without speechSynthesis
@@ -51,8 +53,8 @@ export function AudioButton({ audioUrl, word, disabled = false }: Props) {
     status === "error" ? "⚠️" :
     "🔈";
 
-  const sourceLabel = getSourceLabel(audioUrl, status);
-  const actionLabel = getActionLabel(audioUrl, status);
+  const sourceLabel = getSourceLabel(audioUrl, status, t);
+  const actionLabel = getActionLabel(audioUrl, status, t);
 
   return (
     <span className="audio-btn-wrapper">
@@ -139,22 +141,26 @@ function isBusy(status: PlayStatus) {
   return status === "playing" || status === "fallback" || status === "tts";
 }
 
-function getActionLabel(audioUrl: string | null, status: PlayStatus) {
-  if (status === "error") return "Audio unavailable";
+function getActionLabel(audioUrl: string | null, status: PlayStatus, t: Translator) {
+  if (status === "error") return t("audio.status.unavailable");
   if (audioUrl) {
     return status === "fallback"
-      ? "Static audio unavailable; using browser voice"
-      : "Play recorded pronunciation";
+      ? t("audio.status.fallback")
+      : t("audio.action.play_recorded");
   }
-  return status === "tts" ? "Playing browser voice" : "Play pronunciation with browser voice";
+  return status === "tts"
+    ? t("audio.status.browser_voice.playing")
+    : t("audio.action.play_browser_voice");
 }
 
-function getSourceLabel(audioUrl: string | null, status: PlayStatus) {
-  if (status === "error") return "Audio unavailable";
+function getSourceLabel(audioUrl: string | null, status: PlayStatus, t: Translator) {
+  if (status === "error") return t("audio.status.unavailable");
   if (audioUrl) {
-    if (status === "playing") return "Playing recorded audio";
-    if (status === "fallback") return "Recorded audio unavailable; using browser voice";
-    return "Recorded audio";
+    if (status === "playing") return t("audio.status.recorded.playing");
+    if (status === "fallback") return t("audio.status.fallback");
+    return t("audio.status.recorded.idle");
   }
-  return status === "tts" ? "Playing browser voice" : "Browser voice";
+  return status === "tts"
+    ? t("audio.status.browser_voice.playing")
+    : t("audio.status.browser_voice.idle");
 }

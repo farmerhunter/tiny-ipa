@@ -60,6 +60,12 @@ export interface TodayItem {
   meaning_zh: string | null;
   audio_url: string | null;
   target_phonemes: string[];
+  status?: "pending" | "completed";
+  last_attempt?: {
+    selected_answer: string | null;
+    correct_answer: string;
+    is_correct: boolean;
+  };
   question: {
     type: string;
     prompt: string;
@@ -107,6 +113,8 @@ export interface TodayResponse {
   daily_word_count: number;
   recent_mistake_count?: number;
   word_count?: number;
+  resume_index?: number;
+  completed_item_count?: number;
   status: string;
   source_session_item_ids?: string[];
   target_phoneme_options?: {
@@ -260,6 +268,7 @@ export interface LevelProgressStats {
   normal_groups: number;
   completed_normal_groups: number;
   completed_normal_groups_today: number;
+  resumable_normal_groups: number;
   weak_phonemes: PhonemeStat[];
   strong_phonemes: PhonemeStat[];
 }
@@ -271,6 +280,7 @@ export interface ProgressResponse {
   total_attempts: number;
   total_sessions: number;
   total_normal_groups: number;
+  resumable_normal_groups: number;
   weak_phonemes: PhonemeStat[];
   strong_phonemes: PhonemeStat[];
   stat_scope?: "global";
@@ -319,6 +329,7 @@ export interface SettingsData {
   practice_mode: string;
   review_strength: string;
   learner_level: "entry" | "mid";
+  ui_language: "zh-CN" | "en-US";
   focus_phonemes: string[];
 }
 

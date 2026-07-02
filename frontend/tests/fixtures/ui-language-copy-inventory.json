@@ -1,0 +1,1670 @@
+{
+  "inventory_version": "m11-p0-2026-06-29",
+  "default_locale": "zh-CN",
+  "selectable_locales": [
+    "zh-CN",
+    "en-US"
+  ],
+  "classifications": [
+    "translatable",
+    "domain_token",
+    "content_data",
+    "developer_only"
+  ],
+  "entries": [
+    {
+      "key": "action.loading",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Loading...",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "app.back.today",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "← Today",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "app.backend.connecting",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Connecting to backend…"
+    },
+    {
+      "key": "app.backend.unreachable",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Cannot reach backend. Make sure it is running on port 8010."
+    },
+    {
+      "key": "app.brand.name",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "小音标",
+      "notes": "Product name copy; English display name needs Architect/User acceptance."
+    },
+    {
+      "key": "app.brand.tagline",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "每天几分钟，把声音和 IPA 对上号。"
+    },
+    {
+      "key": "app.login.disabled",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "登录 / 登录后同步练习 / 账号入口暂未启用；后续可用于同步进度和错题。",
+      "notes": "Visible auth placeholder; no auth behavior changes in M11."
+    },
+    {
+      "key": "app.login.disabled.details",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Account access is not enabled yet; it can later sync progress and missed items.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "app.login.disabled.short",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sign in",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "app.login.disabled.title",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sync practice after sign-in",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "app.nav.progress",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Progress"
+    },
+    {
+      "key": "app.nav.settings",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Settings"
+    },
+    {
+      "key": "app.nav.today",
+      "surface": "app_shell",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Today"
+    },
+    {
+      "key": "audio.action.play_browser_voice",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Play pronunciation with browser voice"
+    },
+    {
+      "key": "audio.action.play_recorded",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Play recorded pronunciation"
+    },
+    {
+      "key": "audio.status.browser_voice",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Browser voice / Playing browser voice"
+    },
+    {
+      "key": "audio.status.browser_voice.idle",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Browser voice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "audio.status.browser_voice.playing",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Playing browser voice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "audio.status.fallback",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Recorded audio unavailable; using browser voice"
+    },
+    {
+      "key": "audio.status.recorded",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Recorded audio / Playing recorded audio"
+    },
+    {
+      "key": "audio.status.recorded.idle",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Recorded audio",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "audio.status.recorded.playing",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Playing recorded audio",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "audio.status.unavailable",
+      "surface": "audio",
+      "classification": "translatable",
+      "source": "frontend/src/components/AudioButton.tsx",
+      "current": "Audio unavailable"
+    },
+    {
+      "key": "content.accent_compare_values",
+      "surface": "content_data",
+      "classification": "content_data",
+      "source": "frontend/src/components/ChoiceQuestion.tsx backend/app/services/sessions.py",
+      "current": "accent_compare.primary.ipa, accent_compare.comparison.ipa, comparison.review_note"
+    },
+    {
+      "key": "content.word_values",
+      "surface": "content_data",
+      "classification": "content_data",
+      "source": "frontend/src/components/ChoiceQuestion.tsx content/*.json",
+      "current": "item.word, item.meaning_zh, IPA choices, correct_answer, source word metadata",
+      "notes": "Do not move source word content or meaning_zh into locale resources."
+    },
+    {
+      "key": "dev.test_selectors_and_classnames",
+      "surface": "developer_only",
+      "classification": "developer_only",
+      "source": "frontend/src/**/*.tsx frontend/tests/e2e/*.spec.ts",
+      "current": "CSS classes, test names, route-mock labels, command names, import_words.py references in docs/tests"
+    },
+    {
+      "key": "error.api.normalized",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/api.ts",
+      "current": "Request failed (HTTP {status}) / {errorCode}: {detail}"
+    },
+    {
+      "key": "error.generic.failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed: {error}",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.generic.unknown",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Unknown error",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.clear_focus_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to clear focus",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.focus_start_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to start focused practice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.invalid_request",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "backend/app/routes/practice.py backend/app/routes/attempts.py",
+      "current": "phoneme must be one approved sound string. / group_id is required for current-group review. / Missing session_item_id"
+    },
+    {
+      "key": "error.practice.load_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to load practice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.load_next_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to load another group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.recent_review_start_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to start recent review",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.review_start_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to start review",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.sound_compare_start_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to start Sound Compare practice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.sound_practice_start_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to start Sound Practice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.practice.switch_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to switch groups",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "error.settings.invalid",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "backend/app/routes/settings.py",
+      "current": "primary_accent must be one of ... / daily_word_count must be an integer between 1 and 50 / focus_phonemes must be a list of non-empty strings"
+    },
+    {
+      "key": "error.settings.save_failed",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Failed to save settings",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "focus.action.clear",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py",
+      "current": "Clear focus / Focus cleared. Back to regular practice. / Focus selection cleared."
+    },
+    {
+      "key": "focus.action.clear_button",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Clear focus",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "focus.action.clear.notice",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Focus cleared. Back to regular practice.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "focus.action.remove",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{phoneme} ×",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "focus.action.resume",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx backend/app/services/sessions.py",
+      "current": "Resume focus"
+    },
+    {
+      "key": "focus.action.start",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "backend/app/services/sessions.py",
+      "current": "Start {level} Focus Group {groupIndex}",
+      "notes": "Group-specific focus action; call sites that only know a phoneme use focus.action.start_phoneme."
+    },
+    {
+      "key": "focus.action.start_phoneme",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "Focus {phoneme}",
+      "notes": "Phoneme-only focus action for call sites without level or group index."
+    },
+    {
+      "key": "focus.chosen_sound.label",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Chosen sound",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "focus.current.help",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Focus changes the next focused practice group. Clear it to return to regular practice.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "focus.current.label",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Current focus",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "focus.current.panel",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "Current focus / Next group focus / Focus changes the next focused practice group. Clear it to return to regular practice."
+    },
+    {
+      "key": "focus.next.label",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Next group focus",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.accent_compare.label",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Accent comparison",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.action.continue",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Continue"
+    },
+    {
+      "key": "practice.choice.select",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Select {choice}",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.feedback.correct",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Correct!"
+    },
+    {
+      "key": "practice.feedback.explanation_labels",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx",
+      "current": "You picked / Correct IPA / Target sound / picked {selected}, correct {correct}"
+    },
+    {
+      "key": "practice.feedback.focus_hint.default",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx",
+      "current": "Focus on the IPA difference, then listen again."
+    },
+    {
+      "key": "practice.feedback.focus_hint.phonemes",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx",
+      "current": "Focus on {phonemes} before choosing."
+    },
+    {
+      "key": "practice.feedback.incorrect",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Not quite."
+    },
+    {
+      "key": "practice.feedback.label.correct_ipa",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Correct IPA",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.feedback.label.selected",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "You picked",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.feedback.label.target_sound",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Target sound",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.feedback.submit_failed",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Failed to submit: {error}"
+    },
+    {
+      "key": "practice.feedback.submitting",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Submitting…"
+    },
+    {
+      "key": "practice.feedback.target_sound.default",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "IPA contrast",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.question.prompt.choose_ipa",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "backend/app/services/questions.py",
+      "current": "Which IPA matches this word?"
+    },
+    {
+      "key": "practice.summary.complete_title",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{groupLabel} complete"
+    },
+    {
+      "key": "practice.summary.correct_before",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "correct",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.summary.current_misses",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "This group's misses"
+    },
+    {
+      "key": "practice.summary.focus_next",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Focus a weak sound next / Start a focused group weighted toward one of the sounds missed in this group."
+    },
+    {
+      "key": "practice.summary.focus_next.description",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Start a focused group weighted toward one of the sounds missed in this group.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.summary.focus_next.title",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Focus a weak sound next",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.summary.no_misses",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "No misses in this group."
+    },
+    {
+      "key": "practice.summary.picked_before",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "picked",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "practice.summary.score",
+      "surface": "practice_summary",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{correctCount} / {totalCount} correct"
+    },
+    {
+      "key": "progress.empty",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Answer a few items to see sound-level progress."
+    },
+    {
+      "key": "progress.focus.uses_selected_level",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Focused practice uses the level selected in Settings.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.focus.weighted",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Focused practice will choose words weighted toward {phoneme}.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.level.hint.active",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} has unfinished regular practice. Continue from Today, then come back for more evidence.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.level.hint.empty",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} has no all-time answered items yet. Select this level in Settings, then start from Today.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.level.hint.steady",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} has no clear weak sound right now. Keep practicing from Today to confirm the long-term signal.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.level.hint.weak",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} has sounds ready for focused practice.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.level.hints",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "{level} has unfinished regular practice. / {level} has no all-time answered items yet. / {level} has sounds ready for focused practice."
+    },
+    {
+      "key": "progress.level.title",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} progress",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.loading",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Loading progress…"
+    },
+    {
+      "key": "progress.stats",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "all-time answered items / all-time completed regular groups / completed regular groups today / all-time {accuracy}% accuracy / Accuracy appears after answers"
+    },
+    {
+      "key": "progress.stats.accuracy",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "All-time {accuracy}% accuracy",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.stats.accuracy_pending",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Accuracy appears after answers",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.stats.answered_items",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{count} all-time answered items",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.stats.answered_items.label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "all-time answered items",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.stats.completed_groups",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{count} all-time completed groups",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.stats.completed_groups.label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "all-time completed regular groups",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.stats.completed_today",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{count} completed today",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.stats.percent",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{value}%",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.strong.global",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Sounds going well overall"
+    },
+    {
+      "key": "progress.today_status",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Done / In progress / Ready / today's practice state"
+    },
+    {
+      "key": "progress.today_status.done",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Done",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.today_status.done_label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "today's practice state",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.today_status.ready",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Ready",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.today_status.ready_label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "today's practice state",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.today_status.started",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "In progress",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.today_status.started_label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "today's practice state",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.today_status.streak_label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "day streak",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.unfinished.action",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Go to Today to continue",
+      "notes": "Routes to Today; Progress does not own cancel or restart lifecycle."
+    },
+    {
+      "key": "progress.unfinished.copy",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Progress does not manage regular practice groups. Today will let you resume the current group or start today's practice using the existing flow.",
+      "notes": "Explains unfinished regular practice without exposing a passive active-group stat."
+    },
+    {
+      "key": "progress.unfinished.label",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Next action",
+      "notes": "Callout label for unfinished regular practice."
+    },
+    {
+      "key": "progress.unfinished.title",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Unfinished regular practice",
+      "notes": "Callout heading for unfinished regular practice."
+    },
+    {
+      "key": "progress.weak.global",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Sounds to revisit overall / Sounds that need more reps across your complete history."
+    },
+    {
+      "key": "progress.weak.global.copy",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sounds that need more reps across your complete history. Use the Entry/Mid sections above when level context matters.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.weak.global.title",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sounds to revisit overall",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.weak.level",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ProgressPage.tsx",
+      "current": "Sounds to revisit in {level} / No weak sound signal yet for {level}; it appears after answered items."
+    },
+    {
+      "key": "progress.weak.level.empty",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "No weak sound signal right now for {level}.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.weak.level.empty_pending",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "No weak sound signal yet for {level}; it appears after answered items.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "progress.weak.level.title",
+      "surface": "progress",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sounds to revisit in {level}",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "review.current.action",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Review this group's misses / Review Group {groupIndex} misses"
+    },
+    {
+      "key": "review.current.action.group_misses",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Review this group's misses",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "review.current.action.review_misses",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Review this review's misses",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "review.current.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "No misses in this group are ready for review. / No incorrect answers are available for this group."
+    },
+    {
+      "key": "review.recent.action",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Review {count} older mistakes / Start Recent Review Group {groupIndex}"
+    },
+    {
+      "key": "review.recent.action.count",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Review {count} older mistakes",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "review.recent.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "No recent mistakes are ready for review. / No recent incorrect attempts are available for review."
+    },
+    {
+      "key": "review.recent.none",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "No older mistakes to review",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.accent_compare",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Accent comparison / Show British notes after answering"
+    },
+    {
+      "key": "settings.accent_compare.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Show British notes after answering",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.accent_compare.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Accent comparison",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.focus_practice",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Focus practice / Pick a sound to start a focused group. The scheduler will weight words toward that sound until you clear focus."
+    },
+    {
+      "key": "settings.focus_practice.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Pick a sound to start a focused group. The scheduler will weight words toward that sound until you clear focus.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.focus_practice.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Focus practice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.focus.manual",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Manual IPA focus entry / Comma-separated IPA symbols"
+    },
+    {
+      "key": "settings.focus.manual.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Comma-separated IPA symbols",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.focus.manual.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Manual IPA focus entry",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.level.entry",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
+      "current": "Entry / Starter word pool for early practice."
+    },
+    {
+      "key": "settings.level.entry.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Starter word pool for early practice.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.level.entry.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Entry",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.level.mid",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx backend/app/services/sessions.py backend/app/services/progress.py",
+      "current": "Mid / Larger intermediate word pool for broader practice."
+    },
+    {
+      "key": "settings.level.mid.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Larger intermediate word pool for broader practice.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.level.mid.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Mid",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.loading",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Loading…"
+    },
+    {
+      "key": "settings.practice_level",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Practice level / Choose the level for the next new regular group."
+    },
+    {
+      "key": "settings.practice_level.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Entry uses the starter word pool. Mid uses the larger intermediate word pool. This choice applies to the next new regular group; active groups stay unchanged.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.practice_level.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Practice level",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.review_strength",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Review strength / Affects future regular practice groups only. / Quick / Standard / Extra review"
+    },
+    {
+      "key": "settings.review_strength.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Affects future regular practice groups only. Existing active groups stay unchanged.",
+      "notes": "Clarifies the future-group boundary for #228 Settings review intensity."
+    },
+    {
+      "key": "settings.review_strength.extra_review",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Extra review",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.review_strength.normal",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Standard",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.review_strength.quick",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Quick",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.review_strength.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Review strength",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.saved",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Saved"
+    },
+    {
+      "key": "settings.show_translation",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Show translation"
+    },
+    {
+      "key": "settings.ui_language.en_us",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "English (en-US)",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.ui_language.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "UI language",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.ui_language.zh_cn",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "中文 (zh-CN)",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.words_per_group",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Words per group"
+    },
+    {
+      "key": "specialty.label",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Specialty practice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "specialty.sound_compare",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Compare / Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus."
+    },
+    {
+      "key": "specialty.sound_compare.description",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "specialty.sound_compare.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Compare practice is not available yet. It needs at least two safe words with pair metadata."
+    },
+    {
+      "key": "specialty.sound_compare.start",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Start Sound Compare",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "specialty.sound_compare.title",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sound Compare",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "specialty.sound_practice",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Practice / Pick one approved American sound for intentional practice."
+    },
+    {
+      "key": "specialty.sound_practice.description",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Pick one approved American sound for intentional practice. This is separate from weak-sound recovery.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "specialty.sound_practice.empty",
+      "surface": "review_focus",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Sound Practice is not available for this sound yet. It needs safe words tagged with the selected American sound."
+    },
+    {
+      "key": "specialty.sound_practice.no_options",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sound Practice will appear when approved sounds have enough words.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "specialty.sound_practice.practice",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Practice {phoneme}",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "specialty.sound_practice.title",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sound Practice",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.action.resume_group",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Resume {level} group / Resume {level} Group {groupIndex}"
+    },
+    {
+      "key": "today.action.resume_group.short",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Resume {level} group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.action.return_to_progress",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Return to Progress",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.action.start_group",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx backend/app/services/sessions.py",
+      "current": "Start {level} group / Start {level} Group {groupIndex}"
+    },
+    {
+      "key": "today.action.start_group.short",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Start {level} group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.action.start_next_group",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Start next {level} group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.action.switch_now",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Switch to {selectedLevel} now"
+    },
+    {
+      "key": "today.action.view_progress",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "View Progress",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.confirm.abandon_pending",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "End this {currentLevel} group and switch to {selectedLevel} now?"
+    },
+    {
+      "key": "today.confirm.abandon_same_level",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "End this {currentLevel} group and start another {selectedLevel} group?"
+    },
+    {
+      "key": "today.error.import_hint",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Make sure you've run import_words.py and the backend is running.",
+      "notes": "Developer-oriented wording shown to learners; follow-up copy decision needed before final M11 readiness."
+    },
+    {
+      "key": "today.error.import_hint_after",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "and the backend is running.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.error.import_hint_before",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Make sure you've run",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.error.title",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Practice unavailable"
+    },
+    {
+      "key": "today.group.label.current_review",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Current-group review",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.label.focused",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Focused group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.label.mistake_review",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Mistake review",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.label.practice",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Practice group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.label.recent_review",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Recent mistake review",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.label.sound_compare",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sound Compare group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.label.sound_practice",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Sound Practice group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.reason.chosen_sound",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "your chosen sound",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.reason.current_group",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Reviewing misses from the group you just finished, before older mistakes.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.reason.default",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} practice group.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.reason.normal_next",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "A new {level} practice group."
+    },
+    {
+      "key": "today.group.reason.normal_resume",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Resuming your current {level} group."
+    },
+    {
+      "key": "today.group.reason.recent_global",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Reviewing older mistakes from earlier practice.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.reason.selected_sounds",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "selected sounds",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.reason.target_phoneme",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Intentional practice for {phoneme}. This is a chosen-sound specialty group, not weak-sound recovery.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.group.reason.weak_focus",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} focused practice for {phonemes}.",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.hub.completed_today",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Completed today: Entry {entryCount}, Mid {midCount}."
+    },
+    {
+      "key": "today.hub.copy.active",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Pick up where you left off, or switch intentionally when you are ready."
+    },
+    {
+      "key": "today.hub.copy.empty",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "A short listening group is ready. Listen first, then choose the IPA that matches."
+    },
+    {
+      "key": "today.hub.heading.active",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{level} practice in progress"
+    },
+    {
+      "key": "today.hub.heading.start",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Start {selectedLevel} practice"
+    },
+    {
+      "key": "today.hub.kicker",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Today practice hub"
+    },
+    {
+      "key": "today.hub.pending_level_change",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{selectedLevel} is selected for your next new group. Your current {currentLevel} group stays active until you finish it or switch now."
+    },
+    {
+      "key": "today.hub.status.active",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Active group / {level} group in progress / {wordCount} words assigned"
+    },
+    {
+      "key": "today.hub.status.active.label",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Active group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.hub.status.active.meta",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{wordCount} words assigned",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.hub.status.active.title",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{level} group in progress",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.hub.status.ready",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Ready when you are / {selectedLevel} listening group / {count} words per regular group"
+    },
+    {
+      "key": "today.hub.status.ready.label",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "Ready when you are",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.hub.status.ready.meta",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{count} words per regular group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.hub.status.ready.title",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src",
+      "current": "{selectedLevel} listening group",
+      "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.loading",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Loading today's practice…"
+    },
+    {
+      "key": "token.accent_identifiers",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "frontend/src/api.ts backend/app/routes/settings.py",
+      "current": "US / UK / primary_accent / show_accent_compare"
+    },
+    {
+      "key": "token.api_enums",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "frontend/src/api.ts backend/app/services/sessions.py backend/app/services/progress.py",
+      "current": "entry / mid / normal / weak_focus / mistake_review / minimal_pair / target_phoneme / normal_next / recent_global / current_group / new / weak / learning / mastered"
+    },
+    {
+      "key": "token.error_codes",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "backend/app/routes/practice.py backend/app/routes/settings.py backend/app/routes/attempts.py",
+      "current": "CONTENT_NOT_READY / INVALID_FOCUS / SETTINGS_INVALID / INVALID_ATTEMPT / ITEM_NOT_FOUND / SESSION_NOT_FOUND"
+    },
+    {
+      "key": "token.ipa_symbols",
+      "surface": "domain_tokens",
+      "classification": "domain_token",
+      "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx content/phonemes.json",
+      "current": "/ʃ/ /θ/ /æ/ /ɪ/ /tʃ/ /ʌ/ and all IPA choices",
+      "notes": "Never translate, normalize, or wrap as prose."
+    }
+  ]
+}

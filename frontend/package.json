@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test:e2e:m7": "playwright test -c playwright.m7.config.ts tests/e2e/m7-walkthrough.spec.ts",
     "test:e2e:m8": "playwright test -c playwright.m7.config.ts tests/e2e/m8-level-selection.spec.ts",
-    "test:e2e:m10": "playwright test -c playwright.m10.config.ts tests/e2e/m10-ux-walkthrough.spec.ts"
+    "test:e2e:m10": "playwright test -c playwright.m10.config.ts tests/e2e/m10-ux-walkthrough.spec.ts",
+    "test:e2e:m11": "playwright test -c playwright.m11.config.ts tests/e2e/m11-localization-mobile.spec.ts",
+    "test:e2e:m11-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts"
   },
   "dependencies": {
     "react": "^19.2.6",

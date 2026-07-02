@@ -17,55 +17,71 @@ import {
   fetchSettings,
   startFocusedPractice,
 } from "../api";
+import {
+  createTranslator,
+  learnerLevelLabel,
+  type Locale,
+  type Translator,
+} from "../locales";
 
 interface Props {
+  uiLanguage: Locale;
   onBack: () => void;
   focusPhonemes: string[];
   onFocusChange: (focusPhonemes: string[]) => void;
   onStartPractice: (session: TodayResponse) => void;
 }
 
-function formatAccuracy(value: number | null): string {
-  if (value === null) return "Accuracy appears after answers";
-  return `${Math.round(value * 100)}% accuracy`;
+function formatAccuracy(value: number | null, t: Translator): string {
+  if (value === null) return t("progress.stats.accuracy_pending");
+  return t("progress.stats.accuracy", { accuracy: Math.round(value * 100) });
 }
 
-function todayMotivation(data: ProgressResponse): { value: string; label: string } {
+function todayMotivation(data: ProgressResponse, t: Translator): { value: string; label: string } {
   if (data.today_completed) {
-    return { value: "Done", label: "practice completed today" };
+    return { value: t("progress.today_status.done"), label: t("progress.today_status.done_label") };
   }
-  if (data.today_status !== "none" || data.total_attempts > 0) {
-    return { value: "Started", label: "practice underway today" };
+  if (data.today_status !== "none") {
+    return {
+      value: t("progress.today_status.started"),
+      label: t("progress.today_status.started_label"),
+    };
   }
   if (data.streak_days > 0) {
-    return { value: String(data.streak_days), label: "day streak" };
+    return { value: String(data.streak_days), label: t("progress.today_status.streak_label") };
   }
-  return { value: "Ready", label: "start today's practice" };
+  return { value: t("progress.today_status.ready"), label: t("progress.today_status.ready_label") };
 }
 
 function activeGroupCount(stats: LevelProgressStats): number {
-  return Math.max(0, stats.normal_groups - stats.completed_normal_groups);
+  return stats.resumable_normal_groups;
 }
 
-function levelProgressHint(stats: LevelProgressStats): string {
-  const activeGroups = activeGroupCount(stats);
-  if (stats.attempts === 0 && activeGroups > 0) {
-    return `${stats.label} has an active group. Answer a few items to unlock accuracy and sound signals.`;
+function levelProgressHint(stats: LevelProgressStats, t: Translator): string {
+  const level = learnerLevelLabel(stats.learner_level, t);
+  if (activeGroupCount(stats) > 0) {
+    return t("progress.level.hint.active", { level });
   }
   if (stats.attempts === 0) {
-    return `${stats.label} has no answered items yet. Start a group when this level is selected.`;
+    return t("progress.level.hint.empty", { level });
   }
   if (stats.weak_phonemes.length > 0) {
-    return `${stats.label} has sounds ready for focused practice.`;
+    return t("progress.level.hint.weak", { level });
   }
-  return `${stats.label} is looking steady so far. Keep practicing to confirm strong sounds.`;
+  return t("progress.level.hint.steady", { level });
 }
 
-function levelWeakEmptyCopy(stats: LevelProgressStats): string {
+function levelWeakEmptyCopy(stats: LevelProgressStats, t: Translator): string {
+  const level = learnerLevelLabel(stats.learner_level, t);
   if (stats.attempts === 0) {
-    return `No weak sound signal yet for ${stats.label}; it appears after answered items.`;
+    return t("progress.weak.level.empty_pending", { level });
   }
-  return `No weak sound signal right now for ${stats.label}.`;
+  return t("progress.weak.level.empty", { level });
+}
+
+function unfinishedNormalGroupCount(data: ProgressResponse): number {
+  if (!data.level_stats) return 0;
+  return activeGroupCount(data.level_stats.entry) + activeGroupCount(data.level_stats.mid);
 }
 
 function LevelStatsSection({
@@ -73,64 +89,72 @@ function LevelStatsSection({
   onFocus,
   activeFocus,
   savingFocus,
+  t,
 }: {
   stats: LevelProgressStats;
   onFocus: (phoneme: string) => void;
   activeFocus: string[];
   savingFocus: string | null;
+  t: Translator;
 }) {
+  const level = learnerLevelLabel(stats.learner_level, t);
   return (
     <section className="level-progress-panel">
       <div className="level-progress-header">
-        <h2>{stats.label} progress</h2>
-        <span className="level-scope-label">{stats.label}</span>
+        <h2>{t("progress.level.title", { level })}</h2>
+        <span className="level-scope-label">{level}</span>
       </div>
-      <p className="section-copy">{levelProgressHint(stats)}</p>
+      <p className="section-copy">{levelProgressHint(stats, t)}</p>
       <div className="level-stat-grid">
-        <span>{stats.completed_normal_groups_today} completed today</span>
-        <span>{stats.completed_normal_groups} completed groups</span>
-        <span>{activeGroupCount(stats)} active groups</span>
-        <span>{stats.attempts} answered items</span>
-        <span>{formatAccuracy(stats.accuracy)}</span>
+        <span>{t("progress.stats.completed_today", { count: stats.completed_normal_groups_today })}</span>
+        <span>{t("progress.stats.completed_groups", { count: stats.completed_normal_groups })}</span>
+        <span>{t("progress.stats.answered_items", { count: stats.attempts })}</span>
+        <span>{formatAccuracy(stats.accuracy, t)}</span>
       </div>
       {stats.weak_phonemes.length > 0 ? (
         <>
-          <h3>Sounds to revisit in {stats.label}</h3>
+          <h3>{t("progress.weak.level.title", { level })}</h3>
           <ul className="phoneme-list">
             {stats.weak_phonemes.map((p) => (
               <li key={`${stats.learner_level}-${p.phoneme}`} className="phoneme-item weak">
                 <span className="phoneme-symbol">{p.phoneme}</span>
                 <span className="phoneme-acc">
-                  {Math.round(p.accuracy * 100)}% accuracy
+                  {t("progress.stats.accuracy", { accuracy: Math.round(p.accuracy * 100) })}
                 </span>
-                <span className="phoneme-count">{p.attempt_count} answered</span>
+                <span className="phoneme-count">
+                  {t("progress.stats.answered_items", { count: p.attempt_count })}
+                </span>
                 <button
                   className="focus-action-btn"
                   onClick={() => onFocus(p.phoneme)}
                   disabled={savingFocus !== null}
                 >
-                  {activeFocus.includes(p.phoneme) ? "Resume focus" : `Focus ${p.phoneme}`}
+                  {activeFocus.includes(p.phoneme)
+                    ? t("focus.action.resume")
+                    : t("focus.action.start_phoneme", { phoneme: p.phoneme })}
                 </button>
                 <span className="phoneme-help">
-                  Focused practice uses the level selected in Settings.
+                  {t("progress.focus.uses_selected_level")}
                 </span>
               </li>
             ))}
           </ul>
         </>
       ) : (
-        <p className="section-copy">{levelWeakEmptyCopy(stats)}</p>
+        <p className="section-copy">{levelWeakEmptyCopy(stats, t)}</p>
       )}
     </section>
   );
 }
 
 export default function ProgressPage({
+  uiLanguage,
   onBack,
   focusPhonemes,
   onFocusChange,
   onStartPractice,
 }: Props) {
+  const t = createTranslator(uiLanguage);
   const [data, setData] = useState<ProgressResponse | null>(null);
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,7 +187,7 @@ export default function ProgressPage({
       onFocusChange(appliedFocus);
       onStartPractice(focusedSession);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start focused practice");
+      setError(e instanceof Error ? e.message : t("error.practice.focus_start_failed"));
     } finally {
       setSavingFocus(null);
     }
@@ -182,34 +206,32 @@ export default function ProgressPage({
         onFocusChange([]);
         onStartPractice(normalSession);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to clear focus"))
+      .catch((e) => setError(e instanceof Error ? e.message : t("error.practice.clear_focus_failed")))
       .finally(() => setSavingFocus(null));
   };
 
-  if (loading) return <main className="practice-container"><p>Loading progress…</p></main>;
-  if (error && !data) return <main className="practice-container"><p className="error">Failed: {error}</p></main>;
+  if (loading) return <main className="practice-container"><p>{t("progress.loading")}</p></main>;
+  if (error && !data) return <main className="practice-container"><p className="error">{t("error.generic.failed", { error })}</p></main>;
   if (!data) return null;
-  const todayCard = todayMotivation(data);
+  const todayCard = todayMotivation(data, t);
   const completedGroups = data.level_stats
     ? data.level_stats.entry.completed_normal_groups + data.level_stats.mid.completed_normal_groups
     : data.total_normal_groups;
-  const activeGroups = data.level_stats
-    ? activeGroupCount(data.level_stats.entry) + activeGroupCount(data.level_stats.mid)
-    : 0;
+  const unfinishedGroups = unfinishedNormalGroupCount(data);
 
   return (
     <main className="practice-container">
       <div className="page-header">
-        <button className="back-btn" onClick={onBack}>← Today</button>
-        <h1>Progress</h1>
+        <button className="back-btn" onClick={onBack}>{t("app.back.today")}</button>
+        <h1>{t("app.nav.progress")}</h1>
       </div>
       {error && <p className="save-error">{error}</p>}
 
       {activeFocus.length > 0 && (
         <div className="focus-panel">
-          <span className="focus-panel-label">Current focus</span>
+          <span className="focus-panel-label">{t("focus.current.label")}</span>
           <p className="section-copy">
-            Focus changes the next focused practice group. Clear it to return to normal practice.
+            {t("focus.current.help")}
           </p>
           <div className="phoneme-chip-list">
             {activeFocus.map((phoneme) => (
@@ -221,7 +243,7 @@ export default function ProgressPage({
             onClick={clearFocus}
             disabled={savingFocus !== null}
           >
-            Clear focus
+            {t("focus.action.clear_button")}
           </button>
         </div>
       )}
@@ -233,16 +255,26 @@ export default function ProgressPage({
         </div>
         <div className="stat-card">
           <span className="stat-number">{data.total_attempts}</span>
-          <span className="stat-label">answered items</span>
+          <span className="stat-label">{t("progress.stats.answered_items.label")}</span>
         </div>
         <div className="stat-card">
           <span className="stat-number">{completedGroups}</span>
-          <span className="stat-label">completed groups</span>
-          {activeGroups > 0 && (
-            <span className="stat-subtext">{activeGroups} active</span>
-          )}
+          <span className="stat-label">{t("progress.stats.completed_groups.label")}</span>
         </div>
       </div>
+
+      {unfinishedGroups > 0 && (
+        <section className="focus-panel progress-resume-callout">
+          <span className="focus-panel-label">{t("progress.unfinished.label")}</span>
+          <strong>{t("progress.unfinished.title")}</strong>
+          <p className="section-copy">
+            {t("progress.unfinished.copy")}
+          </p>
+          <button className="primary-action-btn" onClick={onBack} type="button">
+            {t("progress.unfinished.action")}
+          </button>
+        </section>
+      )}
 
       {data.level_stats && (
         <div className="level-progress-list">
@@ -251,42 +283,45 @@ export default function ProgressPage({
             onFocus={focusOne}
             activeFocus={activeFocus}
             savingFocus={savingFocus}
+            t={t}
           />
           <LevelStatsSection
             stats={data.level_stats.mid}
             onFocus={focusOne}
             activeFocus={activeFocus}
             savingFocus={savingFocus}
+            t={t}
           />
         </div>
       )}
 
       {data.weak_phonemes.length > 0 && (
         <section className="phoneme-section">
-          <h2>Sounds to revisit overall</h2>
+          <h2>{t("progress.weak.global.title")}</h2>
           <p className="section-copy">
-            Sounds that need more reps across your complete history. Use the Entry/Mid
-            sections above when level context matters.
+            {t("progress.weak.global.copy")}
           </p>
           <ul className="phoneme-list">
             {data.weak_phonemes.map((p) => (
               <li key={p.phoneme} className="phoneme-item weak">
                 <span className="phoneme-symbol">{p.phoneme}</span>
                 <span className="phoneme-acc">
-                  {Math.round(p.accuracy * 100)}% accuracy
+                  {t("progress.stats.accuracy", { accuracy: Math.round(p.accuracy * 100) })}
                 </span>
                 <span className="phoneme-count">
-                  {p.attempt_count} answered
+                  {t("progress.stats.answered_items", { count: p.attempt_count })}
                 </span>
                 <button
                   className="focus-action-btn"
                   onClick={() => focusOne(p.phoneme)}
                   disabled={savingFocus !== null}
                 >
-                  {activeFocus.includes(p.phoneme) ? "Resume focus" : `Focus ${p.phoneme}`}
+                  {activeFocus.includes(p.phoneme)
+                    ? t("focus.action.resume")
+                    : t("focus.action.start_phoneme", { phoneme: p.phoneme })}
                 </button>
                 <span className="phoneme-help">
-                  Focused practice will choose words weighted toward {p.phoneme}.
+                  {t("progress.focus.weighted", { phoneme: p.phoneme })}
                 </span>
               </li>
             ))}
@@ -296,13 +331,17 @@ export default function ProgressPage({
 
       {data.strong_phonemes.length > 0 && (
         <section className="phoneme-section">
-          <h2>Sounds going well overall</h2>
+          <h2>{t("progress.strong.global")}</h2>
           <ul className="phoneme-list">
             {data.strong_phonemes.map((p) => (
               <li key={p.phoneme} className="phoneme-item strong">
                 <span className="phoneme-symbol">{p.phoneme}</span>
-                <span className="phoneme-acc">{Math.round(p.accuracy * 100)}%</span>
-                <span className="phoneme-count">{p.attempt_count} answered</span>
+                <span className="phoneme-acc">
+                  {t("progress.stats.percent", { value: Math.round(p.accuracy * 100) })}
+                </span>
+                <span className="phoneme-count">
+                  {t("progress.stats.answered_items", { count: p.attempt_count })}
+                </span>
               </li>
             ))}
           </ul>
@@ -310,7 +349,7 @@ export default function ProgressPage({
       )}
 
       {data.weak_phonemes.length === 0 && data.strong_phonemes.length === 0 && (
-        <p className="empty-hint">Answer a few items to see sound-level progress.</p>
+        <p className="empty-hint">{t("progress.empty")}</p>
       )}
     </main>
   );

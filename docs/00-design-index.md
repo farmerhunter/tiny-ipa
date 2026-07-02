@@ -50,6 +50,9 @@
 12. [M9 UK-Ready Content Subset and Accent Coverage Report](12-m9-uk-ready-content-report.md)
     记录 #196 的 UK-ready 内容子集、口音差异、minimal-pair 候选、target-phoneme 覆盖与内容质量 caveat。
 
+13. [M11 UI Language Contract and Copy Inventory](13-m11-ui-language-contract.md)
+    定义 M11 的 UI 语言边界、copy inventory、locale key 约定、缺失 key 行为，以及不应进入 localization resource 的 IPA/domain/content 数据。
+
 ## 工程随笔
 
 1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)

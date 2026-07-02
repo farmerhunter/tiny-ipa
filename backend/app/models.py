@@ -64,6 +64,7 @@ class Settings:
     practice_mode: str = "ipa_first"
     review_strength: str = "normal"
     learner_level: str = "entry"
+    ui_language: str = "zh-CN"
     focus_phonemes: List[str] = field(default_factory=list)
     updated_at: str = ""
 

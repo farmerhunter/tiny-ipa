@@ -318,18 +318,22 @@ function settingsResponse(state: MockState) {
     practice_mode: "ipa_first",
     review_strength: "normal",
     learner_level: state.selectedLevel,
+    ui_language: "en-US",
     focus_phonemes: state.focusPhonemes,
   };
 }
 
 function progressResponse(state: MockState) {
+  const entryResumableGroups = state.activeGroup === "entry" ? 1 : 0;
+  const midResumableGroups = state.activeGroup === "mid" ? 1 : 0;
   return {
     today_completed: false,
     today_status: state.activeGroup === "none" ? "none" : "in_progress",
     streak_days: state.completed.entry > 0 ? 0 : 0,
     total_attempts: state.completed.entry > 0 ? 2 : 0,
     total_sessions: state.completed.entry + state.completed.mid,
-    total_normal_groups: state.completed.entry + state.completed.mid + (state.activeGroup === "mid" ? 1 : 0),
+    total_normal_groups: state.completed.entry + state.completed.mid + entryResumableGroups + midResumableGroups,
+    resumable_normal_groups: entryResumableGroups + midResumableGroups,
     stat_scope: "global",
     level_stats: {
       entry: {
@@ -338,9 +342,10 @@ function progressResponse(state: MockState) {
         attempts: state.completed.entry > 0 ? 2 : 0,
         correct_attempts: state.completed.entry > 0 ? 1 : 0,
         accuracy: state.completed.entry > 0 ? 0.5 : null,
-        normal_groups: state.completed.entry,
+        normal_groups: state.completed.entry + entryResumableGroups,
         completed_normal_groups: state.completed.entry,
         completed_normal_groups_today: state.completed.entry,
+        resumable_normal_groups: entryResumableGroups,
         weak_phonemes: [
           {
             phoneme: "/ʃ/",
@@ -361,6 +366,7 @@ function progressResponse(state: MockState) {
         normal_groups: state.activeGroup === "mid" ? 1 : 0,
         completed_normal_groups: state.completed.mid,
         completed_normal_groups_today: state.completed.mid,
+        resumable_normal_groups: midResumableGroups,
         weak_phonemes: [],
         strong_phonemes: [],
       },
@@ -538,7 +544,7 @@ async function routeMock(route: Route, state: MockState) {
     await route.fulfill({
       json: {
         ...todayResponse(state),
-        detail: "Focus cleared. Back to normal practice.",
+        detail: "Focus cleared. Back to regular practice.",
       },
     });
     return;
@@ -626,11 +632,14 @@ test.describe("M10 UX walkthrough evidence", () => {
       await page.getByRole("button", { name: "Progress" }).click();
       await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Sounds to revisit in Entry" })).toBeVisible();
-      await expect(page.getByText("practice underway today")).toBeVisible();
-      await expect(page.getByText("answered items", { exact: true })).toBeVisible();
-      await expect(page.getByText("completed groups", { exact: true })).toBeVisible();
+      await expect(page.getByText("today's practice state")).toBeVisible();
+      await expect(page.getByText("In progress", { exact: true })).toBeVisible();
+      await expect(page.getByText("all-time answered items", { exact: true })).toBeVisible();
+      await expect(page.getByText("all-time completed regular groups", { exact: true })).toBeVisible();
       await expect(page.getByText("Entry has sounds ready for focused practice.")).toBeVisible();
-      await expect(page.getByText("Mid has no answered items yet. Start a group when this level is selected.")).toBeVisible();
+      await expect(page.getByText("Mid has no all-time answered items yet. Select this level in Settings, then start from Today.")).toBeVisible();
+      await expect(page.getByText("1 active", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("1 active groups", { exact: true })).toHaveCount(0);
       await page.getByRole("button", { name: "Focus /ʃ/" }).first().click();
       await expect(page.getByText("Focused group: 1 / 1")).toBeVisible();
       await expect(page.getByText("Entry focused practice for /ʃ/.")).toBeVisible();
@@ -652,7 +661,7 @@ test.describe("M10 UX walkthrough evidence", () => {
 
     await page.getByRole("button", { name: "Start Sound Compare" }).click();
     await expect(page.getByText("Sound Compare group: 1 / 2")).toBeVisible();
-    await expect(page.getByText("Compare words with easily confused sounds. This is specialty practice, not mistake review or weak-sound recovery.")).toBeVisible();
+    await expect(page.getByText("Compare words with easily confused sounds. This is separate from mistake review and weak-sound focus.")).toBeVisible();
     await expect(page.getByText("Current-group review:")).toHaveCount(0);
     await expect(page.getByText("Recent mistake review:")).toHaveCount(0);
     await expect(page.getByText("Focused group:")).toHaveCount(0);
@@ -693,9 +702,9 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("Practice group: 1 / 2")).toBeVisible();
       await page.getByRole("button", { name: "Settings" }).click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-      await expect(page.getByText("Choose the level for the next new normal group.")).toBeVisible();
-      await expect(page.getByRole("button", { name: /Mid\s+Broader word pool/ })).toBeVisible();
-      await page.getByRole("button", { name: /Mid\s+Broader word pool/ }).click();
+      await expect(page.getByText("Entry uses the starter word pool. Mid uses the larger intermediate word pool. This choice applies to the next new regular group; active groups stay unchanged.")).toBeVisible();
+      await expect(page.getByRole("button", { name: /Mid\s+Larger intermediate word pool/ })).toBeVisible();
+      await page.getByRole("button", { name: /Mid\s+Larger intermediate word pool/ }).click();
       await expect(page.getByText("Saved")).toBeVisible();
       await page.getByRole("button", { name: "Today", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Entry practice in progress" })).toBeVisible();
@@ -735,8 +744,11 @@ test.describe("M10 UX walkthrough evidence", () => {
       await attachScreenshot(page, "m10-mobile-settings");
       await page.getByRole("button", { name: "Progress" }).click();
       await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
-      await expect(page.getByText("start today's practice")).toBeVisible();
+      await expect(page.getByText("today's practice state")).toBeVisible();
+      await expect(page.getByText("Ready", { exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Sounds to revisit in Entry" })).toBeVisible();
+      await expect(page.getByText("1 active", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("1 active groups", { exact: true })).toHaveCount(0);
       await attachScreenshot(page, "m10-mobile-progress");
     });
   });
