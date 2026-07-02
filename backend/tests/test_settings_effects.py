@@ -121,3 +121,40 @@ def test_accent_compare_setting_controls_eligible_feedback(tmp_path, monkeypatch
     on = alice.post("/api/practice/next-normal").json()
     assert on["items"]
     assert on["items"][0]["accent_compare"]["comparison"]["accent"] == "UK"
+
+
+def test_daily_word_count_affects_next_new_group_without_reshaping_active_group(
+    tmp_path, monkeypatch
+):
+    _seed_db(tmp_path, monkeypatch)
+    alice = _login("alice", ALICE_PASSWORD)
+
+    first = alice.post("/api/practice/next-normal").json()
+    assert len(first["items"]) == 1
+
+    settings_resp = alice.put("/api/settings", json={"daily_word_count": 2})
+    assert settings_resp.status_code == 200
+    assert settings_resp.json()["daily_word_count"] == 2
+
+    resumed = alice.get("/api/today").json()
+    assert resumed["session_id"] == first["session_id"]
+    assert resumed["origin"] == "normal_resume"
+    assert resumed["word_count"] == 1
+    assert len(resumed["items"]) == 1
+
+    alice.post("/api/attempt", json={
+        "session_item_id": resumed["items"][0]["session_item_id"],
+        "selected_answer": resumed["items"][0]["display_ipa"],
+    })
+
+    idle = alice.get("/api/today").json()
+    assert idle["origin"] == "normal_empty"
+    assert idle["word_count"] == 0
+    assert idle["daily_word_count"] == 2
+
+    next_group = alice.post("/api/practice/next-normal").json()
+    assert next_group["group_id"] != first["group_id"]
+    assert next_group["origin"] == "normal_next"
+    assert next_group["resume_index"] == 0
+    assert next_group["word_count"] == 2
+    assert len(next_group["items"]) == 2

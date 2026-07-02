@@ -385,7 +385,8 @@
       "surface": "loading_error",
       "classification": "translatable",
       "source": "backend/app/routes/settings.py",
-      "current": "primary_accent must be one of ... / daily_word_count must be an integer between 1 and 50 / focus_phonemes must be a list of non-empty strings"
+      "current": "Enter a whole number from 1 to 50. Active practice groups stay unchanged; the next new regular group uses the saved setting.",
+      "notes": "Localized actionable Settings validation; raw backend SETTINGS_INVALID detail must not be displayed."
     },
     {
       "key": "error.settings.save_failed",
@@ -1187,7 +1188,7 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
-      "current": "Affects future regular practice groups only, and becomes visible when weak sounds or mistake history exist. Existing active groups stay unchanged.",
+      "current": "Affects future regular practice groups only; existing active groups stay unchanged. The difference is visible when weak sounds or mistake history exist.",
       "notes": "Clarifies the future-group and conditional-evidence boundary for #252 Settings review strength."
     },
     {
@@ -1199,6 +1200,14 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "settings.review_strength.extra_review.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Extra review: future regular groups give weak sounds or recent mistakes more priority when that evidence exists.",
+      "notes": "M12 #254 user-perceived review strength explanation."
+    },
+    {
       "key": "settings.review_strength.normal",
       "surface": "settings",
       "classification": "translatable",
@@ -1207,12 +1216,28 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "settings.review_strength.normal.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Standard: future regular groups keep a balanced mix of new words and weak-sound review.",
+      "notes": "M12 #254 user-perceived review strength explanation."
+    },
+    {
       "key": "settings.review_strength.quick",
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src",
       "current": "Quick",
       "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "settings.review_strength.quick.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Quick: future regular groups spend less room on weak or mistaken sounds for lighter practice.",
+      "notes": "M12 #254 user-perceived review strength explanation."
     },
     {
       "key": "settings.review_strength.title",
@@ -1280,7 +1305,7 @@
       "surface": "settings",
       "classification": "translatable",
       "source": "frontend/src/pages/SettingsPage.tsx",
-      "current": "Affects future regular groups only; active groups keep their existing item count.",
+      "current": "Save a whole number from 1 to 50. It affects future regular groups only; today's active group keeps its original item count.",
       "notes": "M12 #252 Settings effect explanation."
     },
     {
