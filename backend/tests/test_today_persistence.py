@@ -28,6 +28,7 @@ from app.services.db_store import (  # noqa: E402
     get_session_items,
     get_word_by_id,
 )
+from tests.auth_helpers import authenticated_client, bootstrap_owner_user  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -59,13 +60,14 @@ def seeded_db_fixture(tmp_path: Path) -> str:
 
     orig = db_mod.DEFAULT_DB_PATH
     db_mod.DEFAULT_DB_PATH = db_path
+    bootstrap_owner_user(db_path)
     yield db_path
     db_mod.DEFAULT_DB_PATH = orig
 
 
 @pytest.fixture(name="client")
 def client_fixture(seeded_db: str) -> TestClient:
-    return TestClient(app)
+    return authenticated_client(TestClient(app))
 
 
 @pytest.fixture(name="seeded_db_core_300")
@@ -83,13 +85,14 @@ def seeded_db_core_300_fixture(tmp_path: Path) -> str:
 
     orig = db_mod.DEFAULT_DB_PATH
     db_mod.DEFAULT_DB_PATH = db_path
+    bootstrap_owner_user(db_path)
     yield db_path
     db_mod.DEFAULT_DB_PATH = orig
 
 
 @pytest.fixture(name="core_300_client")
 def core_300_client_fixture(seeded_db_core_300: str) -> TestClient:
-    return TestClient(app)
+    return authenticated_client(TestClient(app))
 
 
 @pytest.fixture(name="seeded_db_entry_mid")
@@ -113,13 +116,14 @@ def seeded_db_entry_mid_fixture(tmp_path: Path) -> str:
 
     orig = db_mod.DEFAULT_DB_PATH
     db_mod.DEFAULT_DB_PATH = db_path
+    bootstrap_owner_user(db_path)
     yield db_path
     db_mod.DEFAULT_DB_PATH = orig
 
 
 @pytest.fixture(name="entry_mid_client")
 def entry_mid_client_fixture(seeded_db_entry_mid: str) -> TestClient:
-    return TestClient(app)
+    return authenticated_client(TestClient(app))
 
 
 # ---------------------------------------------------------------------------
@@ -1122,6 +1126,8 @@ class TestTodayPersistence:
         db_mod.DEFAULT_DB_PATH = db_path
         try:
             c = TestClient(app)
+            bootstrap_owner_user(db_path)
+            authenticated_client(c)
             resp = c.get("/api/today")
             assert resp.status_code == 200
             data = resp.json()

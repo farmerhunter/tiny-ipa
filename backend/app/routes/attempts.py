@@ -5,10 +5,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.auth_dependencies import require_current_user
 from app.db import get_db
-from app.models import Attempt
+from app.models import Attempt, User
 from app.services.db_store import (
     all_session_items_attempted,
     create_attempt,
@@ -29,7 +30,10 @@ def _now_iso() -> str:
 
 
 @router.post("/attempt")
-async def attempt(request: Request):
+async def attempt(
+    request: Request,
+    current_user: User = Depends(require_current_user),
+):
     """Submit a practice attempt for grading.
 
     Expects JSON body::
@@ -80,6 +84,11 @@ async def attempt(request: Request):
                 status_code=404,
                 detail={"error": "SESSION_NOT_FOUND", "detail": session_id},
             )
+        if session.user_id != current_user.id:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "ITEM_NOT_FOUND", "detail": session_item_id},
+            )
         if session.status == "completed":
             raise HTTPException(
                 status_code=400,
@@ -102,7 +111,7 @@ async def attempt(request: Request):
         timestamp = _now_iso()
         attempt_row = Attempt(
             id=str(uuid.uuid4()),
-            user_id="default",
+            user_id=current_user.id,
             session_item_id=session_item_id,
             word_id=item.word_id,
             primary_accent=session.primary_accent,
@@ -119,7 +128,7 @@ async def attempt(request: Request):
         # Update phoneme stats.
         updated_phonemes = update_phoneme_stats(
             conn,
-            user_id="default",
+            user_id=current_user.id,
             primary_accent=session.primary_accent,
             target_phonemes=item.target_phonemes,
             is_correct=is_correct,

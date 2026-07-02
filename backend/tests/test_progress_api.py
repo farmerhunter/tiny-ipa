@@ -20,6 +20,7 @@ from app.db import get_connection  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services.db_schema import init_db  # noqa: E402
 from app.services.progress import build_progress_response  # noqa: E402
+from tests.auth_helpers import authenticated_client, bootstrap_owner_user  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CONTENT_SAMPLE = FIXTURES / "content_sample.json"
@@ -39,13 +40,14 @@ def seeded_db_fixture(tmp_path: Path) -> str:
     import app.db as db_mod
     orig = db_mod.DEFAULT_DB_PATH
     db_mod.DEFAULT_DB_PATH = db_path
+    bootstrap_owner_user(db_path)
     yield db_path
     db_mod.DEFAULT_DB_PATH = orig
 
 
 @pytest.fixture(name="client")
 def client_fixture(seeded_db: str) -> TestClient:
-    return TestClient(app)
+    return authenticated_client(TestClient(app))
 
 
 # ---------------------------------------------------------------------------
@@ -190,6 +192,8 @@ class TestProgressApi:
         db_mod.DEFAULT_DB_PATH = db_path
         try:
             c = TestClient(app)
+            bootstrap_owner_user(db_path)
+            authenticated_client(c)
             resp = c.get("/api/progress")
             assert resp.status_code == 200
             data = resp.json()
