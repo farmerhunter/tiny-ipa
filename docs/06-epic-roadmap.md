@@ -17,8 +17,8 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M8 Level-based Content Expansion and Core 1000 Rebalance | #108 | Done |
 | M9 UK Accent Compare and Specialty Practice | #28 | Done |
 | M10 UX Research and Practice Experience Optimization | #102 | Done |
-| M11 Localization and Configurable UI Language | #209 | Planning |
-| M12 Minimal Auth and Multi-user Data Isolation | #210 | Planning |
+| M11 Localization and Configurable UI Language | #209 | Done |
+| M12 Minimal Auth and Multi-user Data Isolation | #210 | Ready for decomposition |
 | M13 VPS Deployment and Backup | #27 | Blocked |
 | M14 Account Management and Admin UX | #212 | Backlog / Deferred |
 
@@ -372,20 +372,27 @@ deployment harden the user boundary.
 Roadmap status:
 
 ```text
-Planning. Epic #209 has been created as the next roadmap stage, but child
-issues are not planned or released yet.
+Done. Epic #209 closed after the accepted localization contract, configurable
+UI language setting, zh-CN/en-US locale resources, broad learner-facing copy
+extraction, bilingual walkthrough evidence, user-facing readiness trial, and
+final integration PR were completed and merged to main.
 ```
 
-Expected child issue areas:
+Completed child issue sequence:
 
 ```text
-UI language contract and learner-facing copy inventory
-zh-CN and en-US locale resource structure
-settings/API support for configurable UI language
-frontend copy extraction across Today, Practice, Progress, Settings, audio,
-review/focus, and error states
-mobile text-fit and walkthrough evidence for both languages
-final localization readiness review and user-facing trial note
+#213 UI language contract and copy inventory
+#214 Settings API and UI language selector
+#215 Locale resources and missing-key behavior
+#216 Extract frontend copy across learner workflows
+#217 Bilingual mobile walkthrough and text-fit evidence
+#218 Localization readiness review and user-facing trial note
+#224 Fix zh-CN visible text leaks and placeholder rendering
+#226 Progress UI semantics and action affordance
+#228 Today/Progress/Settings state consistency E2E
+#231 Clarify learner levels and resume practice at breakpoint
+#233 Start next group after completion must create a new normal group
+Final integration: PR #236
 ```
 
 Acceptance:
@@ -432,8 +439,8 @@ personal VPS deployment exposes Tiny IPA beyond a single local default user.
 Roadmap status:
 
 ```text
-Planning. Epic #210 has been created after #209 and before #27. Child issues are
-not planned or released yet.
+Ready for Architect decomposition. Epic #210 is the next active roadmap gate
+after #209. Child issues are not planned or released yet.
 ```
 
 Expected child issue areas:
