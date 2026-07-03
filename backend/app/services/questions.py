@@ -1,11 +1,7 @@
-"""Question generation for practice items.
-
-For each session item, generates a ``choose_ipa`` question with the correct
-IPA and plausible distractors drawn from other words.
-"""
+"""Question generation for practice items."""
 
 import random
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app.models import Word
 
@@ -15,36 +11,73 @@ def generate_question(
     accent: str = "US",
     *,
     distractor_pool: Optional[List[str]] = None,
+    question_type: str = "choose_ipa",
     seed: Optional[int] = None,
 ) -> dict:
-    """Build a ``choose_ipa`` question dict for a word.
+    """Build a question dict for a word using the persisted question type."""
+    if question_type == "choose_word":
+        return _generate_choose_word_question(
+            word,
+            accent=accent,
+            distractor_pool=distractor_pool,
+            seed=seed,
+        )
+    if question_type == "choose_ipa":
+        return _generate_choose_ipa_question(
+            word,
+            accent=accent,
+            distractor_pool=distractor_pool,
+            seed=seed,
+        )
+    raise ValueError(f"Unsupported question_type: {question_type}")
 
-    Args:
-        word: The target word (must have ipa_us for accent="US").
-        accent: "US" or "UK" — which IPA to use as the correct answer.
-        distractor_pool: Pre-built pool of IPA strings to draw distractors
-                         from. If omitted, no distractors are generated and
-                         a placeholder is used (caller should supply a pool
-                         for real use).
-        seed: Shuffle seed so the same word gets the same choices on repeat
-              calls.
 
-    Returns:
-        A question dict matching the API contract:
-        ``{"type": "choose_ipa", "prompt": "...", "choices": [...]}``
-    """
-    correct = word.ipa_us if accent.upper() == "US" else (word.ipa_uk or word.ipa_us)
+def _active_ipa(word: Word, accent: str) -> str:
+    return word.ipa_us if accent.upper() == "US" else (word.ipa_uk or word.ipa_us)
 
+
+def _shuffled_choices(
+    correct: str,
+    distractor_pool: Optional[List[str]],
+    seed: Optional[int],
+) -> list[str]:
     choices = [correct]
-    if distractor_pool:
-        rng = random.Random(seed)
-        candidates = [ipa for ipa in distractor_pool if ipa != correct]
-        rng.shuffle(candidates)
-        choices.extend(candidates[:3])
-        rng.shuffle(choices)
+    if not distractor_pool:
+        return choices
 
+    rng = random.Random(seed)
+    candidates = [value for value in distractor_pool if value and value != correct]
+    rng.shuffle(candidates)
+    choices.extend(candidates[:3])
+    rng.shuffle(choices)
+    return choices
+
+
+def _generate_choose_ipa_question(
+    word: Word,
+    accent: str,
+    *,
+    distractor_pool: Optional[List[str]],
+    seed: Optional[int],
+) -> dict:
+    correct = _active_ipa(word, accent)
     return {
         "type": "choose_ipa",
         "prompt": "Which IPA matches this word?",
-        "choices": choices,
+        "choices": _shuffled_choices(correct, distractor_pool, seed),
+    }
+
+
+def _generate_choose_word_question(
+    word: Word,
+    accent: str,
+    *,
+    distractor_pool: Optional[List[str]],
+    seed: Optional[int],
+) -> dict:
+    return {
+        "type": "choose_word",
+        "prompt": "Which word matches this IPA?",
+        "display_ipa": _active_ipa(word, accent),
+        "choices": _shuffled_choices(word.word, distractor_pool, seed),
     }

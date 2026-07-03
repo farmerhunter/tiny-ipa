@@ -1,29 +1,16 @@
-"""Server-side grading for practice attempts.
-
-Compares the user's selected answer against the correct IPA for the
-session item's word and accent. The correct answer is determined from
-the database, not trusted from the client request.
-"""
+"""Server-side grading for practice attempts."""
 
 from __future__ import annotations
-
-import sqlite3
-from typing import Optional
 
 from app.models import SessionItem, Word
 
 
 def determine_correct_answer(item: SessionItem, word: Word, accent: str = "US") -> str:
-    """Return the correct IPA string for a session item.
-
-    Args:
-        item: The session item being answered.
-        word: The corresponding word row.
-        accent: "US" or "UK".
-
-    Returns:
-        The IPA string the user should match, e.g. "/ʃɪp/".
-    """
+    """Return the server-side canonical answer for a session item."""
+    if item.question_type == "choose_word":
+        return word.word
+    if item.question_type != "choose_ipa":
+        raise ValueError(f"Unsupported question_type: {item.question_type}")
     if accent.upper() == "UK" and word.ipa_uk:
         return word.ipa_uk
     return word.ipa_us
