@@ -855,9 +855,7 @@ def _select_minimal_pair_words(
 ) -> list:
     ipa_field = "ipa_us" if accent == "US" else "ipa_uk"
     tags_field = "phoneme_tags_us" if accent == "US" else "phoneme_tags_uk"
-    level_values = (
-        ["entry", "beginner"] if learner_level == "entry" else [learner_level]
-    )
+    level_values = _level_values(learner_level)
     level_placeholders = ", ".join("?" for _ in level_values)
     rows = conn.execute(
         f"""
@@ -894,7 +892,11 @@ def _select_minimal_pair_words(
 
 
 def _level_values(learner_level: str) -> list[str]:
-    return ["entry", "beginner"] if learner_level == "entry" else [learner_level]
+    if learner_level == "entry":
+        return ["entry", "beginner"]
+    if learner_level == "mid":
+        return ["mid", "intermediate"]
+    return [learner_level]
 
 
 def _target_phoneme_options(
