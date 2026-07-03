@@ -63,6 +63,7 @@ def test_choose_word_setting_creates_word_choice_normal_group(tmp_path, monkeypa
     assert item["question"]["display_ipa"] == item["display_ipa"]
     assert item["word"] in item["question"]["choices"]
     assert item["display_ipa"] not in item["question"]["choices"]
+    assert set(item["question"]["choices"]) == {"ship", "sheep", "cat"}
     conn = get_connection(db_path)
     row = conn.execute(
         "SELECT question_type FROM session_items WHERE id = ?",

@@ -23,10 +23,12 @@ from app.services.db_store import (
     get_session_items,
     get_settings,
     get_word_by_id,
+    list_words_for_level,
     mark_session_abandoned,
     mark_session_completed,
     upsert_settings,
 )
+from app.services.distractors import choose_word_distractors
 from app.services.questions import generate_question
 from app.services.scheduler import select_daily_words
 
@@ -1094,18 +1096,6 @@ def _build_distractor_pool(conn, accent: str) -> List[str]:
     return [r[0] for r in rows if r[0]]
 
 
-def _build_word_distractor_pool(conn) -> List[str]:
-    """Collect word strings from the words table for choose_word choices."""
-    rows = conn.execute(
-        """
-        SELECT DISTINCT word FROM words
-        WHERE word IS NOT NULL AND word != '' AND content_status != 'disabled'
-        LIMIT 200
-        """
-    ).fetchall()
-    return [r[0] for r in rows if r[0]]
-
-
 def _normal_question_type(practice_mode: str) -> str:
     return "choose_word" if practice_mode == "choose_word" else "choose_ipa"
 
@@ -1253,7 +1243,11 @@ def _build_response(
     show_accent_compare = bool(settings and settings.show_accent_compare)
     show_translation = bool(settings.show_translation) if settings is not None else True
     ipa_distractor_pool = _build_distractor_pool(conn, accent)
-    word_distractor_pool = _build_word_distractor_pool(conn)
+    word_distractor_candidates = list_words_for_level(
+        conn,
+        session.learner_level,
+        accent=accent,
+    )
     latest_attempts = get_latest_attempts_for_session_items(
         conn,
         [item.id for item in items],
@@ -1273,7 +1267,15 @@ def _build_response(
             word,
             accent=accent,
             distractor_pool=(
-                word_distractor_pool
+                [
+                    candidate.word.word
+                    for candidate in choose_word_distractors(
+                        word,
+                        word_distractor_candidates,
+                        accent=accent,
+                        seed=_stable_hash(item.id),
+                    )
+                ]
                 if item.question_type == "choose_word"
                 else ipa_distractor_pool
             ),
