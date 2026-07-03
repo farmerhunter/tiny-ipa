@@ -18,9 +18,10 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M9 UK Accent Compare and Specialty Practice | #28 | Done |
 | M10 UX Research and Practice Experience Optimization | #102 | Done |
 | M11 Localization and Configurable UI Language | #209 | Done |
-| M12 Minimal Auth and Multi-user Data Isolation | #210 | Ready for decomposition |
-| M13 VPS Deployment and Backup | #27 | Blocked |
-| M14 Account Management and Admin UX | #212 | Backlog / Deferred |
+| M12 Minimal Auth and Multi-user Data Isolation | #210 | Done |
+| M13 Expand Practice Modes: Choose Word and Type Word | #256 | Planning |
+| M14 VPS Deployment and Backup | #27 | Blocked |
+| M15 Account Management and Admin UX | #212 | Backlog / Deferred |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -439,8 +440,7 @@ personal VPS deployment exposes Tiny IPA beyond a single local default user.
 Roadmap status:
 
 ```text
-Decomposed. #238 is the released P0 contract/test-matrix issue. #239 through
-#244 remain dependency-gated until #238 is reviewed and accepted.
+Done. M12 was accepted and merged to main after the auth/data-boundary trial.
 ```
 
 Expected child issue areas:
@@ -494,17 +494,80 @@ Depends on: #209 for localization/copy boundary before learner-facing auth UI wo
 Completion handoff: batch checkpoint
 ```
 
-## M13：VPS Deployment and Backup
+## M13：Expand Practice Modes: Choose Word and Type Word
+
+Goal: expand Tiny IPA beyond the current word-to-IPA multiple-choice loop while
+preserving the existing `choose_ipa` baseline and shared phoneme progress signal.
+
+Roadmap status:
+
+```text
+Planning. Epic #256 has been promoted from roadmap candidate to M13. It should
+be decomposed by Architect before any Implementer work is released.
+```
+
+Recommended implementation sequence:
+
+```text
+question contract design and tests for choose_ipa, choose_word, and future type_word
+backend choose_word generation and grading through the existing /api/attempt path
+runtime distractor scorer and quality report for sparse phoneme buckets
+frontend practice question renderer generalized beyond IPA-choice-only copy
+mode-selection UX decision for selectable, mixed, or special practice groups
+real-backend walkthrough across Entry/Mid, review/focus boundaries, and stats continuity
+later type_word challenge mode with accepted-answer and same-IPA ambiguity handling
+```
+
+Acceptance:
+
+```text
+choose_ipa remains the compatibility baseline
+choose_word can show IPA and grade the matching word without bypassing server grading
+phoneme_stats continues to update from target phonemes across supported modes
+distractors avoid exact same IPA unless multiple correct answers are explicitly supported
+question-specific feedback copy is localized and clear on mobile
+review/focus mode behavior is explicitly contracted before release
+type_word is hidden or deferred until accepted answers and homophone ambiguity are handled
+```
+
+Boundaries:
+
+```text
+do not rewrite the content taxonomy, scheduler, or grading model as part of the placeholder
+do not mutate source content, meaning_zh, or minimal_pair_group data without a child contract
+do not release type_word as a production mode without accepted-answer semantics
+do not mix deployment, account/admin, or VPS runtime changes into this Epic
+```
+
+Execution contract:
+
+```text
+Branch strategy: epic integration branch, to be created during decomposition
+Integration branch: epic/m13-practice-modes
+Base branch: epic/m13-practice-modes
+Target PR base: epic/m13-practice-modes
+Final PR target: main
+Owner role: architect for planning/decomposition; implementer per child issue
+Review role: reviewer for implementation PRs and real-backend walkthrough evidence
+Acceptance role: architect / user for practice-mode UX and readiness acceptance
+Depends on: #210
+Completion handoff: child issue decomposition before Implementer release
+Merge rule: child PRs merge into the Epic integration branch after verification/review/acceptance; final main integration remains gated by human trial and explicit approval
+Verification required: backend contract tests, frontend walkthroughs, real-backend state-chain evidence, locale/copy inventory, tools/agents/agent-audit
+```
+
+## M14：VPS Deployment and Backup
 
 Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 
 Roadmap status:
 
 ```text
-Blocked. Epic #27 has moved after #209 Localization and #210 Minimal Auth /
-Multi-user Data Isolation. It should not be decomposed or released to
-Implementer until those prerequisites define the language, current-user,
-auth-secret, session-cookie, and user-data backup boundaries.
+Blocked. Epic #27 has moved after #209 Localization, #210 Minimal Auth /
+Multi-user Data Isolation, and #256 Expand Practice Modes. It should not be
+decomposed or released to Implementer until those prerequisites define the
+language, current-user, auth-secret, session-cookie, user-data backup, and
+practice-mode readiness boundaries.
 ```
 
 Expected child issue areas:
@@ -539,7 +602,7 @@ do not mutate real SQLite data, secrets, DNS, VPS runtime, or deployment config
 without explicit Human approval
 ```
 
-## M14：Account Management and Admin UX
+## M15：Account Management and Admin UX
 
 Goal: preserve broader account and admin UX ideas as a deferred post-deploy
 roadmap placeholder, without mixing them into minimal auth or deployment.
@@ -570,7 +633,7 @@ OAuth or social login
 family/teacher dashboard
 complex role matrix
 production account recovery service
-account/admin implementation code in M11, M12, or M13
+account/admin implementation code in M11, M12, M13, or M14
 ```
 
 Execution contract:
@@ -580,7 +643,7 @@ Branch strategy: not released; future decomposition required
 Owner role: architect for future product/UX scoping
 Review role: reviewer only after future child issues exist
 Acceptance role: architect / user for future account/admin product decision
-Depends on: #209, #210, and #27
+Depends on: #209, #210, #256, and #27
 Completion handoff: hold
 Merge rule: no implementation PRs until this Epic is explicitly reactivated
 Verification required: future scope-specific verification to be defined during decomposition

@@ -14,19 +14,23 @@ Runtime Data
 
 源内容是事实来源。SQLite 可以删除重建，但用户学习记录需要备份。
 
-## Localization and Current-user Roadmap Boundary
+## Pre-deployment Roadmap Boundary
 
-M11 and M12 insert two prerequisites before deployment:
+M11 through M13 insert prerequisites before deployment:
 
 ```text
 M11 Localization and Configurable UI Language (#209)
 M12 Minimal Auth and Multi-user Data Isolation (#210)
+M13 Expand Practice Modes: Choose Word and Type Word (#256)
 ```
 
 Localization is a UI/runtime contract. It should make learner-facing copy
 configurable without changing IPA/content/grading semantics. Auth is a runtime
 identity contract. It should make existing `user_id` fields meaningful before
-the app is exposed through VPS deployment.
+the app is exposed through VPS deployment. Practice-mode expansion is a
+question/grading contract. It should make supported question types explicit
+before deployment documentation and backup/readiness expectations become the
+next roadmap focus.
 
 These Epics must preserve the existing content boundary:
 
