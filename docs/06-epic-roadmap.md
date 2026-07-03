@@ -18,9 +18,10 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M9 UK Accent Compare and Specialty Practice | #28 | Done |
 | M10 UX Research and Practice Experience Optimization | #102 | Done |
 | M11 Localization and Configurable UI Language | #209 | Done |
-| M12 Minimal Auth and Multi-user Data Isolation | #210 | Ready for decomposition |
-| M13 VPS Deployment and Backup | #27 | Blocked |
-| M14 Account Management and Admin UX | #212 | Backlog / Deferred |
+| M12 Minimal Auth and Multi-user Data Isolation | #210 | Done |
+| M13 Expand Practice Modes: Choose Word and Type Word | #256 | Done |
+| M14 VPS Deployment and Backup | #27 | Blocked / Planning |
+| M15 Account Management and Admin UX | #212 | Backlog / Deferred |
 
 ## M0：Feasibility and Architecture Skeleton
 
@@ -439,8 +440,10 @@ personal VPS deployment exposes Tiny IPA beyond a single local default user.
 Roadmap status:
 
 ```text
-Decomposed. #238 is the released P0 contract/test-matrix issue. #239 through
-#244 remain dependency-gated until #238 is reviewed and accepted.
+Done. M12 has been merged to main. Minimal personal-VPS auth, current-user
+resolution, per-user data isolation, localized auth UX, default-owner dry-run
+guidance, and M12 readiness evidence are complete for the M14 deployment
+prerequisite boundary.
 ```
 
 Expected child issue areas:
@@ -494,28 +497,73 @@ Depends on: #209 for localization/copy boundary before learner-facing auth UI wo
 Completion handoff: batch checkpoint
 ```
 
-## M13：VPS Deployment and Backup
+## M13：Expand Practice Modes: Choose Word and Type Word
+
+Goal: expand practice beyond the original Word-to-IPA loop while keeping answer
+grading, distractor quality, and mode-specific UX safe.
+
+Roadmap status:
+
+```text
+Done. M13 has been merged to main. Word-to-IPA remains the default safe mode.
+IPA-to-word is available for newly created regular groups. Type-word remains
+unlaunched behind its accepted-answer contract.
+```
+
+Accepted scope:
+
+```text
+question-mode API contract for choose_ipa, choose_word, and deferred type_word
+server-side choose_word generation and grading
+runtime choose_word distractor scorer and quality report
+generic frontend renderer for choose_ipa and choose_word
+Settings mode selector and Today current/pending mode state
+route-mocked and real-backend M13 walkthrough evidence
+```
+
+Acceptance:
+
+```text
+Word-to-IPA remains compatible and default
+IPA-to-word shows IPA first and word choices
+choose_word does not leak the target word, meaning, or audio before submit
+active normal groups keep their original mode when Settings changes mid-group
+next newly created normal group uses the selected mode
+review/focus/specialty practice remain Word-to-IPA for this slice
+Type-word is not visible or launched
+```
+
+Boundaries:
+
+```text
+do not launch Type-word until a future implementation contract is accepted
+do not mutate source content, meaning_zh, or content taxonomy under practice modes
+do not fold deployment, account/admin UX, or runtime config changes into this Epic
+```
+
+## M14：VPS Deployment and Backup
 
 Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 
 Roadmap status:
 
 ```text
-Blocked. Epic #27 has moved after #209 Localization and #210 Minimal Auth /
-Multi-user Data Isolation. It should not be decomposed or released to
-Implementer until those prerequisites define the language, current-user,
-auth-secret, session-cookie, and user-data backup boundaries.
+Blocked / planning. Epic #27 has moved after M11 Localization, M12 Minimal Auth,
+and M13 Practice Modes. It may now be decomposed by Architect, but no real VPS,
+DNS, secret, deployment config, or private SQLite mutation is authorized without
+an explicit Human gate.
 ```
 
 Expected child issue areas:
 
 ```text
-Nginx
-HTTPS
-systemd backend service
-frontend build deployment
-SQLite backup and restore
-deployment.md
+deployment target/runtime config contract
+production auth/origin/CORS/secret hardening
+VPS install and systemd service runbook
+frontend build and reverse-proxy routing
+SQLite backup and restore dry-run verification
+deployment smoke checks and rollback checklist
+M14 readiness review and human deployment gate
 ```
 
 Acceptance:
@@ -539,7 +587,7 @@ do not mutate real SQLite data, secrets, DNS, VPS runtime, or deployment config
 without explicit Human approval
 ```
 
-## M14：Account Management and Admin UX
+## M15：Account Management and Admin UX
 
 Goal: preserve broader account and admin UX ideas as a deferred post-deploy
 roadmap placeholder, without mixing them into minimal auth or deployment.
