@@ -763,16 +763,80 @@ question explicitly supports multiple correct answers. This keeps a learner
 from seeing two visually different words that are both correct for the same
 displayed IPA.
 
-`type_word` is deferred because same-IPA and homophone answers require fairness
-rules before production release. Examples include `new` / `knew`, `sun` /
-`son`, and `see` / `sea`. A future `type_word` contract must define:
+`type_word` remains gated for production until accepted answers are generated
+and persisted by the backend. The first safe implementation path is not
+"compare the typed string with `word.word`"; it is "compare the normalized typed
+string with a server-side accepted-answer snapshot for the session item."
+
+Current content already has same-IPA and spelling-variant ambiguity. A
+2026-07-03 probe over `content/core_300_words.json` and
+`content/core_1000_words.json` found:
+
+| Scope | US exact same-IPA groups | UK exact same-IPA groups | Examples |
+| --- | ---: | ---: | --- |
+| Same learner level | 11 | 7 | `knew` / `new`, `buy` / `bye`, `see` / `sea`, `ads` / `adds`, `color` / `colour`, `favor` / `favour`, `honor` / `honour`, `labor` / `labour` |
+| Cross learner level | 3 | 2 | Entry `sun` / Mid `son`, Entry `new` / Mid `new`, Entry `feb` / `february` / Mid `february` |
+
+Legacy ambiguity examples include `new` / `knew`, `sun` / `son`, and `see` /
+`sea`. The spelling variant policy must be explicit before `type_word` can move
+from contract fixture to learner-facing runtime.
+
+Because learners may type a valid homophone or spelling variant that is not the
+target row, a future `type_word` implementation must add explicit accepted
+answers before exposure. The accepted-answer snapshot must be created
+server-side when the session item is created or first materialized, and it must
+be stable for grading and feedback even if content files change later.
+
+Minimal safe `type_word` contract for a follow-up implementation:
 
 ```text
-accepted_answers source
-normalization rules
-spelling variant policy
-same-IPA exclusion or multi-answer policy
-feedback copy for alternate accepted answers
+accepted_answers source:
+  - canonical target word
+  - all enabled runtime words sharing the active-accent IPA
+  - explicit spelling variants or aliases if a future curation file adds them
+  - no frontend-provided answers
+
+accepted_answers storage:
+  - persisted session-item answer metadata or persisted question payload
+  - response may expose display-safe accepted answer labels only after grading
+  - /api/attempt must grade against the persisted snapshot
+
+normalization rules:
+  - Unicode NFKC normalization
+  - trim leading/trailing whitespace
+  - collapse repeated internal whitespace
+  - case-insensitive comparison
+  - normalize curly apostrophes to ASCII apostrophe
+  - strip surrounding sentence punctuation such as ., ,, !, ?
+  - hyphen/space variants and omitted apostrophes are accepted only when an
+    explicit accepted-answer entry or generated alias exists
+  - no fuzzy typo matching in the MVP
+
+same-IPA behavior:
+  - if typed answer matches any accepted answer, mark correct
+  - if it matches an accepted alternate, feedback says the typed answer is also
+    accepted for this IPA and shows the target word separately
+  - if same-IPA accepted answers are unavailable, exclude that row from
+    type_word candidate generation rather than marking homophones wrong
+
+feedback copy:
+  - exact target: "Correct."
+  - accepted alternate: "Accepted: {typedAnswer} also matches this IPA. Target
+    word: {targetWord}."
+  - incorrect: "Not quite. You typed {typedAnswer}. Accepted answer:
+    {targetWord}."
+  - ambiguous unavailable: "This IPA has multiple valid spellings, so this item
+    is not used for typed-answer practice yet."
+  - partial mismatch: no "almost" or edit-distance hint until a later contract
+    defines typo tolerance
+
+launch recommendation:
+  - no production type_word exposure in the current M13 MVP
+  - safe follow-up may implement normal-only type_word behind an explicit
+    challenge-mode selector after accepted-answer metadata, row exclusion, and
+    feedback copy tests are accepted
+  - review, focus, and specialty groups stay non-typed until separate
+    walkthrough evidence accepts those flows
 ```
 
 Until then, `type_word` may appear only in docs/test fixtures that assert it is
