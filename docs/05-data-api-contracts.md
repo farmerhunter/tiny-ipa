@@ -669,6 +669,188 @@ Active group response 返回领域摘要，不返回原始调度内部状态：
 
 推荐服务端判题，不在生产响应中返回 `answer`。
 
+## M13 practice question contract
+
+M13 expands practice question modes without changing the authoritative
+session/attempt/statistics path. `choose_ipa` remains the compatibility
+baseline. `choose_word` is the first reverse-recognition expansion. `type_word`
+is deferred until accepted-answer and same-IPA ambiguity semantics are accepted.
+
+The backend is authoritative for question generation and grading. The frontend
+renders the discriminated `question` payload, submits `selected_answer` to
+`POST /api/attempt`, and never decides correctness from local prompt text.
+`phoneme_stats` continuity is preserved across supported modes: attempts update
+stats from the session item's persisted `target_phonemes`, not from the
+frontend-visible answer string.
+
+### Question mode taxonomy
+
+| `question.type` | Prompt surface | Choice/input surface | Correct-answer representation | Launch status |
+| --- | --- | --- | --- | --- |
+| `choose_ipa` | Show `word`, optional `meaning_zh`, audio, and target copy. | Multiple IPA choices. | IPA string for the active accent, e.g. `word.ipa_us` for US sessions. | Existing compatibility baseline. |
+| `choose_word` | Show IPA for the active accent plus question-specific prompt copy. | Multiple word choices. | Canonical `word.word` string for the target row. | First M13 implementation slice after this contract is accepted. |
+| `type_word` | Show IPA for the active accent plus typed-answer instructions. | Text input. | Accepted-answer set, not a single frontend string. | Deferred; not production-visible until same-IPA/homophone policy is implemented. |
+
+`choose_ipa` payload remains backward-compatible:
+
+```json
+{
+  "type": "choose_ipa",
+  "prompt": "Which IPA matches this word?",
+  "choices": ["/ʃɪp/", "/ʃiːp/", "/sɪp/"]
+}
+```
+
+`choose_word` uses the same multiple-choice renderer boundary but reverses the
+prompt and answers:
+
+```json
+{
+  "type": "choose_word",
+  "prompt": "Which word matches this IPA?",
+  "display_ipa": "/ʃɪp/",
+  "choices": ["ship", "sheep", "sip", "chip"]
+}
+```
+
+For `choose_word`, choices are learner-facing word strings, but grading still
+looks up the persisted `session_item_id`, `question_type`, word row, and active
+accent server-side. The client-submitted `selected_answer` is an answer token,
+not proof of correctness.
+
+`type_word` must not share the `choose_word` grading path until it has an
+accepted-answer contract:
+
+```json
+{
+  "type": "type_word",
+  "prompt": "Type the word that matches this IPA.",
+  "display_ipa": "/ˈnju/",
+  "input": {"kind": "text", "autocapitalize": "none"}
+}
+```
+
+### `/api/attempt` grading boundary
+
+`POST /api/attempt` remains the only production grading endpoint for practice
+answers. The request shape stays stable:
+
+```json
+{
+  "session_item_id": "item_001",
+  "selected_answer": "ship"
+}
+```
+
+Server grading dispatches by persisted `session_items.question_type`:
+
+```text
+choose_ipa   -> compare selected IPA token with active-accent IPA
+choose_word  -> compare selected word token with target word row
+type_word    -> deferred; compare normalized input against accepted answers
+```
+
+The response continues to return `is_correct`, `correct_answer`, and
+`updated_phonemes`. `correct_answer` is the server-side canonical answer for
+feedback, not a value trusted from the client. Unsupported `question_type`
+values fail closed with `INVALID_ATTEMPT` or an equivalent stable structured
+attempt error; they must not silently grade as `choose_ipa`.
+
+### Same-IPA and homophone policy
+
+`choose_word` distractors should avoid exact same active-accent IPA unless the
+question explicitly supports multiple correct answers. This keeps a learner
+from seeing two visually different words that are both correct for the same
+displayed IPA.
+
+`type_word` is deferred because same-IPA and homophone answers require fairness
+rules before production release. Examples include `new` / `knew`, `sun` /
+`son`, and `see` / `sea`. A future `type_word` contract must define:
+
+```text
+accepted_answers source
+normalization rules
+spelling variant policy
+same-IPA exclusion or multi-answer policy
+feedback copy for alternate accepted answers
+```
+
+Until then, `type_word` may appear only in docs/test fixtures that assert it is
+deferred or fail-closed; it must not be exposed as a learner-selectable runtime
+mode.
+
+### Review and focus behavior for the first M13 slice
+
+The first implementation slice should keep review/focus behavior conservative:
+
+```text
+normal groups      -> may use selected supported question mode once implemented
+mistake_review     -> stays choose_ipa until choose_word review semantics are accepted
+weak_focus         -> stays choose_ipa until choose_word focus semantics are accepted
+minimal/sound compare -> unchanged specialty behavior
+```
+
+This avoids mixing reverse-recognition distractor quality questions into
+current-group review, recent-mistake review, and weak-focus recovery before
+normal `choose_word` has backend/frontend evidence. If a later child issue wants
+review/focus to inherit the selected question mode, it must update this contract
+and provide route-mocked plus real-backend walkthrough evidence.
+
+### API and frontend renderer boundary
+
+The API shape is a discriminated question payload keyed by `question.type`.
+Shared item fields remain outside the question object:
+
+```text
+TodayItem.word
+TodayItem.display_ipa
+TodayItem.meaning_zh
+TodayItem.audio_url
+TodayItem.target_phonemes
+TodayItem.question
+```
+
+Frontend rendering should branch on `question.type`, not infer mode from prompt
+strings. `choose_ipa` and `choose_word` may share a generic multiple-choice
+renderer only if labels, accessible names, feedback copy, and selected-answer
+tokens stay mode-aware. `type_word` requires a separate text-input renderer and
+must stay hidden until accepted-answer semantics are complete.
+
+Question-specific localization must use dedicated prompt/feedback keys, for
+example:
+
+```text
+practice.question.prompt.choose_ipa
+practice.question.prompt.choose_word
+practice.question.prompt.type_word
+practice.feedback.correct_answer.ipa
+practice.feedback.correct_answer.word
+```
+
+Mobile text-fit expectations:
+
+- prompt copy must fit within the practice card without relying on raw enum
+  values;
+- choice buttons may contain IPA or word strings, but labels must not overflow
+  the mobile viewport;
+- feedback must name what the learner selected and what the server accepted in
+  mode-specific terms;
+- unresolved localization placeholders are blocker failures for M13 UI work.
+
+### M13 test matrix
+
+Later M13 child issues should reuse this matrix instead of redefining question
+semantics:
+
+| Issue | Required evidence |
+| --- | --- |
+| #261 backend choose-word generation/grading | Unit/integration tests for `choose_ipa` compatibility, `choose_word` payload generation, `/api/attempt` grading dispatch, fail-closed unknown `question_type`, and `phoneme_stats` updates from `target_phonemes`. |
+| #260 distractor scorer/report | Deterministic scorer tests and quality report evidence that `choose_word` distractors avoid exact same active-accent IPA unless a future multi-answer policy exists. |
+| #259 frontend generic renderer | Component/E2E tests for discriminated rendering, accessible choice labels, localized prompt/feedback copy, mobile text fit, and no `type_word` production exposure. |
+| #262 mode selection workflow | Route-mocked and real-backend walkthroughs for normal `choose_word` entry, active group resume, Settings/Today/Progress copy, review/focus remaining `choose_ipa`, and stats continuity. |
+| #264 type-word accepted-answer contract | Contract-only evidence for accepted answers, normalization, homophones, spelling variants, fail-closed unsupported runtime exposure, and future walkthrough criteria. |
+| #263 readiness review | User-facing summary, residual distractor/type-word risks, route-mocked and real-backend evidence, and final human-gated main integration decision. |
+
 ### Next normal group
 
 ```http
