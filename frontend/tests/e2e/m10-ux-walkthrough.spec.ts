@@ -580,7 +580,9 @@ test.describe("M10 UX walkthrough evidence", () => {
       await expect(page.getByText("Today practice hub")).toBeVisible();
       await expect(page.getByRole("heading", { name: "Start Entry practice" })).toBeVisible();
       await expect(page.getByText("Ready when you are")).toBeVisible();
-      await expect(page.getByText("A short listening group is ready.")).toBeVisible();
+      await expect(page.getByText(/A short regular group is ready\./)).toBeVisible();
+      await expect(page.getByText("Read the English word, then choose the matching IPA.")).toBeVisible();
+      await expect(page.getByText("Word to IPA")).toBeVisible();
       await expect(page.getByRole("button", { name: "Start Entry group" })).toBeVisible();
       await expect(page.getByRole("button", { name: "No older mistakes to review" })).toBeDisabled();
       await expect(page.getByRole("button", { name: "End this group and start fresh Entry" })).toHaveCount(0);

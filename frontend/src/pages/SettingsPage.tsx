@@ -52,6 +52,25 @@ const UI_LANGUAGE_OPTIONS: Array<{
   { value: "en-US", labelKey: "settings.ui_language.en_us" },
 ];
 
+const PRACTICE_MODE_OPTIONS: Array<{
+  value: "ipa_first" | "choose_word";
+  titleKey: "settings.practice_mode.ipa_first.title" | "settings.practice_mode.choose_word.title";
+  descriptionKey:
+    | "settings.practice_mode.ipa_first.description"
+    | "settings.practice_mode.choose_word.description";
+}> = [
+  {
+    value: "ipa_first",
+    titleKey: "settings.practice_mode.ipa_first.title",
+    descriptionKey: "settings.practice_mode.ipa_first.description",
+  },
+  {
+    value: "choose_word",
+    titleKey: "settings.practice_mode.choose_word.title",
+    descriptionKey: "settings.practice_mode.choose_word.description",
+  },
+];
+
 function canonicalFocus(phonemes: string[]): string[] {
   return Array.from(new Set(phonemes.map((item) => item.trim()).filter(Boolean))).sort();
 }
@@ -272,6 +291,26 @@ export default function SettingsPage({
         </section>
 
         <section className="settings-panel">
+          <h2>{t("settings.practice_mode.title")}</h2>
+          <p className="section-copy">
+            {t("settings.practice_mode.description")}
+          </p>
+          <div className="level-choice-list">
+            {PRACTICE_MODE_OPTIONS.map((option) => (
+              <button
+                className={`level-choice ${settings.practice_mode === option.value ? "selected" : ""}`}
+                key={option.value}
+                onClick={() => void update({ practice_mode: option.value })}
+                type="button"
+              >
+                <strong>{t(option.titleKey)}</strong>
+                <span>{t(option.descriptionKey)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="settings-panel">
           <h2>{t("settings.focus_practice.title")}</h2>
           <p className="section-copy">
             {t("settings.focus_practice.description")}
@@ -339,10 +378,6 @@ export default function SettingsPage({
         <label className="setting-row">
           <span>Primary accent</span>
           <select value={settings.primary_accent} … />
-        </label>
-        <label className="setting-row">
-          <span>Practice mode</span>
-          <select value={settings.practice_mode} … />
         </label>
         ---- */}
       </div>

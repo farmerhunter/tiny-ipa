@@ -816,6 +816,23 @@ renderer only if labels, accessible names, feedback copy, and selected-answer
 tokens stay mode-aware. `type_word` requires a separate text-input renderer and
 must stay hidden until accepted-answer semantics are complete.
 
+Normal practice responses expose mode metadata so the UI can distinguish the
+current active group from the setting for the next new group:
+
+```json
+{
+  "practice_mode": "ipa_first",
+  "selected_practice_mode": "choose_word",
+  "pending_practice_mode_change": true
+}
+```
+
+`practice_mode` is the active group mode, derived from persisted session item
+`question_type` when a group exists. `selected_practice_mode` is the current
+Settings value for the next new normal group. Review, focus, and specialty
+groups stay `ipa_first` for the first M13 slice even when
+`selected_practice_mode` is `choose_word`.
+
 Question-specific localization must use dedicated prompt/feedback keys, for
 example:
 

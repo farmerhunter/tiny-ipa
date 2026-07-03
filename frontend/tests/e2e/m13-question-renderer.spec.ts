@@ -21,6 +21,7 @@ interface MockItem {
 interface MockState {
   locale: "zh-CN" | "en-US";
   item: MockItem;
+  practiceMode: "ipa_first" | "choose_word";
 }
 
 const chooseIpaItem: MockItem = {
@@ -54,10 +55,20 @@ const chooseWordItem: MockItem = {
   },
 };
 
-async function setupApi(page: Page, state: MockState) {
+async function setupApi(
+  page: Page,
+  state: Omit<MockState, "practiceMode"> & { practiceMode?: MockState["practiceMode"] },
+) {
+  const mockState: MockState = {
+    ...state,
+    practiceMode: state.practiceMode ?? (
+      state.item.question.type === "choose_word" ? "choose_word" : "ipa_first"
+    ),
+  };
   await page.route("**/api/**", async (route) => {
-    await routeMock(route, state);
+    await routeMock(route, mockState);
   });
+  return mockState;
 }
 
 async function routeMock(route: Route, state: MockState) {
@@ -79,13 +90,21 @@ async function routeMock(route: Route, state: MockState) {
   }
 
   if (path === "/settings") {
+    if (request.method() === "PUT") {
+      const body = request.postDataJSON() as {
+        ui_language?: MockState["locale"];
+        practice_mode?: MockState["practiceMode"];
+      };
+      if (body.ui_language) state.locale = body.ui_language;
+      if (body.practice_mode) state.practiceMode = body.practice_mode;
+    }
     await route.fulfill({
       json: {
         primary_accent: "US",
         daily_word_count: 1,
         show_translation: true,
         show_accent_compare: false,
-        practice_mode: "ipa_first",
+        practice_mode: state.practiceMode,
         review_strength: "normal",
         learner_level: "entry",
         ui_language: state.locale,
@@ -104,6 +123,10 @@ async function routeMock(route: Route, state: MockState) {
         group_type: "normal",
         learner_level: "entry",
         selected_learner_level: "entry",
+        practice_mode: state.item.question.type === "choose_word" ? "choose_word" : "ipa_first",
+        selected_practice_mode: state.practiceMode,
+        pending_practice_mode_change:
+          state.practiceMode !== (state.item.question.type === "choose_word" ? "choose_word" : "ipa_first"),
         completed_normal_groups_today: { entry: 0, mid: 0, total: 0 },
         date: "2026-07-03",
         primary_accent: "US",
@@ -161,6 +184,27 @@ test.describe("M13 generic practice question renderer", () => {
     await expect(feedback.getByText("还不对。")).toBeVisible();
     await expect(feedback.getByText("正确 IPA")).toBeVisible();
     await expect(feedback.getByText("/ʃɪp/")).toBeVisible();
+  });
+
+  test("practice mode setting affects future groups while active groups keep their type", async ({ page }) => {
+    const state = await setupApi(page, { locale: "zh-CN", item: chooseIpaItem });
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "设置" }).click();
+    await expect(page.getByRole("heading", { name: "练习题型" })).toBeVisible();
+    await expect(page.getByText("选择下一组新的常规练习题型。")).toBeVisible();
+    await page.getByRole("button", { name: /看 IPA 选单词/ }).click();
+    await expect(page.getByText("已保存")).toBeVisible();
+    expect(state.practiceMode).toBe("choose_word");
+
+    await page.getByRole("button", { name: "今日", exact: true }).click();
+    await expect(page.getByText("当前题型：看单词选 IPA")).toBeVisible();
+    await expect(page.getByText("下一组已选择「看 IPA 选单词」。当前组仍是「看单词选 IPA」，直到你完成或开始新的常规组。")).toBeVisible();
+
+    await page.getByRole("button", { name: "继续 入门 组" }).click();
+    await expect(page.getByText("当前题型：看单词选 IPA")).toBeVisible();
+    await expect(page.getByText("哪个 IPA 与这个词匹配？")).toBeVisible();
+    await expect(page.locator(".word-display .audio-btn")).toHaveCount(1);
   });
 
   test("choose_word uses IPA stimulus and word feedback without leaking the answer first", async ({ page }) => {

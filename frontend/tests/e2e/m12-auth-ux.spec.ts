@@ -19,7 +19,7 @@ function settingsResponse(state: AuthState) {
     daily_word_count: state.settings.daily_word_count,
     show_translation: true,
     show_accent_compare: false,
-    practice_mode: "normal",
+    practice_mode: "ipa_first",
     review_strength: state.settings.review_strength,
     learner_level: "entry",
     ui_language: state.locale,

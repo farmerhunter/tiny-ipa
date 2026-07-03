@@ -89,6 +89,29 @@ function selectedLevelLabel(session: TodayResponse, t: Translator): string {
   return localizedLearnerLevelLabel(session.selected_learner_level, t);
 }
 
+function normalizePracticeMode(mode: string | undefined): "ipa_first" | "choose_word" {
+  return mode === "choose_word" ? "choose_word" : "ipa_first";
+}
+
+function activePracticeMode(session: TodayResponse): "ipa_first" | "choose_word" {
+  if (session.practice_mode) return normalizePracticeMode(session.practice_mode);
+  return session.items.some((item) => item.question.type === "choose_word")
+    ? "choose_word"
+    : "ipa_first";
+}
+
+function selectedPracticeMode(session: TodayResponse): "ipa_first" | "choose_word" {
+  return normalizePracticeMode(session.selected_practice_mode ?? session.practice_mode);
+}
+
+function practiceModeLabel(mode: "ipa_first" | "choose_word", t: Translator): string {
+  return t(`practice.mode.${mode}.label`);
+}
+
+function practiceModeDescription(mode: "ipa_first" | "choose_word", t: Translator): string {
+  return t(`practice.mode.${mode}.description`);
+}
+
 function groupReason(session: TodayResponse, t: Translator): string {
   if (session.group_type === "minimal_pair") {
     return t("specialty.sound_compare.description");
@@ -162,11 +185,13 @@ function todayHubHeading(session: TodayResponse, hasActiveGroup: boolean, t: Tra
   return t("today.hub.heading.start", { selectedLevel: selectedLevelLabel(session, t) });
 }
 
-function todayHubCopy(hasActiveGroup: boolean, t: Translator): string {
+function todayHubCopy(session: TodayResponse, hasActiveGroup: boolean, t: Translator): string {
   if (hasActiveGroup) {
     return t("today.hub.copy.active");
   }
-  return t("today.hub.copy.empty");
+  return t("today.hub.copy.empty", {
+    modeDescription: practiceModeDescription(selectedPracticeMode(session), t),
+  });
 }
 
 function recentReviewLabel(session: TodayResponse, t: Translator): string {
@@ -470,7 +495,7 @@ export default function TodayPractice({
           <p className="workflow-kicker">{t("today.hub.kicker")}</p>
           <h1>{todayHubHeading(session, hasActiveGroup, t)}</h1>
           <p className="section-copy">
-            {todayHubCopy(hasActiveGroup, t)}
+            {todayHubCopy(session, hasActiveGroup, t)}
           </p>
 
           <div className={`hub-status-card ${pendingLevelChange ? "pending" : ""}`}>
@@ -485,11 +510,24 @@ export default function TodayPractice({
                     wordCount: session.word_count ?? session.items.length,
                   })} · {session.primary_accent}
                 </span>
+                <span>
+                  {t("today.hub.status.active.mode", {
+                    mode: practiceModeLabel(activePracticeMode(session), t),
+                  })}
+                </span>
                 {pendingLevelChange && (
                   <p className="pending-copy">
                     {t("today.hub.pending_level_change", {
                       selectedLevel: selectedLevelLabel(session, t),
                       currentLevel: learnerLevelLabel(session, t),
+                    })}
+                  </p>
+                )}
+                {session.pending_practice_mode_change && (
+                  <p className="pending-copy">
+                    {t("today.hub.pending_practice_mode_change", {
+                      selectedMode: practiceModeLabel(selectedPracticeMode(session), t),
+                      currentMode: practiceModeLabel(activePracticeMode(session), t),
                     })}
                   </p>
                 )}
@@ -500,6 +538,7 @@ export default function TodayPractice({
                 <strong>
                   {t("today.hub.status.ready.title", {
                     selectedLevel: selectedLevelLabel(session, t),
+                    mode: practiceModeLabel(selectedPracticeMode(session), t),
                   })}
                 </strong>
                 <span>
@@ -754,6 +793,11 @@ export default function TodayPractice({
       <div className="mode-panel">
         <strong>{groupLabel(session, t)}</strong>
         <span>{groupReason(session, t)}</span>
+        <span>
+          {t("today.mode.current", {
+            mode: practiceModeLabel(activePracticeMode(session), t),
+          })}
+        </span>
       </div>
       {(session.focus_phonemes?.length || focusPhonemes.length > 0) && (
         <div className="active-focus-banner">

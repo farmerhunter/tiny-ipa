@@ -58,6 +58,9 @@ def test_choose_word_setting_creates_word_choice_normal_group(tmp_path, monkeypa
     data = client.post("/api/practice/next-normal").json()
 
     assert data["items"]
+    assert data["practice_mode"] == "choose_word"
+    assert data["selected_practice_mode"] == "choose_word"
+    assert data["pending_practice_mode_change"] is False
     item = data["items"][0]
     assert item["question"]["type"] == "choose_word"
     assert item["question"]["display_ipa"] == item["display_ipa"]
@@ -71,6 +74,49 @@ def test_choose_word_setting_creates_word_choice_normal_group(tmp_path, monkeypa
     ).fetchone()
     conn.close()
     assert row["question_type"] == "choose_word"
+
+
+def test_mode_change_keeps_active_normal_group_stable(tmp_path, monkeypatch):
+    _seed_db(tmp_path, monkeypatch)
+    client = _client()
+
+    original = client.post("/api/practice/next-normal").json()
+    assert original["practice_mode"] == "ipa_first"
+    assert original["items"][0]["question"]["type"] == "choose_ipa"
+
+    settings = client.put("/api/settings", json={"practice_mode": "choose_word"})
+    assert settings.status_code == 200
+    assert settings.json()["practice_mode"] == "choose_word"
+
+    today = client.get("/api/today").json()
+    assert today["group_id"] == original["group_id"]
+    assert today["practice_mode"] == "ipa_first"
+    assert today["selected_practice_mode"] == "choose_word"
+    assert today["pending_practice_mode_change"] is True
+    assert {item["question"]["type"] for item in today["items"]} == {"choose_ipa"}
+
+    next_normal = client.post("/api/practice/next-normal").json()
+    assert next_normal["group_id"] == original["group_id"]
+    assert next_normal["practice_mode"] == "ipa_first"
+    assert next_normal["selected_practice_mode"] == "choose_word"
+    assert next_normal["pending_practice_mode_change"] is True
+    assert {item["question"]["type"] for item in next_normal["items"]} == {"choose_ipa"}
+
+
+def test_focus_group_stays_choose_ipa_when_choose_word_selected(tmp_path, monkeypatch):
+    _seed_db(tmp_path, monkeypatch)
+    client = _client()
+    settings = client.put("/api/settings", json={"practice_mode": "choose_word"})
+    assert settings.status_code == 200
+
+    focused = client.post("/api/practice/focus", json={"focus_phonemes": ["/æ/"]}).json()
+
+    assert focused["group_type"] == "weak_focus"
+    assert focused["practice_mode"] == "ipa_first"
+    assert focused["selected_practice_mode"] == "choose_word"
+    assert focused["pending_practice_mode_change"] is False
+    assert focused["items"]
+    assert {item["question"]["type"] for item in focused["items"]} == {"choose_ipa"}
 
 
 def test_choose_word_attempt_uses_server_word_answer_and_updates_stats(

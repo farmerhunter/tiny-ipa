@@ -106,6 +106,7 @@ def build_today_response(
                 daily_word_count=daily_word_count,
                 selected_level=selected_level,
                 focus_phonemes=settings.focus_phonemes,
+                selected_practice_mode=settings.practice_mode,
             )
         return _build_response(
             session=existing,
@@ -131,6 +132,7 @@ def build_today_response(
         daily_word_count=daily_word_count,
         selected_level=selected_level,
         focus_phonemes=settings.focus_phonemes,
+        selected_practice_mode=settings.practice_mode,
     )
 
 
@@ -1149,6 +1151,7 @@ def _normal_empty_response(
     daily_word_count: int,
     selected_level: str,
     focus_phonemes: Optional[List[str]],
+    selected_practice_mode: str = "ipa_first",
 ) -> dict:
     return {
         "group_type": "normal",
@@ -1157,6 +1160,9 @@ def _normal_empty_response(
         "selected_learner_level": selected_level,
         "selected_learner_level_label": learner_level_label(selected_level),
         "pending_level_change": False,
+        "practice_mode": selected_practice_mode,
+        "selected_practice_mode": selected_practice_mode,
+        "pending_practice_mode_change": False,
         "completed_normal_groups_today": _completed_normal_groups_today(
             conn, user_id, session_date
         ),
@@ -1185,6 +1191,14 @@ def _normal_empty_response(
         "action_label": f"Start {learner_level_label(selected_level)} group",
         "items": [],
     }
+
+
+def _practice_mode_for_session(session: DailySession, items: List[SessionItem]) -> str:
+    if session.group_type != "normal":
+        return "ipa_first"
+    if any(item.question_type == "choose_word" for item in items):
+        return "choose_word"
+    return "ipa_first"
 
 
 def learner_level_label(learner_level: Optional[str]) -> str:
@@ -1257,6 +1271,8 @@ def _build_response(
         (idx for idx, item in enumerate(items) if item.status != "complete"),
         len(items),
     )
+    practice_mode = _practice_mode_for_session(session, items)
+    selected_practice_mode = settings.practice_mode if settings is not None else practice_mode
     item_dicts: List[dict] = []
     for item in items:
         word = get_word_by_id(conn, item.word_id)
@@ -1320,6 +1336,11 @@ def _build_response(
         "pending_level_change": (
             session.group_type == "normal"
             and (selected_learner_level or session.learner_level) != session.learner_level
+        ),
+        "practice_mode": practice_mode,
+        "selected_practice_mode": selected_practice_mode,
+        "pending_practice_mode_change": (
+            session.group_type == "normal" and selected_practice_mode != practice_mode
         ),
         "completed_normal_groups_today": _completed_normal_groups_today(
             conn, session.user_id, session.session_date
