@@ -35,6 +35,28 @@ interface Props {
   onContinue?: () => void;
 }
 
+type MultipleChoiceQuestionType = "choose_ipa" | "choose_word";
+
+function questionType(item: TodayItem): MultipleChoiceQuestionType | "unsupported" {
+  if (item.question.type === "choose_word") return "choose_word";
+  if (item.question.type === "choose_ipa" || item.question.type === "ipa_choice") {
+    return "choose_ipa";
+  }
+  return "unsupported";
+}
+
+function questionPrompt(type: MultipleChoiceQuestionType, t: Translator): string {
+  return t(`practice.question.prompt.${type}`);
+}
+
+function correctAnswerLabel(type: MultipleChoiceQuestionType, t: Translator): string {
+  return t(
+    type === "choose_word"
+      ? "practice.feedback.label.correct_word"
+      : "practice.feedback.label.correct_ipa",
+  );
+}
+
 export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -75,30 +97,57 @@ export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
 
   const isAnswered = feedback !== null;
   const isError = error !== null;
+  const type = questionType(item);
+
+  if (type === "unsupported") {
+    return (
+      <div className="choice-question">
+        <div className="feedback feedback-error" role="alert">
+          <p>{t("practice.question.unsupported")}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="choice-question">
-      {/* Word display — IPA-first: word is shown, user picks matching IPA */}
+    <div className={`choice-question question-${type}`}>
       <div className="word-display">
-        <span className="word-text">
-          {item.word}
-          <AudioButton
-            audioUrl={item.audio_url}
-            word={item.word}
-            t={t}
-            disabled={submitting}
-          />
-        </span>
-        {item.meaning_zh && (
-          <span className="word-meaning">{item.meaning_zh}</span>
+        {type === "choose_word" ? (
+          <>
+            <span className="question-cue-label">{t("practice.question.cue.ipa")}</span>
+            <span className="word-text ipa-cue">
+              {item.question.display_ipa ?? item.display_ipa}
+              <AudioButton
+                audioUrl={item.audio_url}
+                word={item.word}
+                t={t}
+                disabled={submitting}
+              />
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="word-text">
+              {item.word}
+              <AudioButton
+                audioUrl={item.audio_url}
+                word={item.word}
+                t={t}
+                disabled={submitting}
+              />
+            </span>
+            {item.meaning_zh && (
+              <span className="word-meaning">{item.meaning_zh}</span>
+            )}
+          </>
         )}
       </div>
 
-      <p className="question-prompt">{item.question.prompt}</p>
+      <p className="question-prompt">{questionPrompt(type, t)}</p>
 
       <div className="choices-list">
         {item.question.choices.map((choice) => {
-          let className = "choice-btn";
+          let className = `choice-btn choice-${type === "choose_word" ? "word" : "ipa"}`;
           if (isAnswered && choice === feedback.correctAnswer) {
             className += " choice-correct";
           } else if (
@@ -138,7 +187,7 @@ export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
               <div className="explanation-grid">
                 <span>{t("practice.feedback.label.selected")}</span>
                 <code>{feedback.selectedAnswer}</code>
-                <span>{t("practice.feedback.label.correct_ipa")}</span>
+                <span>{correctAnswerLabel(type, t)}</span>
                 <code>{feedback.correctAnswer}</code>
                 <span>{t("practice.feedback.label.target_sound")}</span>
                 <strong>

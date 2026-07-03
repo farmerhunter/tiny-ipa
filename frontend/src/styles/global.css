@@ -379,6 +379,21 @@ summary:focus-visible {
   margin-top: 8px;
 }
 
+.question-cue-label {
+  color: var(--muted);
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin-bottom: 6px;
+}
+
+.ipa-cue {
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-size: 2.35rem;
+  overflow-wrap: anywhere;
+}
+
 /* ---------------------------------------------------------------------------
  * Audio button
  * --------------------------------------------------------------------------- */
@@ -458,6 +473,15 @@ summary:focus-visible {
   font-weight: 700;
   text-align: center;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.choice-word {
+  font-family: inherit;
+  overflow-wrap: anywhere;
+}
+
+.choice-ipa {
+  overflow-wrap: anywhere;
 }
 
 .choice-btn:hover:not(:disabled) {

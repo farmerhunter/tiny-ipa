@@ -556,6 +556,14 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "practice.feedback.label.correct_word",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Correct word",
+      "notes": "M13 choose_word renderer feedback label."
+    },
+    {
       "key": "practice.feedback.label.selected",
       "surface": "practice",
       "classification": "translatable",
@@ -594,11 +602,35 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "practice.question.cue.ipa",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Read the IPA, then choose the word",
+      "notes": "M13 choose_word renderer cue."
+    },
+    {
       "key": "practice.question.prompt.choose_ipa",
       "surface": "practice",
       "classification": "translatable",
       "source": "backend/app/services/questions.py",
       "current": "Which IPA matches this word?"
+    },
+    {
+      "key": "practice.question.prompt.choose_word",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx backend/app/services/questions.py",
+      "current": "Which word matches this IPA?",
+      "notes": "M13 choose_word renderer prompt."
+    },
+    {
+      "key": "practice.question.unsupported",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "This practice question type is not available yet.",
+      "notes": "Fail-closed visible text for deferred question types."
     },
     {
       "key": "practice.summary.complete_title",

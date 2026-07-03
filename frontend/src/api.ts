@@ -118,8 +118,9 @@ export interface TodayItem {
     is_correct: boolean;
   };
   question: {
-    type: string;
+    type: "choose_ipa" | "choose_word" | string;
     prompt: string;
+    display_ipa?: string;
     choices: string[];
   };
   accent_compare?: {
