@@ -14,7 +14,7 @@ from app.services.db_store import get_settings, upsert_settings
 router = APIRouter()
 
 _VALID_ACCENTS = {"US", "UK"}
-_VALID_MODES = {"ipa_first", "reveal_first"}
+_VALID_MODES = {"ipa_first", "reveal_first", "choose_word"}
 _VALID_STRENGTHS = {"normal", "extra_review", "quick"}
 _VALID_LEARNER_LEVELS = {"entry", "mid"}
 _VALID_UI_LANGUAGES = {"zh-CN", "en-US"}

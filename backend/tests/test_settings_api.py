@@ -108,6 +108,11 @@ class TestSettingsApi:
         assert resp.status_code == 400
         assert resp.json()["detail"]["error"] == "SETTINGS_INVALID"
 
+    def test_put_accepts_choose_word_practice_mode(self, client):
+        resp = client.put("/api/settings", json={"practice_mode": "choose_word"})
+        assert resp.status_code == 200
+        assert resp.json()["practice_mode"] == "choose_word"
+
     def test_put_invalid_learner_level(self, client):
         resp = client.put("/api/settings", json={"learner_level": "advanced"})
         assert resp.status_code == 400

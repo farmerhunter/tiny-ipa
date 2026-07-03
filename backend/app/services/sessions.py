@@ -230,6 +230,7 @@ def _create_normal_group_response(
         group_type="normal",
         learner_level=settings.learner_level,
         focus_phonemes=settings.focus_phonemes,
+        question_type=_normal_question_type(settings.practice_mode),
     )
 
     return _build_response(
@@ -1040,6 +1041,7 @@ def _create_group_from_words(
     source_scope: Optional[str] = None,
     source_group_id: Optional[str] = None,
     focus_phonemes: Optional[List[str]] = None,
+    question_type: str = "choose_ipa",
 ) -> tuple[DailySession, List[SessionItem]]:
     session_id = f"{session_date}-{user_id}-g{group_index:03d}-{group_type}"
     session = DailySession(
@@ -1071,7 +1073,7 @@ def _create_group_from_words(
             target_phonemes=(
                 word.phoneme_tags_us if accent == "US" else (word.phoneme_tags_uk or [])
             ),
-            question_type="choose_ipa",
+            question_type=question_type,
             status="pending",
         )
         create_session_item(conn, item)
@@ -1090,6 +1092,22 @@ def _build_distractor_pool(conn, accent: str) -> List[str]:
         """
     ).fetchall()
     return [r[0] for r in rows if r[0]]
+
+
+def _build_word_distractor_pool(conn) -> List[str]:
+    """Collect word strings from the words table for choose_word choices."""
+    rows = conn.execute(
+        """
+        SELECT DISTINCT word FROM words
+        WHERE word IS NOT NULL AND word != '' AND content_status != 'disabled'
+        LIMIT 200
+        """
+    ).fetchall()
+    return [r[0] for r in rows if r[0]]
+
+
+def _normal_question_type(practice_mode: str) -> str:
+    return "choose_word" if practice_mode == "choose_word" else "choose_ipa"
 
 
 def _completed_normal_groups_today(conn, user_id: str, session_date: str) -> dict:
@@ -1234,7 +1252,8 @@ def _build_response(
     settings = get_settings(conn, session.user_id)
     show_accent_compare = bool(settings and settings.show_accent_compare)
     show_translation = bool(settings.show_translation) if settings is not None else True
-    distractor_pool = _build_distractor_pool(conn, accent)
+    ipa_distractor_pool = _build_distractor_pool(conn, accent)
+    word_distractor_pool = _build_word_distractor_pool(conn)
     latest_attempts = get_latest_attempts_for_session_items(
         conn,
         [item.id for item in items],
@@ -1253,7 +1272,12 @@ def _build_response(
         question = generate_question(
             word,
             accent=accent,
-            distractor_pool=distractor_pool,
+            distractor_pool=(
+                word_distractor_pool
+                if item.question_type == "choose_word"
+                else ipa_distractor_pool
+            ),
+            question_type=item.question_type,
             seed=_stable_hash(item.id),
         )
 
