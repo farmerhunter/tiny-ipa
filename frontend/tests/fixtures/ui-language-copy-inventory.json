@@ -556,6 +556,14 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "practice.feedback.label.correct_word",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Correct word",
+      "notes": "M13 choose_word renderer feedback label."
+    },
+    {
       "key": "practice.feedback.label.selected",
       "surface": "practice",
       "classification": "translatable",
@@ -594,11 +602,67 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "practice.question.cue.ipa",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Read the IPA, then choose the word",
+      "notes": "M13 choose_word renderer cue."
+    },
+    {
       "key": "practice.question.prompt.choose_ipa",
       "surface": "practice",
       "classification": "translatable",
       "source": "backend/app/services/questions.py",
       "current": "Which IPA matches this word?"
+    },
+    {
+      "key": "practice.question.prompt.choose_word",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx backend/app/services/questions.py",
+      "current": "Which word matches this IPA?",
+      "notes": "M13 choose_word renderer prompt."
+    },
+    {
+      "key": "practice.question.unsupported",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "This practice question type is not available yet.",
+      "notes": "Fail-closed visible text for deferred question types."
+    },
+    {
+      "key": "practice.mode.choose_word.description",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Read the IPA, then choose the matching English word.",
+      "notes": "M13 practice mode selection workflow copy."
+    },
+    {
+      "key": "practice.mode.choose_word.label",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "IPA to word",
+      "notes": "M13 practice mode selection workflow label."
+    },
+    {
+      "key": "practice.mode.ipa_first.description",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Read the English word, then choose the matching IPA.",
+      "notes": "M13 default practice mode workflow copy."
+    },
+    {
+      "key": "practice.mode.ipa_first.label",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx frontend/src/pages/SettingsPage.tsx",
+      "current": "Word to IPA",
+      "notes": "M13 default practice mode workflow label."
     },
     {
       "key": "practice.summary.complete_title",
@@ -1177,6 +1241,54 @@
       "notes": "Runtime key added during #216 frontend copy extraction."
     },
     {
+      "key": "settings.practice_mode.choose_word.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Read IPA and choose the matching English word. Applies to the next new regular group only.",
+      "notes": "M13 practice mode selector option copy."
+    },
+    {
+      "key": "settings.practice_mode.choose_word.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "IPA to word",
+      "notes": "M13 practice mode selector option label."
+    },
+    {
+      "key": "settings.practice_mode.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Choose the question type for the next new regular group. Active regular groups keep their current type; mistake review, focus, and specialty practice stay Word to IPA for now.",
+      "notes": "M13 practice mode selector scope copy."
+    },
+    {
+      "key": "settings.practice_mode.ipa_first.description",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Read the English word and choose the matching IPA. This is the default safe mode.",
+      "notes": "M13 practice mode selector option copy."
+    },
+    {
+      "key": "settings.practice_mode.ipa_first.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Word to IPA",
+      "notes": "M13 practice mode selector option label."
+    },
+    {
+      "key": "settings.practice_mode.title",
+      "surface": "settings",
+      "classification": "translatable",
+      "source": "frontend/src/pages/SettingsPage.tsx",
+      "current": "Practice question type",
+      "notes": "M13 practice mode selector heading."
+    },
+    {
       "key": "settings.review_strength",
       "surface": "settings",
       "classification": "translatable",
@@ -1651,7 +1763,7 @@
       "surface": "today_hub",
       "classification": "translatable",
       "source": "frontend/src/pages/TodayPractice.tsx",
-      "current": "A short listening group is ready. Listen first, then choose the IPA that matches."
+      "current": "A short regular group is ready. {modeDescription}"
     },
     {
       "key": "today.hub.heading.active",
@@ -1682,6 +1794,14 @@
       "current": "{selectedLevel} is selected for your next new group. Your current {currentLevel} group stays active until you finish it or switch now."
     },
     {
+      "key": "today.hub.pending_practice_mode_change",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "{selectedMode} is selected for your next new group. This group stays {currentMode} until you finish it or start a new regular group.",
+      "notes": "M13 active-group practice mode change boundary copy."
+    },
+    {
       "key": "today.hub.status.active",
       "surface": "today_hub",
       "classification": "translatable",
@@ -1703,6 +1823,14 @@
       "source": "frontend/src",
       "current": "{wordCount} words assigned",
       "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.hub.status.active.mode",
+      "surface": "today_hub",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Current type: {mode}",
+      "notes": "M13 active group mode metadata."
     },
     {
       "key": "today.hub.status.active.title",
@@ -1740,8 +1868,16 @@
       "surface": "today_hub",
       "classification": "translatable",
       "source": "frontend/src",
-      "current": "{selectedLevel} listening group",
+      "current": "{selectedLevel} {mode}",
       "notes": "Runtime key added during #216 frontend copy extraction."
+    },
+    {
+      "key": "today.mode.current",
+      "surface": "today",
+      "classification": "translatable",
+      "source": "frontend/src/pages/TodayPractice.tsx",
+      "current": "Current type: {mode}",
+      "notes": "M13 active practice mode label."
     },
     {
       "key": "today.loading",

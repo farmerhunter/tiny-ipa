@@ -104,7 +104,13 @@ async def attempt(
             )
 
         # Server-side grading.
-        correct_answer = determine_correct_answer(item, word, session.primary_accent)
+        try:
+            correct_answer = determine_correct_answer(item, word, session.primary_accent)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "INVALID_ATTEMPT", "detail": str(exc)},
+            ) from exc
         is_correct = grade_attempt(selected_answer, correct_answer)
 
         # Persist attempt.

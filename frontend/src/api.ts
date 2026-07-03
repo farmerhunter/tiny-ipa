@@ -118,8 +118,9 @@ export interface TodayItem {
     is_correct: boolean;
   };
   question: {
-    type: string;
+    type: "choose_ipa" | "choose_word" | string;
     prompt: string;
+    display_ipa?: string;
     choices: string[];
   };
   accent_compare?: {
@@ -149,6 +150,9 @@ export interface TodayResponse {
   selected_learner_level?: "entry" | "mid";
   selected_learner_level_label?: string;
   pending_level_change?: boolean;
+  practice_mode?: "ipa_first" | "choose_word" | string;
+  selected_practice_mode?: "ipa_first" | "choose_word" | string;
+  pending_practice_mode_change?: boolean;
   completed_normal_groups_today?: {
     entry: number;
     mid: number;
@@ -386,7 +390,7 @@ export interface SettingsData {
   daily_word_count: number;
   show_translation: boolean;
   show_accent_compare: boolean;
-  practice_mode: string;
+  practice_mode: "ipa_first" | "choose_word" | string;
   review_strength: string;
   learner_level: "entry" | "mid";
   ui_language: "zh-CN" | "en-US";

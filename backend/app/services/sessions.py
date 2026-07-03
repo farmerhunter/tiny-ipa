@@ -23,10 +23,12 @@ from app.services.db_store import (
     get_session_items,
     get_settings,
     get_word_by_id,
+    list_words_for_level,
     mark_session_abandoned,
     mark_session_completed,
     upsert_settings,
 )
+from app.services.distractors import choose_word_distractors
 from app.services.questions import generate_question
 from app.services.scheduler import select_daily_words
 
@@ -104,6 +106,7 @@ def build_today_response(
                 daily_word_count=daily_word_count,
                 selected_level=selected_level,
                 focus_phonemes=settings.focus_phonemes,
+                selected_practice_mode=settings.practice_mode,
             )
         return _build_response(
             session=existing,
@@ -129,6 +132,7 @@ def build_today_response(
         daily_word_count=daily_word_count,
         selected_level=selected_level,
         focus_phonemes=settings.focus_phonemes,
+        selected_practice_mode=settings.practice_mode,
     )
 
 
@@ -230,6 +234,7 @@ def _create_normal_group_response(
         group_type="normal",
         learner_level=settings.learner_level,
         focus_phonemes=settings.focus_phonemes,
+        question_type=_normal_question_type(settings.practice_mode),
     )
 
     return _build_response(
@@ -850,9 +855,7 @@ def _select_minimal_pair_words(
 ) -> list:
     ipa_field = "ipa_us" if accent == "US" else "ipa_uk"
     tags_field = "phoneme_tags_us" if accent == "US" else "phoneme_tags_uk"
-    level_values = (
-        ["entry", "beginner"] if learner_level == "entry" else [learner_level]
-    )
+    level_values = _level_values(learner_level)
     level_placeholders = ", ".join("?" for _ in level_values)
     rows = conn.execute(
         f"""
@@ -889,7 +892,11 @@ def _select_minimal_pair_words(
 
 
 def _level_values(learner_level: str) -> list[str]:
-    return ["entry", "beginner"] if learner_level == "entry" else [learner_level]
+    if learner_level == "entry":
+        return ["entry", "beginner"]
+    if learner_level == "mid":
+        return ["mid", "intermediate"]
+    return [learner_level]
 
 
 def _target_phoneme_options(
@@ -1040,6 +1047,7 @@ def _create_group_from_words(
     source_scope: Optional[str] = None,
     source_group_id: Optional[str] = None,
     focus_phonemes: Optional[List[str]] = None,
+    question_type: str = "choose_ipa",
 ) -> tuple[DailySession, List[SessionItem]]:
     session_id = f"{session_date}-{user_id}-g{group_index:03d}-{group_type}"
     session = DailySession(
@@ -1071,7 +1079,7 @@ def _create_group_from_words(
             target_phonemes=(
                 word.phoneme_tags_us if accent == "US" else (word.phoneme_tags_uk or [])
             ),
-            question_type="choose_ipa",
+            question_type=question_type,
             status="pending",
         )
         create_session_item(conn, item)
@@ -1090,6 +1098,10 @@ def _build_distractor_pool(conn, accent: str) -> List[str]:
         """
     ).fetchall()
     return [r[0] for r in rows if r[0]]
+
+
+def _normal_question_type(practice_mode: str) -> str:
+    return "choose_word" if practice_mode == "choose_word" else "choose_ipa"
 
 
 def _completed_normal_groups_today(conn, user_id: str, session_date: str) -> dict:
@@ -1141,6 +1153,7 @@ def _normal_empty_response(
     daily_word_count: int,
     selected_level: str,
     focus_phonemes: Optional[List[str]],
+    selected_practice_mode: str = "ipa_first",
 ) -> dict:
     return {
         "group_type": "normal",
@@ -1149,6 +1162,9 @@ def _normal_empty_response(
         "selected_learner_level": selected_level,
         "selected_learner_level_label": learner_level_label(selected_level),
         "pending_level_change": False,
+        "practice_mode": selected_practice_mode,
+        "selected_practice_mode": selected_practice_mode,
+        "pending_practice_mode_change": False,
         "completed_normal_groups_today": _completed_normal_groups_today(
             conn, user_id, session_date
         ),
@@ -1177,6 +1193,14 @@ def _normal_empty_response(
         "action_label": f"Start {learner_level_label(selected_level)} group",
         "items": [],
     }
+
+
+def _practice_mode_for_session(session: DailySession, items: List[SessionItem]) -> str:
+    if session.group_type != "normal":
+        return "ipa_first"
+    if any(item.question_type == "choose_word" for item in items):
+        return "choose_word"
+    return "ipa_first"
 
 
 def learner_level_label(learner_level: Optional[str]) -> str:
@@ -1234,7 +1258,12 @@ def _build_response(
     settings = get_settings(conn, session.user_id)
     show_accent_compare = bool(settings and settings.show_accent_compare)
     show_translation = bool(settings.show_translation) if settings is not None else True
-    distractor_pool = _build_distractor_pool(conn, accent)
+    ipa_distractor_pool = _build_distractor_pool(conn, accent)
+    word_distractor_candidates = list_words_for_level(
+        conn,
+        session.learner_level,
+        accent=accent,
+    )
     latest_attempts = get_latest_attempts_for_session_items(
         conn,
         [item.id for item in items],
@@ -1244,6 +1273,8 @@ def _build_response(
         (idx for idx, item in enumerate(items) if item.status != "complete"),
         len(items),
     )
+    practice_mode = _practice_mode_for_session(session, items)
+    selected_practice_mode = settings.practice_mode if settings is not None else practice_mode
     item_dicts: List[dict] = []
     for item in items:
         word = get_word_by_id(conn, item.word_id)
@@ -1253,7 +1284,20 @@ def _build_response(
         question = generate_question(
             word,
             accent=accent,
-            distractor_pool=distractor_pool,
+            distractor_pool=(
+                [
+                    candidate.word.word
+                    for candidate in choose_word_distractors(
+                        word,
+                        word_distractor_candidates,
+                        accent=accent,
+                        seed=_stable_hash(item.id),
+                    )
+                ]
+                if item.question_type == "choose_word"
+                else ipa_distractor_pool
+            ),
+            question_type=item.question_type,
             seed=_stable_hash(item.id),
         )
 
@@ -1294,6 +1338,11 @@ def _build_response(
         "pending_level_change": (
             session.group_type == "normal"
             and (selected_learner_level or session.learner_level) != session.learner_level
+        ),
+        "practice_mode": practice_mode,
+        "selected_practice_mode": selected_practice_mode,
+        "pending_practice_mode_change": (
+            session.group_type == "normal" and selected_practice_mode != practice_mode
         ),
         "completed_normal_groups_today": _completed_normal_groups_today(
             conn, session.user_id, session.session_date

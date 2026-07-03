@@ -103,13 +103,11 @@ def seeded_db_entry_mid_fixture(tmp_path: Path) -> str:
         source_path=CORE_300_PATH,
         phonemes_path=PHONEMES_PATH,
         db_path=db_path,
-        content_level="entry",
     )
     import_words(
         source_path=CORE_1000_PATH,
         phonemes_path=PHONEMES_PATH,
         db_path=db_path,
-        content_level="mid",
     )
 
     import app.db as db_mod
@@ -1233,7 +1231,9 @@ class TestLevelAwareToday:
         assert data["items"]
         assert all(not item["word_id"].startswith("mid_") for item in data["items"])
 
-    def test_mid_setting_uses_core1000_pool_without_entry_mix(self, entry_mid_client):
+    def test_mid_setting_uses_core1000_pool_without_entry_mix(
+        self, entry_mid_client, seeded_db_entry_mid
+    ):
         settings_resp = entry_mid_client.put("/api/settings", json={
             "learner_level": "mid",
             "daily_word_count": 6,
@@ -1248,6 +1248,16 @@ class TestLevelAwareToday:
         assert data["learner_level_label"] == "Mid"
         assert data["items"]
         assert all(item["word_id"].startswith("mid_") for item in data["items"])
+        conn = get_connection(seeded_db_entry_mid)
+        levels = {
+            conn.execute(
+                "SELECT level FROM words WHERE id = ?",
+                (item["word_id"],),
+            ).fetchone()["level"]
+            for item in data["items"]
+        }
+        conn.close()
+        assert levels == {"intermediate"}
 
     def test_level_change_keeps_active_group_and_affects_next_group(
         self, entry_mid_client, seeded_db_entry_mid

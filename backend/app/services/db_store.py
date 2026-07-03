@@ -324,6 +324,34 @@ def get_word_by_id(conn: sqlite3.Connection, word_id: str) -> Optional[Word]:
     return _word_from_row(row)
 
 
+_LEARNER_LEVEL_TO_WORD_LEVEL = {
+    "entry": "beginner",
+    "mid": "intermediate",
+}
+
+
+def list_words_for_level(
+    conn: sqlite3.Connection,
+    learner_level: str,
+    *,
+    accent: str = "US",
+) -> List[Word]:
+    word_level = _LEARNER_LEVEL_TO_WORD_LEVEL.get(learner_level, learner_level)
+    ipa_field = "ipa_us" if accent.upper() == "US" else "ipa_uk"
+    rows = conn.execute(
+        f"""
+        SELECT * FROM words
+        WHERE level = ?
+          AND content_status != 'disabled'
+          AND word IS NOT NULL AND word != ''
+          AND {ipa_field} IS NOT NULL AND {ipa_field} != ''
+        ORDER BY word
+        """,
+        (word_level,),
+    ).fetchall()
+    return [_word_from_row(row) for row in rows]
+
+
 # ============================================================================
 # Phonemes
 # ============================================================================

@@ -12,9 +12,11 @@
     "test:e2e:m8": "playwright test -c playwright.m7.config.ts tests/e2e/m8-level-selection.spec.ts",
     "test:e2e:m10": "playwright test -c playwright.m10.config.ts tests/e2e/m10-ux-walkthrough.spec.ts",
     "test:e2e:m11": "playwright test -c playwright.m11.config.ts tests/e2e/m11-localization-mobile.spec.ts",
+    "test:e2e:m13": "playwright test -c playwright.m11.config.ts tests/e2e/m13-question-renderer.spec.ts tests/e2e/m13-practice-mode-workflow.spec.ts",
     "test:e2e:m12": "playwright test -c playwright.m11.config.ts tests/e2e/m12-auth-ux.spec.ts",
     "test:e2e:m11-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts",
-    "test:e2e:m12-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts"
+    "test:e2e:m12-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts",
+    "test:e2e:m13-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m13-real-practice-mode.spec.ts"
   },
   "dependencies": {
     "react": "^19.2.6",
