@@ -173,7 +173,7 @@ test.describe("M13 generic practice question renderer", () => {
     await expect(page.locator(".ipa-cue")).toContainText("/ʃɪp/");
     await expect(page.locator(".word-display")).not.toContainText("ship");
     await expect(page.locator(".word-display")).not.toContainText("船；大船");
-    await expect(page.locator(".word-display .audio-btn")).toHaveCount(1);
+    await expect(page.locator(".word-display .audio-btn")).toHaveCount(0);
 
     await page.getByRole("button", { name: "选择 sheep" }).click();
     const feedback = page.getByRole("alert");
