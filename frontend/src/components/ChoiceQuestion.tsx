@@ -117,12 +117,6 @@ export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
             <span className="question-cue-label">{t("practice.question.cue.ipa")}</span>
             <span className="word-text ipa-cue">
               {item.question.display_ipa ?? item.display_ipa}
-              <AudioButton
-                audioUrl={item.audio_url}
-                word={item.word}
-                t={t}
-                disabled={submitting}
-              />
             </span>
           </>
         ) : (
