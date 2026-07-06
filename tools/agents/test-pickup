@@ -58,6 +58,7 @@ fi
 contract_ok=$'## Final Execution Contract\n\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nOwner role: implementer\nReview role: architect\nAcceptance role: architect\nDepends on: none\nCompletion handoff: to:architect\n'
 contract_reviewer=$'## Final Execution Contract\n\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nOwner role: reviewer\nReview role: none\nAcceptance role: architect\nDepends on: #9\nCompletion handoff: batch checkpoint\n'
 contract_blocked=$'## Final Execution Contract\n\nBranch strategy: epic integration branch\nBase branch: `epic/x`\nTarget PR base: `epic/x`\nOwner role: implementer\nReview role: architect\nAcceptance role: architect\nDepends on: #10\nCompletion handoff: to:architect\n'
+contract_tester=$'## Final Execution Contract\n\nBranch strategy: issue branch to main\nBase branch: `main`\nTarget PR base: `main`\nOwner role: tester\nReview role: reviewer\nAcceptance role: architect\nDepends on: none\nCompletion handoff: to:reviewer\n'
 
 case "$*" in
   *"/issues/1"*) issue_json 1 "Implementer pickup" "$contract_ok" "type:task,needs:implementer" ;;
@@ -66,6 +67,7 @@ case "$*" in
   *"/issues/4"*) issue_json 4 "Missing route" "$contract_ok" "type:task,needs:architect" ;;
   *"/issues/5"*) issue_json 5 "Blocked dependency" "$contract_blocked" "type:task,needs:implementer" ;;
   *"/issues/6"*) issue_json 6 "Released dependency" "$contract_blocked" "type:task,needs:architect" ;;
+  *"/issues/7"*) issue_json 7 "Tester pickup" "$contract_tester" "type:task,needs:tester" ;;
   *) printf 'unexpected fake gh call: %s\n' "$*" >&2; exit 21 ;;
 esac
 SH
@@ -81,6 +83,11 @@ reviewer_output="$("$fixture_root/tools/agents/agent-pickup" 2 --role reviewer)"
 grep -Fq "Role: reviewer (needs:reviewer)" <<< "$reviewer_output"
 grep -Fq "Work mode: review/decision; no coding branch implied" <<< "$reviewer_output"
 grep -Fq "Completion handoff: batch checkpoint" <<< "$reviewer_output"
+
+tester_output="$("$fixture_root/tools/agents/agent-pickup" 7 --role tester)"
+grep -Fq "Role: tester (needs:tester)" <<< "$tester_output"
+grep -Fq "Work mode: review/decision; no coding branch implied" <<< "$tester_output"
+grep -Fq "Completion handoff: to:reviewer" <<< "$tester_output"
 
 if "$fixture_root/tools/agents/agent-pickup" 1 --role ghost >/dev/null 2>&1; then
   printf 'unknown role unexpectedly succeeded\n' >&2
