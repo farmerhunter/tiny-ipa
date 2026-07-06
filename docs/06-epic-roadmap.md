@@ -548,22 +548,39 @@ Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 Roadmap status:
 
 ```text
-Blocked / planning. Epic #27 has moved after M11 Localization, M12 Minimal Auth,
-and M13 Practice Modes. It may now be decomposed by Architect, but no real VPS,
-DNS, secret, deployment config, or private SQLite mutation is authorized without
-an explicit Human gate.
+Blocked while child work proceeds. Epic #27 has moved after M11 Localization,
+M12 Minimal Auth, and M13 Practice Modes. It has been decomposed into M14 child
+issues. #276 is the only released child issue; #277-#282 remain blocked until
+the deployment target/runtime config contract is accepted.
+
+No real VPS, DNS, secret, deployment config, or private SQLite mutation is
+authorized without an explicit Human gate.
 ```
 
-Expected child issue areas:
+Child issues:
 
 ```text
-deployment target/runtime config contract
-production auth/origin/CORS/secret hardening
-VPS install and systemd service runbook
-frontend build and reverse-proxy routing
-SQLite backup and restore dry-run verification
-deployment smoke checks and rollback checklist
-M14 readiness review and human deployment gate
+#276 [P0] Deployment target and runtime config contract - released to Implementer
+#277 [P1] Production auth, origin, CORS, and secret hardening - blocked
+#278 [P1] VPS install and systemd runbook - blocked
+#279 [P2] Frontend build and reverse-proxy routing contract - blocked
+#280 [P2] SQLite backup and restore dry-run verification - blocked
+#281 [P3] Deployment smoke and rollback checklist - blocked
+#282 [P4] VPS deployment readiness review and human deployment gate - blocked
+```
+
+Dependency graph:
+
+```text
+#276 Deployment target/runtime config contract
+  -> #277 production auth/origin/CORS/secret hardening
+  -> #278 VPS install and systemd runbook
+  -> #279 frontend build and reverse-proxy routing
+  -> #280 SQLite backup/restore dry-run
+  -> #281 deployment smoke and rollback checklist
+
+#277 + #278 + #279 + #280 + #281
+  -> #282 readiness review and human deployment gate
 ```
 
 Acceptance:
