@@ -14,19 +14,27 @@ Runtime Data
 
 源内容是事实来源。SQLite 可以删除重建，但用户学习记录需要备份。
 
-## Localization and Current-user Roadmap Boundary
+## Deployment Prerequisite Roadmap Boundary
 
-M11 and M12 insert two prerequisites before deployment:
+M11, M12, and M13 are deployment prerequisites before M14 VPS work:
 
 ```text
 M11 Localization and Configurable UI Language (#209)
 M12 Minimal Auth and Multi-user Data Isolation (#210)
+M13 Expand Practice Modes: Choose Word and Type Word (#256)
 ```
 
 Localization is a UI/runtime contract. It should make learner-facing copy
 configurable without changing IPA/content/grading semantics. Auth is a runtime
 identity contract. It should make existing `user_id` fields meaningful before
-the app is exposed through VPS deployment.
+the app is exposed through VPS deployment. Practice modes are a practice-runtime
+contract. They should keep question mode, grading, distractor quality, and
+mode-specific UI behavior testable before deployment smoke and restore checks.
+
+M14 deployment and backup (#27) is now decomposed. #276 owns the deployment
+target/runtime config contract. Later M14 work must not mutate real VPS, DNS,
+TLS, secrets, deployment config, or private SQLite data without an explicit
+Human gate.
 
 These Epics must preserve the existing content boundary:
 
@@ -421,10 +429,12 @@ owner-claim mutation.
   - cookie flags, Origin/CSRF checks, and CORS allowlist behavior are evidenced
   - default-data dry-run evidence is linked for any existing private DB
 
-#27 VPS deployment prerequisite evidence
+#27 / M14 VPS deployment prerequisite evidence
   - M12 readiness comment links auth/session/cookie/origin evidence
   - user-isolation tests and real-backend walkthrough evidence are accepted
+  - M13 practice-mode readiness evidence is accepted
   - backup and owner-claim dry-run guidance exists before deployment release
+  - #276 deployment target/runtime config contract is accepted before #277-#281
   - local dev remains runnable without VPS-specific assumptions
 ```
 
