@@ -33,6 +33,10 @@ tools/agents/agent-inbox architect
 # Implementer: coding, fixes, verification
 tools/agents/agent-inbox implementer
 
+# Tester: test planning, evidence execution, gaps, residual risks
+tools/agents/agent-inbox tester
+tools/agents/agent-ready-queue --role tester
+
 # Implementer queue with dependency gates
 tools/agents/agent-ready-queue
 
@@ -44,8 +48,10 @@ tools/agents/agent-inbox merge
 ```
 
 The examples above are the roles currently used most often in Tiny IPA. The
-helper model is intentionally role-generic: future projects or later phases may
-add roles such as `reviewer` without changing the core inbox pattern.
+helper model is intentionally role-generic: this repo now includes `tester` for
+objective evidence planning and execution, but Tester is optional per issue.
+Use it when evidence quality is the bottleneck; do not force a Tester gate for
+small low-risk work where Implementer and Reviewer evidence is enough.
 
 When handing work to another role, update the label and add a short issue or PR comment explaining the next action.
 
@@ -227,6 +233,7 @@ Handoff labels must match the current owner of the next action:
 
 ```text
 needs:implementer -> implementer should pick up or fix a child issue or PR
+needs:tester      -> tester should plan or gather objective test evidence
 needs:architect   -> architect should review, merge, or decide readiness
 needs:user        -> user decision is needed
 needs:ci          -> checks are still running

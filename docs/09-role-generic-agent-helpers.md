@@ -91,6 +91,10 @@ The same model must support at least these flows:
 ```text
 Architect -> Implementer
 Implementer -> Reviewer
+Implementer -> Tester
+Tester -> Reviewer
+Tester -> Implementer
+Tester -> Architect
 Reviewer -> Implementer
 Reviewer -> Architect
 Architect -> Reviewer
@@ -104,6 +108,13 @@ the Architect, and it may review code, QA evidence, docs, or integration risk.
 Final acceptance can still belong to the Architect when the issue contract says
 so.
 
+`Tester` is also first-class when evidence quality is the bottleneck. Tester
+plans or gathers objective evidence, but does not approve, reject, merge, close,
+or replace Reviewer, Architect, or Human acceptance. Do not require every old
+project or every low-risk issue to adopt Tester; use it when the repo already
+has role helpers or when user-visible state, browser flows, real-backend
+uncertainty, runtime readiness, or regression risk justify the extra handoff.
+
 ## Core Concepts
 
 ### Role
@@ -115,6 +126,7 @@ Examples:
 ```text
 architect
 implementer
+tester
 reviewer
 user
 ci
@@ -184,6 +196,42 @@ checkpoint` keeps child issues from becoming per-issue review stops.
 
 The helper must fail closed when required contract fields are missing or when a
 handoff value is unknown.
+
+### Testing Contract
+
+Use a Testing Contract when evidence risk is high enough to route through
+Tester or to require explicit evidence planning. It is optional, not a required
+field for every issue.
+
+Recommended shape:
+
+```markdown
+## Testing Contract
+
+Tester trigger: yes / no
+Evidence layers:
+- static/contract:
+- backend integration:
+- route-mocked browser:
+- real-backend/temp-DB browser:
+- dogfood/adopter trial:
+- human trial:
+Route-mock sufficiency: sufficient / insufficient / not applicable
+Real-backend requirement: required / not required, because ...
+Negative assertions:
+- ...
+Known gaps:
+- ...
+Residual risks:
+- ...
+Tester handoff: to:reviewer | to:architect | to:implementer | none
+```
+
+Trigger Tester for user-visible state chains, Settings/control effects,
+auth/data isolation, content import/scheduler behavior, deployment readiness,
+or cases where route mocks, convenient fixtures, or unit tests can miss the
+real behavior. Skip Tester for small low-risk docs/scripts changes when
+Implementer and Reviewer evidence is enough.
 
 ## Helper Surface
 

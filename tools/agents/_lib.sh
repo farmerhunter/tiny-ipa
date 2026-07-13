@@ -17,9 +17,10 @@ agent_role_config_path() {
 }
 
 agent_set_default_role_config() {
-  AGENT_ROLES=(architect implementer reviewer user ci merge)
+  AGENT_ROLES=(architect implementer tester reviewer user ci merge)
   AGENT_ROLE_LABEL_architect="needs:architect"
   AGENT_ROLE_LABEL_implementer="needs:implementer"
+  AGENT_ROLE_LABEL_tester="needs:tester"
   AGENT_ROLE_LABEL_reviewer="needs:reviewer"
   AGENT_ROLE_LABEL_user="needs:user"
   AGENT_ROLE_LABEL_ci="needs:ci"
@@ -27,6 +28,7 @@ agent_set_default_role_config() {
   AGENT_PRIMARY_NEXT_LABELS=(
     needs:architect
     needs:implementer
+    needs:tester
     needs:reviewer
     needs:user
     needs:ci
