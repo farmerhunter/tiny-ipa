@@ -5,8 +5,52 @@ import pytest
 DOC = Path(__file__).resolve().parents[2] / "docs" / "06-epic-roadmap.md"
 
 
+def _roadmap_text() -> str:
+    return DOC.read_text(encoding="utf-8")
+
+
 def _contract_text() -> str:
-    return " ".join(DOC.read_text(encoding="utf-8").split())
+    return " ".join(_roadmap_text().split())
+
+
+def _section(start_heading: str, end_heading: str) -> str:
+    roadmap = _roadmap_text()
+    start = roadmap.index(start_heading)
+    end = roadmap.index(end_heading, start)
+    return roadmap[start:end]
+
+
+def test_m14_contract_uses_current_roadmap_numbering_and_placement() -> None:
+    roadmap = _roadmap_text()
+
+    assert "| M13 Expand Practice Modes: Choose Word and Type Word | #256 | Done |" in roadmap
+    assert "| M14 VPS Deployment and Backup | #27 | Blocked / Planning |" in roadmap
+    assert "| M15 Account Management and Admin UX | #212 | Backlog / Deferred |" in roadmap
+
+    m13 = _section(
+        "## M13：Expand Practice Modes: Choose Word and Type Word",
+        "## M14：VPS Deployment and Backup",
+    )
+    m14 = _section(
+        "## M14：VPS Deployment and Backup",
+        "## M15：Account Management and Admin UX",
+    )
+
+    assert "Deployment Target and Runtime Config Contract" not in m13
+    assert "Deployment Target and Runtime Config Contract" in m14
+
+
+@pytest.mark.parametrize(
+    "stale_label",
+    [
+        "| M13 VPS Deployment and Backup |",
+        "| M14 Account Management and Admin UX |",
+        "## M13：VPS Deployment and Backup",
+        "## M14：Account Management and Admin UX",
+    ],
+)
+def test_m14_contract_rejects_stale_roadmap_numbering(stale_label: str) -> None:
+    assert stale_label not in _roadmap_text()
 
 
 @pytest.mark.parametrize(

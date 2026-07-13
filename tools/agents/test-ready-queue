@@ -49,6 +49,13 @@ if [[ "$*" == *"-X GET"* && "$*" == *"/issues"* && "$*" == *"state=open"* ]]; th
     "labels": [{"name": "type:task"}, {"name": "needs:reviewer"}]
   },
   {
+    "number": 4,
+    "title": "Tester evidence task",
+    "html_url": "https://example.test/issues/4",
+    "body": "## Final Execution Contract\n\nBranch strategy: issue branch to main\nBase branch: `main`\nTarget PR base: `main`\nOwner role: tester\nReview role: reviewer\nAcceptance role: architect\nDepends on: none\nCompletion handoff: to:reviewer\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:tester"}]
+  },
+  {
     "number": 3,
     "title": "Architect task",
     "html_url": "https://example.test/issues/3",
@@ -84,6 +91,16 @@ grep -Fq "Review role: none" <<< "$reviewer_output"
 grep -Fq "Gate: startable" <<< "$reviewer_output"
 grep -Fq "Completion handoff: batch checkpoint" <<< "$reviewer_output"
 ! grep -Fq "labels=" "$tmp_dir/reviewer-gh.log"
+
+FAKE_GH_LOG="$tmp_dir/tester-gh.log" tester_output="$(
+  FAKE_GH_LOG="$tmp_dir/tester-gh.log" "$fixture_root/tools/agents/agent-ready-queue" --role tester
+)"
+grep -Fq "#4 Tester evidence task" <<< "$tester_output"
+! grep -Fq "#1 Implementer task" <<< "$tester_output"
+grep -Fq "Owner role: tester" <<< "$tester_output"
+grep -Fq "Completion handoff: to:reviewer" <<< "$tester_output"
+grep -Fq "Gate: startable" <<< "$tester_output"
+! grep -Fq "labels=" "$tmp_dir/tester-gh.log"
 
 if "$fixture_root/tools/agents/agent-ready-queue" --role ghost >/dev/null 2>&1; then
   printf 'unknown role unexpectedly succeeded\n' >&2

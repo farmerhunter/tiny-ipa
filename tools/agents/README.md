@@ -16,13 +16,16 @@ jq
 ```bash
 tools/agents/agent-inbox architect
 tools/agents/agent-inbox implementer
+tools/agents/agent-inbox tester
 tools/agents/agent-inbox reviewer
 tools/agents/agent-role-config
 tools/agents/agent-permission-smoke
 tools/agents/agent-ready-queue
+tools/agents/agent-ready-queue --role tester
 tools/agents/agent-ready-queue --role reviewer
 tools/agents/agent-pickup 63 --role implementer
 tools/agents/agent-handoff 64 --from implementer
+tools/agents/agent-handoff 64 --from tester --to reviewer
 tools/agents/agent-handoff 64 --from reviewer --to implementer
 tools/agents/agent-comment issue 86 --body-file /tmp/comment.md
 tools/agents/agent-batch-accept --epic 83 --issue 86 --issue 87
@@ -54,7 +57,8 @@ open issues once and groups the configured primary labels locally, instead of
 making one network call per label.
 
 `agent-ready-queue` defaults to the configured `implementer` role and also
-accepts `--role <role>` for other configured role inboxes, such as `reviewer`.
+accepts `--role <role>` for other configured role inboxes, such as `tester` or
+`reviewer`.
 It extracts `Execution Contract` lines so an agent can see which ready issues
 are immediately startable and which are waiting on `Depends on`. It reads both
 issue bodies and issue comments because many
@@ -85,6 +89,14 @@ label changes plus a compact completion/handoff comment template. Use
 `--to <role|none|batch>` to override the contract route for explicit handoffs.
 The dry-run path does not mutate labels, post comments, close issues, or read
 Project v2. `--apply` is not implemented in the current prototype.
+
+`tester` is a configured evidence role. Use `needs:tester` only when evidence
+quality is the bottleneck, such as user-visible state chains, browser flows,
+route-mocked versus real-backend uncertainty, temp-DB/runtime/deployment
+readiness, or regression risk. Tester plans or gathers evidence and then hands
+off to Reviewer, Architect, Implementer, or Human according to the issue
+contract. Tester does not approve, reject, merge, close, or replace Reviewer,
+Architect, or Human acceptance.
 
 `agent-comment` is a REST-first durable comment helper. It supports explicit
 `issue` and `pr` targets by number, requires `--body-file` input, previews by

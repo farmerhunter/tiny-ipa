@@ -106,6 +106,13 @@ if [[ "$*" == *"/issues"* && "$*" == *"state=open"* ]]; then
     "labels": [{"name": "type:task"}, {"name": "needs:implementer"}]
   },
   {
+    "number": 9,
+    "title": "Tester valid route",
+    "html_url": "https://example.test/issues/9",
+    "body": "## Final Execution Contract\n\nCompletion handoff: to:reviewer\n",
+    "labels": [{"name": "type:task"}, {"name": "needs:tester"}]
+  },
+  {
     "number": 8,
     "title": "Handoff completed route",
     "html_url": "https://example.test/issues/8",
@@ -138,5 +145,6 @@ grep -Fq "handoff: MISSING (missing)" <<< "$output"
 ! grep -Fq "#3 Batch checkpoint" <<< "$output"
 ! grep -Fq "#4 Picked up without route" <<< "$output"
 ! grep -Fq "#8 Handoff completed route" <<< "$output"
+! grep -Fq "#9 Tester valid route" <<< "$output"
 
 printf 'agent-audit fixture checks passed\n'

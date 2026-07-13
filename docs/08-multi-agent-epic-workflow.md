@@ -26,6 +26,21 @@ The Implementer owns:
 - responding to review feedback
 - posting completion comments
 
+### Tester
+
+The Tester owns objective evidence when testing depth is the bottleneck:
+
+- test plans and test matrices
+- route-mocked versus real-backend evidence boundaries
+- temp-DB, browser, runtime, deployment-readiness, and regression evidence
+- residual-risk and coverage-gap reporting
+
+Tester does not approve, reject, merge, close, or replace Reviewer, Architect,
+or Human acceptance. Use Tester selectively for risky user-visible or stateful
+work; low-risk docs, helpers, or narrow implementation changes can still go
+directly from Implementer to Reviewer or Architect when ordinary evidence is
+enough.
+
 These are roles, not identities. The same agent can play different roles in different turns, but role expectations should be explicit.
 
 ## Work Hierarchy
@@ -222,6 +237,7 @@ Use exactly one primary next-action label on an active issue or PR unless the wo
 ```text
 needs:architect   Architect should plan, review, merge, or make a readiness decision
 needs:implementer Implementer should code, fix, verify, or update a PR
+needs:tester      Tester should plan or gather objective test evidence
 needs:user        User decision or clarification is required
 needs:ci          Waiting for CI or automated checks
 needs:merge       Reviewed and ready to merge
@@ -232,11 +248,11 @@ Allowed use by issue type:
 
 ```text
 type:task:
-  may use needs:implementer, needs:architect, needs:user, needs:ci, needs:merge, blocked
+  may use needs:implementer, needs:tester, needs:architect, needs:user, needs:ci, needs:merge, blocked
 
 type:epic:
   may use needs:architect, needs:user, blocked
-  should not use needs:implementer, needs:ci, or needs:merge
+  should not use needs:implementer, needs:tester, needs:ci, or needs:merge
 ```
 
 Epic handoff labels mean the next action is coordination-level work:
@@ -261,6 +277,13 @@ Implementer starts task:
 Implementer opens PR:
   add needs:architect
   move issue/PR to In Review
+
+Implementer finishes evidence-sensitive work:
+  add needs:tester when the contract says Tester evidence is required
+
+Tester completes evidence pass:
+  remove needs:tester
+  add needs:reviewer, needs:architect, or needs:implementer per contract
 
 Architect requests changes:
   remove needs:architect
@@ -290,6 +313,10 @@ tools/agents/agent-inbox implementer
 
 # Implementer queue with dependency gates
 tools/agents/agent-ready-queue
+
+# Tester evidence queue
+tools/agents/agent-inbox tester
+tools/agents/agent-ready-queue --role tester
 
 # User-decision queue
 tools/agents/agent-inbox user

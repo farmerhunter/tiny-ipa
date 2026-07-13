@@ -52,6 +52,8 @@ contract() {
 case "$*" in
   *"/issues/10"*) issue_json 10 "Bare role contract" "$(contract implementer architect architect architect)" "type:task" ;;
   *"/issues/11"*) issue_json 11 "Same route" "$(contract reviewer none architect to:reviewer)" "type:task,needs:reviewer" ;;
+  *"/issues/12"*) issue_json 12 "Implementer to tester" "$(contract implementer tester architect to:tester)" "type:task,needs:implementer" ;;
+  *"/issues/13"*) issue_json 13 "Tester to reviewer" "$(contract tester reviewer architect to:reviewer)" "type:task,needs:tester" ;;
   *"/issues/1"*) issue_json 1 "Implementer to architect" "$(contract implementer architect architect to:architect)" "type:task" ;;
   *"/issues/2"*) issue_json 2 "Implementer to reviewer" "$(contract implementer reviewer architect to:architect)" "type:task,needs:implementer" ;;
   *"/issues/3"*) issue_json 3 "Reviewer to implementer" "$(contract reviewer none architect to:architect)" "type:task,needs:reviewer" ;;
@@ -80,6 +82,18 @@ grep -Fq "From: implementer (needs:implementer)" <<< "$impl_review"
 grep -Fq "Target: to:reviewer (needs:reviewer)" <<< "$impl_review"
 grep -Fq "remove needs:implementer" <<< "$impl_review"
 grep -Fq "add needs:reviewer" <<< "$impl_review"
+
+impl_tester="$("$fixture_root/tools/agents/agent-handoff" 12 --from implementer)"
+grep -Fq "From: implementer (needs:implementer)" <<< "$impl_tester"
+grep -Fq "Target: to:tester (needs:tester)" <<< "$impl_tester"
+grep -Fq "remove needs:implementer" <<< "$impl_tester"
+grep -Fq "add needs:tester" <<< "$impl_tester"
+
+tester_review="$("$fixture_root/tools/agents/agent-handoff" 13 --from tester)"
+grep -Fq "From: tester (needs:tester)" <<< "$tester_review"
+grep -Fq "Target: to:reviewer (needs:reviewer)" <<< "$tester_review"
+grep -Fq "remove needs:tester" <<< "$tester_review"
+grep -Fq "add needs:reviewer" <<< "$tester_review"
 
 review_impl="$("$fixture_root/tools/agents/agent-handoff" 3 --from reviewer --to implementer)"
 grep -Fq "Target: to:implementer (needs:implementer)" <<< "$review_impl"

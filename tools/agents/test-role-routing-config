@@ -13,13 +13,15 @@ check() {
   "$@"
 }
 
-check "built-in fallback includes reviewer" \
+check "built-in fallback includes tester and reviewer" \
   env AGENT_ROLE_ROUTING_CONFIG="$tmp_dir/missing.conf" ROOT="$root" bash -c '
     set -euo pipefail
     source "$ROOT/tools/agents/_lib.sh"
+    [[ "$(agent_role_label_for_role tester)" == "needs:tester" ]]
     [[ "$(agent_role_label_for_role reviewer)" == "needs:reviewer" ]]
     agent_require_primary_next_label needs:architect
     agent_require_primary_next_label needs:implementer
+    agent_require_primary_next_label needs:tester
     agent_require_primary_next_label needs:reviewer
   '
 
@@ -101,6 +103,13 @@ if [[ "$*" == *"-X GET"* && "$*" == *"/issues"* && "$*" == *"state=open"* ]]; th
     "html_url": "https://example.test/issues/2",
     "updated_at": "2026-06-10T00:00:00Z",
     "labels": [{"name": "needs:reviewer"}]
+  },
+  {
+    "number": 3,
+    "title": "Tester task",
+    "html_url": "https://example.test/issues/3",
+    "updated_at": "2026-06-10T00:00:00Z",
+    "labels": [{"name": "needs:tester"}]
   }
 ]
 JSON
@@ -108,7 +117,7 @@ JSON
 fi
 
 if [[ "$*" == *"repos/farmerhunter/tiny-ipa/issues/60"* && "$*" == *"--jq [.labels[].name]"* ]]; then
-  printf '["needs:architect","needs:implementer","needs:reviewer","blocked","area:tooling"]\n'
+  printf '["needs:architect","needs:implementer","needs:tester","needs:reviewer","blocked","area:tooling"]\n'
   exit 0
 fi
 
@@ -131,9 +140,11 @@ check "agent-inbox all groups configured labels with one issue fetch" \
     set -euo pipefail
     output="$("$1/tools/agents/agent-inbox" all)"
     grep -Fq "== needs:architect ==" <<< "$output"
+    grep -Fq "== needs:tester ==" <<< "$output"
     grep -Fq "== needs:reviewer ==" <<< "$output"
     grep -Fq "#1 Architect task" <<< "$output"
     grep -Fq "#2 Reviewer task" <<< "$output"
+    grep -Fq "#3 Tester task" <<< "$output"
     [[ "$(wc -l < "$FAKE_GH_LOG" | tr -d " ")" == "1" ]]
   ' bash "$fixture_root"
 
@@ -143,6 +154,7 @@ check "agent-label set-next removes other configured primary labels" \
     "$1/tools/agents/agent-label" 60 set-next needs:reviewer >/dev/null
     grep -Fq "/issues/60/labels/needs:architect" "$FAKE_GH_LOG"
     grep -Fq "/issues/60/labels/needs:implementer" "$FAKE_GH_LOG"
+    grep -Fq "/issues/60/labels/needs:tester" "$FAKE_GH_LOG"
     grep -Fq "/issues/60/labels/blocked" "$FAKE_GH_LOG"
     ! grep -Fq "/issues/60/labels/needs:reviewer" "$FAKE_GH_LOG"
     ! grep -Fq "labels[]=needs:reviewer" "$FAKE_GH_LOG"
