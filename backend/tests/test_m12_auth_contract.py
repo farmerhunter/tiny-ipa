@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-
 DOC = Path(__file__).resolve().parents[2] / "docs" / "05-data-api-contracts.md"
 
 
@@ -22,7 +21,7 @@ def _contract_text() -> str:
         "wildcard origins are not",
         "Origin/Referer check",
         "Human-gated and must start with a dry-run report",
-        "#27 VPS deployment prerequisite evidence",
+        "#27 / M14 VPS deployment prerequisite evidence",
     ],
 )
 def test_m12_auth_contract_covers_required_boundary_phrases(phrase: str) -> None:

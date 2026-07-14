@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from app.auth_dependencies import (
     AUTH_COOKIE_NAME,
     AUTH_COOKIE_PATH,
-    AUTH_COOKIE_SAMESITE,
+    auth_cookie_samesite,
     auth_cookie_secure,
     auth_error,
     ensure_auth_configured,
@@ -48,7 +48,7 @@ async def login(request: Request, response: Response):
         issued.token,
         httponly=True,
         secure=auth_cookie_secure(),
-        samesite=AUTH_COOKIE_SAMESITE,
+        samesite=auth_cookie_samesite(),
         path=AUTH_COOKIE_PATH,
     )
     return {
@@ -69,7 +69,7 @@ def logout(request: Request, response: Response):
         path=AUTH_COOKIE_PATH,
         secure=auth_cookie_secure(),
         httponly=True,
-        samesite=AUTH_COOKIE_SAMESITE,
+        samesite=auth_cookie_samesite(),
     )
     return {"ok": True}
 

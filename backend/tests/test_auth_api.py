@@ -7,9 +7,13 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from app.auth_dependencies import AUTH_COOKIE_NAME, require_current_user
+from app.auth_dependencies import (
+    AUTH_COOKIE_NAME,
+    AuthConfigurationError,
+    require_current_user,
+)
 from app.db import get_connection
-from app.main import app
+from app.main import app, create_app
 from app.services.auth import bootstrap_owner, issue_auth_session
 from app.services.db_schema import init_db
 
@@ -185,12 +189,149 @@ def test_production_cookie_is_secure_when_secret_is_configured(
 ):
     monkeypatch.setenv("TINY_IPA_ENV", "production")
     monkeypatch.setenv("TINY_IPA_SESSION_SECRET", "test-only-secret")
+    monkeypatch.setenv("TINY_IPA_ALLOWED_ORIGINS", "https://app.example.test")
 
-    client = TestClient(app)
+    client = TestClient(create_app())
     resp = client.post(
         "/api/auth/login",
         json={"username": "owner", "password": "correct horse battery staple"},
+        headers={"Origin": "https://app.example.test"},
     )
 
     assert resp.status_code == 200
-    assert "Secure" in resp.headers["set-cookie"]
+    cookie = resp.headers["set-cookie"]
+    assert "HttpOnly" in cookie
+    assert "Secure" in cookie
+    assert "SameSite=lax" in cookie
+    assert resp.headers["access-control-allow-origin"] == "https://app.example.test"
+
+
+@pytest.mark.parametrize(
+    ("variable", "value"),
+    [
+        ("TINY_IPA_SESSION_SECRET", None),
+        ("TINY_IPA_SESSION_SECRET", "   "),
+        ("TINY_IPA_ALLOWED_ORIGINS", None),
+        ("TINY_IPA_ALLOWED_ORIGINS", "*"),
+        ("TINY_IPA_ALLOWED_ORIGINS", "http://app.example.test"),
+        ("TINY_IPA_COOKIE_SECURE", "false"),
+        ("TINY_IPA_COOKIE_SAMESITE", "none"),
+    ],
+)
+def test_production_app_factory_rejects_unsafe_auth_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+    value: str | None,
+):
+    monkeypatch.setenv("TINY_IPA_ENV", "production")
+    monkeypatch.setenv("TINY_IPA_SESSION_SECRET", "test-only-secret")
+    monkeypatch.setenv("TINY_IPA_ALLOWED_ORIGINS", "https://app.example.test")
+    monkeypatch.delenv("TINY_IPA_COOKIE_SECURE", raising=False)
+    monkeypatch.delenv("TINY_IPA_COOKIE_SAMESITE", raising=False)
+    if value is None:
+        monkeypatch.delenv(variable, raising=False)
+    else:
+        monkeypatch.setenv(variable, value)
+
+    with pytest.raises(AuthConfigurationError):
+        create_app()
+
+
+def test_production_does_not_accept_legacy_cors_origins_as_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("TINY_IPA_ENV", "production")
+    monkeypatch.setenv("TINY_IPA_SESSION_SECRET", "test-only-secret")
+    monkeypatch.delenv("TINY_IPA_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.setenv("TINY_IPA_CORS_ORIGINS", "https://app.example.test")
+
+    with pytest.raises(AuthConfigurationError):
+        create_app()
+
+
+def test_local_app_keeps_localhost_cors_and_non_secure_cookie_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("TINY_IPA_ENV", "local")
+    monkeypatch.delenv("TINY_IPA_SESSION_SECRET", raising=False)
+    monkeypatch.delenv("TINY_IPA_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.delenv("TINY_IPA_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("TINY_IPA_COOKIE_SECURE", raising=False)
+    monkeypatch.delenv("TINY_IPA_COOKIE_SAMESITE", raising=False)
+
+    client = TestClient(create_app())
+    resp = client.options(
+        "/api/auth/login",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_production_origin_gate_allows_exact_origin_and_rejects_other_unsafe_requests(
+    auth_db: str,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("TINY_IPA_ENV", "production")
+    monkeypatch.setenv("TINY_IPA_SESSION_SECRET", "test-only-secret")
+    monkeypatch.setenv("TINY_IPA_ALLOWED_ORIGINS", "https://app.example.test")
+    client = TestClient(create_app())
+
+    allowed = client.post(
+        "/api/auth/login",
+        json={"username": "owner", "password": "correct horse battery staple"},
+        headers={"Origin": "https://app.example.test"},
+    )
+    blocked = client.post(
+        "/api/auth/login",
+        json={"username": "owner", "password": "correct horse battery staple"},
+        headers={"Origin": "https://other.example.test"},
+    )
+    missing = client.post(
+        "/api/auth/login",
+        json={"username": "owner", "password": "correct horse battery staple"},
+    )
+    referer_allowed = client.post(
+        "/api/auth/login",
+        json={"username": "owner", "password": "correct horse battery staple"},
+        headers={"Referer": "https://app.example.test/login"},
+    )
+
+    assert allowed.status_code == 200
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"]["error"] == "ORIGIN_FORBIDDEN"
+    assert missing.status_code == 403
+    assert missing.json()["detail"]["error"] == "ORIGIN_FORBIDDEN"
+    assert referer_allowed.status_code == 200
+
+
+def test_production_cors_preflight_rejects_unlisted_origin(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("TINY_IPA_ENV", "production")
+    monkeypatch.setenv("TINY_IPA_SESSION_SECRET", "test-only-secret")
+    monkeypatch.setenv("TINY_IPA_ALLOWED_ORIGINS", "https://app.example.test")
+    client = TestClient(create_app())
+
+    allowed = client.options(
+        "/api/auth/login",
+        headers={
+            "Origin": "https://app.example.test",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    blocked = client.options(
+        "/api/auth/login",
+        headers={
+            "Origin": "https://other.example.test",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == "https://app.example.test"
+    assert blocked.status_code == 400

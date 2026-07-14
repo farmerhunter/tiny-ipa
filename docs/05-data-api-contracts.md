@@ -302,6 +302,16 @@ SameSite cookies plus Origin validation are the minimum CSRF boundary for M12;
 if future cross-site credentialed requests are needed, a CSRF token contract must
 be added before release.
 
+M14 #277 turns this boundary into runtime enforcement. When `TINY_IPA_ENV` is
+`production` (or another deployed alias), app creation must reject a missing or
+blank `TINY_IPA_SESSION_SECRET`, a missing/non-HTTPS/wildcard
+`TINY_IPA_ALLOWED_ORIGINS`, `TINY_IPA_COOKIE_SECURE=false`, or
+`TINY_IPA_COOKIE_SAMESITE=none`. The default deployment cookie policy is
+`HttpOnly; Secure; SameSite=Lax; Path=/`, suitable for an HTTPS reverse proxy.
+Local development keeps explicit localhost origins and non-Secure cookies unless
+its environment overrides them; `TINY_IPA_CORS_ORIGINS` remains a local-only
+compatibility input and cannot satisfy deployed configuration.
+
 #### User-scoped and global data matrix
 
 ```text

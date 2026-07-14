@@ -207,7 +207,7 @@ def require_session_secret(
     """Fail closed for deployed auth when the session secret is missing."""
     env = _normalize_environment(environment)
     secret = session_secret if session_secret is not None else os.getenv("TINY_IPA_SESSION_SECRET")
-    if env in DEPLOYED_ENVIRONMENTS and not secret:
+    if env in DEPLOYED_ENVIRONMENTS and not (secret and secret.strip()):
         raise AuthSecretRequiredError("TINY_IPA_SESSION_SECRET is required in deployed mode")
     return secret
 
