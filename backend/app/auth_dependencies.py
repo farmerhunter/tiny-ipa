@@ -183,6 +183,7 @@ def _is_exact_https_origin(origin: str) -> bool:
     return (
         parsed.scheme == "https"
         and bool(parsed.netloc)
+        and "*" not in origin
         and not parsed.username
         and not parsed.password
         and parsed.path == ""
