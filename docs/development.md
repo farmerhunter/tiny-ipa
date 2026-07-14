@@ -555,3 +555,42 @@ Later Human-gated host commands may include `nginx -t`, a loopback
 the owner approves VPS access. Do not run Nginx writes/reloads, copy the build,
 write an environment file, or change DNS/TLS under #279. #280 owns
 backup/restore and #281 owns the final deployment smoke/rollback checklist.
+
+## M14 SQLite backup and restore dry-run
+
+This #280 tool proves a backup/restore round trip with disposable fixture data.
+It is not a production backup command and does not authorize reading, copying,
+or restoring a private database. All three paths must be under the operating
+system temporary directory: the existing source fixture, a new backup artifact,
+and a separate new restore target. The tool rejects repository and production
+paths, existing output files, missing required tables, and any in-place restore.
+
+The artifact is a SQLite database copy created with the SQLite backup API. The
+tool runs `PRAGMA quick_check` and compares schema plus non-secret per-table
+counts and fingerprints across source, backup artifact, and restore target. It verifies
+shared `words`/`phonemes` plus `users`, `auth_sessions`, `settings`,
+`daily_sessions`, `session_items`, `attempts`, and `phoneme_stats`. It never
+prints user rows, password hashes, session token hashes, or secrets.
+
+The automated dry-run creates its own temporary fixture and is the reproducible
+local proof:
+
+```bash
+uv run --project backend pytest backend/tests/test_backup_restore_dry_run.py -q
+```
+
+For an explicit disposable fixture created by a test or local experiment, run:
+
+```bash
+uv run --project backend python backend/scripts/backup_restore_dry_run.py \
+  --source <temp-dir>/source.sqlite \
+  --backup <temp-dir>/backup.sqlite \
+  --restore <temp-dir>/restored.sqlite
+```
+
+Keep the temporary artifact and restored database only until the result has
+been reviewed, then remove that temporary directory using the local operating
+system cleanup procedure. Do not add overwrite, owner-claim apply, cron,
+systemd, or remote-copy behavior to this dry-run tool. Production retention,
+off-host copies, restore authorization, and rollback execution remain
+Human-gated; #281 owns the all-system smoke/rollback checklist.
