@@ -594,3 +594,113 @@ system cleanup procedure. Do not add overwrite, owner-claim apply, cron,
 systemd, or remote-copy behavior to this dry-run tool. Production retention,
 off-host copies, restore authorization, and rollback execution remain
 Human-gated; #281 owns the all-system smoke/rollback checklist.
+
+## M14 deployment smoke, rollback, and evidence checklist
+
+This #281 checklist is the evidence packet for the later #282 Architect/User
+readiness gate. It is not evidence that a VPS, systemd unit, Nginx, TLS,
+backup artifact, or restore has been validated. Record every row as one of
+`local-passed`, `pending-human-input`, `vps-passed`, or `blocked`; a missing
+row is a blocker rather than an assumed pass.
+
+### Result record format
+
+Use this format for each check in the eventual #282 evidence comment. Do not
+paste credentials, session cookies, token hashes, or private database rows.
+
+```text
+check: <checklist item>
+status: local-passed | pending-human-input | vps-passed | blocked
+evidence: <command result, sanitized log location, screenshot, or PR link>
+owner: <Human operator or role>
+stop condition: <what prevents the next check>
+```
+
+### Local/disposable preflight: executable now
+
+These commands are objective local evidence only. They neither start a service
+nor contact a VPS:
+
+```bash
+uv run --project backend pytest \
+  backend/tests/test_auth_api.py \
+  backend/tests/test_audio_validation.py \
+  backend/tests/test_backup_restore_dry_run.py \
+  backend/tests/test_m14_deployment_contract.py \
+  backend/tests/test_m14_systemd_runbook.py \
+  backend/tests/test_m14_reverse_proxy_contract.py \
+  backend/tests/test_m14_backup_restore_contract.py -q
+
+cd frontend
+VITE_API_BASE=/api pnpm run build
+
+cd ..
+git diff --check
+tools/agents/agent-audit
+```
+
+Mark the backup row `local-passed` only when #280's temporary fixture round
+trip passes. That proof covers shared content plus authenticated runtime tables,
+but it is not a production artifact or production restore authorization.
+
+### Human-gated VPS preflight inputs
+
+Before a real-host smoke, a Human operator must record all of the following as
+`pending-human-input` until supplied: exact HTTPS domain, approved SSH host and
+service user, operating-system/runtime versions, reserved backend/proxy ports,
+reverse-proxy and TLS ownership, session-secret provisioning channel, production
+database path, backup destination/retention, and the authorized restore owner.
+
+Do not start if #277 production checks are unresolved: an exact allowed HTTPS
+origin, secure cookie policy, and Human-provisioned session secret are required
+before a production start. #278 owns the service/environment template; #279
+owns the placeholder reverse-proxy contract; #280 is temporary-only proof.
+
+### Human-gated real-host smoke sequence
+
+Run this sequence only after the preflight inputs are recorded and the Human
+operator authorizes the VPS action. Capture sanitized command output, browser
+screenshots, and service-log timestamps without capturing secrets or private
+learner data.
+
+| Check | Expected evidence | Stop condition |
+|---|---|---|
+| HTTPS/domain | exact approved domain loads over HTTPS; certificate and hostname match | DNS, TLS, redirect, or hostname mismatch |
+| frontend load | built SPA loads and a non-API route falls back to `index.html` | missing static asset or SPA fallback failure |
+| health | `/api/health` returns its unauthenticated readiness response through the proxy | backend/proxy disagreement or non-OK response |
+| authenticated login | approved test account can log in; cookie behavior matches #277 policy | auth error, insecure cookie, wildcard origin, or credential leak in evidence |
+| Settings save | a permitted setting persists after reload for the same approved test account | save failure, wrong account state, or cross-user data exposure |
+| Today start/resume | a normal group starts, then the same group resumes at its stored breakpoint | group duplication, item-1 replay, or user-state mismatch |
+| audio/static | a known approved `/audio/` asset loads from the directory named by `TINY_IPA_AUDIO_DIR` | missing/static fallback ambiguity or use of `TINY_IPA_AUDIO_ROOT` |
+| service restart | after a Human-authorized restart, health and the approved test-account state remain coherent | restart loop, unavailable health, or unexpected runtime-data loss |
+
+The deployed frontend must use `VITE_API_BASE=/api`. `TINY_IPA_AUDIO_DIR` is
+the canonical audio variable; `TINY_IPA_AUDIO_ROOT` is not a supported alias.
+Do not substitute a direct backend origin for the #279 reverse-proxy contract.
+
+### Backup, restore, rollback, and stop criteria
+
+Before any production restart or rollback decision, record whether a Human has
+authorized production backup creation and whether its retention location is
+approved. #280 does not authorize either action: its temporary-only artifact
+proves the schema/data comparison method, not a production restore.
+
+Stop and escalate to Architect/Human owner when any of the following occurs:
+
+1. Production origin/secret/cookie policy from #277 is invalid or unverified.
+2. Any smoke row is `blocked`, including health, login, settings isolation,
+   Today resume, audio/static serving, or restart persistence.
+3. Backup evidence is absent, the restore target is not separate, or a restore
+   could overwrite the only known-good private database.
+4. The release requires a schema/data migration, a destructive cleanup, or an
+   unreviewed change to runtime/deployment/security configuration.
+
+The first rollback choice is to stop new rollout activity and preserve
+sanitized evidence. Do not restore in place, delete a database, or copy a
+private artifact without explicit Human authorization. A later authorized
+rollback must identify the release being reverted, the approved backup artifact,
+the separate restore target, the data-loss assessment, the accountable owner,
+and the post-restore health/login/settings/Today/audio evidence.
+
+After the checklist is complete, #282 alone decides whether local evidence,
+Human inputs, VPS evidence, and residual blockers justify a deployment decision.
