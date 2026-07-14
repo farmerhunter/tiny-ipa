@@ -645,8 +645,8 @@ Runtime config variables for follow-up issues:
 | `TINY_IPA_COOKIE_SECURE` | may be `false` on `localhost` | must be `true` |
 | `TINY_IPA_COOKIE_SAMESITE` | `lax` unless tests require otherwise | `lax` or stricter, documented with auth tests |
 | `TINY_IPA_ALLOWED_ORIGINS` | may include localhost dev origins | required exact HTTPS origin list; no wildcard with cookies |
-| `VITE_API_BASE_URL` | dev server may point at local backend | must match deployed API origin/path |
-| `TINY_IPA_AUDIO_ROOT` | may use repo `audio/` | required readable static asset directory |
+| `VITE_API_BASE` | defaults to same-origin `/api`; local harnesses may override it | deployed build must use `/api` through the reverse proxy unless a later contract explicitly changes the API path |
+| `TINY_IPA_AUDIO_DIR` | may use repo `audio/` | canonical readable audio directory; must match the reverse-proxy `/audio/` alias target |
 | `TINY_IPA_STATIC_ROOT` | optional during Vite dev | required frontend build directory for static serving |
 | `TINY_IPA_BACKEND_HOST` | localhost is allowed | loopback or private interface behind reverse proxy |
 | `TINY_IPA_BACKEND_PORT` | any free local port | fixed documented service port |

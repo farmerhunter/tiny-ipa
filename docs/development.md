@@ -468,3 +468,90 @@ Do not run `systemctl daemon-reload`, `enable`, `start`, `restart`, package
 install commands, SSH commands, DNS/TLS commands, or private SQLite operations
 under #278. Those actions require later explicit authorization and their own
 M14 acceptance evidence.
+
+## M14 frontend build and reverse-proxy routing contract
+
+This #279 contract defines a reviewable routing shape only. It does not
+authorize an Nginx install, configuration write, syntax check, reload, VPS
+connection, DNS/TLS change, or deployment. Replace placeholders only after a
+Human owner supplies the host details and authorizes that host action.
+
+### Canonical build and audio configuration
+
+`VITE_API_BASE` is the frontend build variable. Its deployed value is `/api`,
+so browser API requests stay same-origin and carry the session cookie through
+the reverse proxy. It may be overridden only by local disposable integration
+harnesses. `VITE_API_BASE_URL` is not supported by the current frontend client.
+
+`TINY_IPA_AUDIO_DIR` is the single canonical deployment variable for the audio
+directory. FastAPI reads it for the local-development `/audio/` fallback; the
+production reverse proxy must use the same physical directory as its
+`/audio/` alias. `TINY_IPA_AUDIO_ROOT` is not a supported alias: it has no
+precedence or compatibility path and must not be added to an environment file.
+
+Build only from the repository checkout, with the production path made
+explicit:
+
+```bash
+cd frontend
+VITE_API_BASE=/api pnpm run build
+```
+
+The build output is `<frontend-dist-dir>`. Do not copy it to a VPS web root
+under #279.
+
+### Nginx template shape
+
+This is a prototype for later Human review. It has no real hostname, filesystem
+path, port, or certificate value:
+
+```nginx
+server {
+    listen <tls-listen>;
+    server_name <public-hostname>;
+
+    root <frontend-dist-dir>;
+    index index.html;
+
+    location = /api/health {
+        proxy_pass http://127.0.0.1:<backend-port>;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:<backend-port>;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location ^~ /audio/ {
+        alias <audio-dir>/;
+        add_header Cache-Control "public, max-age=31536000";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+Expected behavior is limited to the contract: `/api` and `/api/health` proxy
+to the loopback backend, `/audio/` resolves under the same `<audio-dir>` named
+by `TINY_IPA_AUDIO_DIR`, built static assets resolve from
+`<frontend-dist-dir>`, and unknown SPA routes fall back to `index.html`.
+`/audio/` missing files must remain missing rather than falling back to the SPA.
+
+### Repo-safe verification and Human gates
+
+Repo-safe evidence is the frontend production build, backend local `/audio/`
+static-route tests, and the M14 routing contract test. They do not prove that
+Nginx is installed or that a production host serves these paths.
+
+Later Human-gated host commands may include `nginx -t`, a loopback
+`/api/health` request, and a browser request for a known `/audio/` asset after
+the owner approves VPS access. Do not run Nginx writes/reloads, copy the build,
+write an environment file, or change DNS/TLS under #279. #280 owns
+backup/restore and #281 owns the final deployment smoke/rollback checklist.
