@@ -338,3 +338,133 @@ CI does not require secrets. Content auto-selection is not run in CI because it 
 | `content/sources/` | Downloaded external data (ipa-dict) | No |
 | `audio/` | Generated mp3 audio assets | No |
 | `*.sqlite` | SQLite database files | No |
+
+## M14 VPS backend systemd runbook
+
+This is a planning template for #278. It does not authorize SSH access,
+package installation, writing an environment file, or changing systemd on a
+real VPS. Replace every angle-bracket placeholder only after the Human owner
+has supplied the deployment target details and explicitly authorized the host
+action.
+
+### Human inputs and stop conditions
+
+Collect these values before preparing a host-specific unit. Stop if any value
+is missing rather than guessing from a local checkout:
+
+| Input | Required shape | Why it is Human-gated |
+|---|---|---|
+| `<app-root>` | absolute checkout path owned by the service user | determines the executable and read-only code path |
+| `<service-user>` / `<service-group>` | non-root account already approved for the service | controls process and file ownership |
+| `<data-dir>` / `<log-dir>` | absolute writable directories outside the checkout | protects SQLite and operational logs from source-tree writes |
+| `<env-file>` | root-readable deployment file outside the repo | contains the Human-provisioned session secret |
+| `<public-hostname>` | exact HTTPS origin selected by the owner | required for production CORS/cookie policy |
+| `<backend-port>` | loopback port reserved for the backend | must not conflict with another local service |
+
+Do not continue when the service user would be root, the database path is inside
+the checkout, the public origin is not exact HTTPS, or the owner has not
+authorized VPS access. #279 owns reverse-proxy routing, #280 owns backup and
+restore, and #281 owns the end-to-end smoke/rollback checklist.
+
+### Repo-safe local preflight
+
+These commands run only against the local checkout and disposable local values.
+They do not create a production secret or contact a VPS:
+
+```bash
+cd backend
+uv sync --extra dev --locked
+uv run pytest
+
+TINY_IPA_ENV=production \
+TINY_IPA_SESSION_SECRET=local-dry-run-only \
+TINY_IPA_ALLOWED_ORIGINS=https://example.invalid \
+TINY_IPA_COOKIE_SECURE=true \
+TINY_IPA_COOKIE_SAMESITE=lax \
+uv run python -c "from app.main import create_app; create_app()"
+```
+
+The final command only validates the production configuration parser. It does
+not start a long-running service. Keep the value `local-dry-run-only` local; it
+is not a production secret or a value to copy into a VPS environment file.
+
+### systemd unit template shape
+
+Use this only as a reviewable template. It is not a committed host unit and must
+not be copied to `/etc/systemd/system/` without a later Human gate:
+
+```ini
+[Unit]
+Description=Tiny IPA backend API
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=<service-user>
+Group=<service-group>
+WorkingDirectory=<app-root>/backend
+EnvironmentFile=<env-file>
+ExecStart=<app-root>/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port <backend-port>
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=<data-dir> <log-dir>
+
+[Install]
+WantedBy=multi-user.target
+```
+
+The service process should bind to loopback only. #279 decides how an authorized
+reverse proxy reaches it; #278 does not configure that proxy, DNS, or TLS.
+
+### Environment-file template shape
+
+The environment file is a Human-owned deployment artifact. Never commit it,
+never put a real value in `.env.example`, and do not generate its secret in this
+repository:
+
+```dotenv
+TINY_IPA_ENV=production
+TINY_IPA_DB_PATH=<data-dir>/tiny_ipa.sqlite
+TINY_IPA_SESSION_SECRET=<Human-provisioned secret>
+TINY_IPA_ALLOWED_ORIGINS=https://<public-hostname>
+TINY_IPA_COOKIE_SECURE=true
+TINY_IPA_COOKIE_SAMESITE=lax
+TINY_IPA_AUDIO_DIR=<audio-dir>
+TINY_IPA_LOG_DIR=<log-dir>
+```
+
+Set ownership and permissions so only the approved administrator and service
+user can read `<env-file>`. The service must fail closed if its secret, exact
+HTTPS origin, or secure cookie policy is invalid; see the M14 #277 contract.
+
+### Authorized-host checks and failure diagnosis
+
+The following commands are Human-gated because they inspect or operate a real
+VPS. They are listed for the later authorized run, not for execution from this
+repository:
+
+```bash
+systemd-analyze verify <unit-file>
+systemctl status tiny-ipa-backend.service --no-pager
+journalctl -u tiny-ipa-backend.service -n 100 --no-pager
+curl --fail --silent --show-error http://127.0.0.1:<backend-port>/api/health
+```
+
+| Symptom | First evidence | Stop/escalate condition |
+|---|---|---|
+| service immediately exits | `journalctl` shows missing secret/origin or cookie policy error | correct only the Human-owned environment file; do not weaken production checks |
+| service cannot open SQLite | service status plus data-dir ownership/permissions | hand off to #280 if backup/restore or data movement is implicated |
+| port bind fails | journal entry names the occupied loopback port | choose an owner-approved port; do not edit reverse-proxy config in #278 |
+| health request fails | local loopback health response and unit status | hand off routing/static behavior to #279 when backend is healthy but public access fails |
+| repeated restart loop | journal evidence and systemd start-limit state | stop the unit and obtain Human/Architect review before changing runtime settings |
+
+Do not run `systemctl daemon-reload`, `enable`, `start`, `restart`, package
+install commands, SSH commands, DNS/TLS commands, or private SQLite operations
+under #278. Those actions require later explicit authorization and their own
+M14 acceptance evidence.
