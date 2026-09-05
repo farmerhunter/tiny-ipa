@@ -12,6 +12,7 @@ IPA planning namespace:
 - Backup root: `/var/backups/tiny-ipa`
 - Service: `tiny-ipa-api.service`
 - Backend bind: `127.0.0.1:18110`
+- Version readback: `/opt/tiny-ipa/current/REVISION` and `/api/version`
 
 They do not authorize SSH, package installation, host reads or writes, user or
 directory creation, environment-file writes, secret generation, database
@@ -29,6 +30,10 @@ Human placeholders that must remain unresolved until a later host-action gate:
 - `<HUMAN_APPROVED_BACKUP_OWNER>`
 - `<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>`
 - `<HUMAN_APPROVED_ROLLBACK_OWNER>`
+- `<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>`
+- `<INTENDED_GITHUB_COMMIT_SHA>`
+- `<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>`
+- `<UTC_RELEASE_ARTIFACT_TIMESTAMP>`
 
 Review these files with `backend/tests/test_m14_jingyun_candidate_artifacts.py`
 before any future Human-authorized transfer to a VPS.

@@ -17,6 +17,7 @@ start/restart/reload, backup, restore, rollback, or deployment.
 - `deploy/jingyun/tiny-ipa-api.service.candidate`: review-only systemd unit.
 - `deploy/jingyun/ipa.jingyun.bj.cn.nginx.candidate`: review-only Nginx server block.
 - `deploy/jingyun/tiny-ipa.production.env.example`: non-secret environment example.
+- `deploy/jingyun/REVISION.candidate`: active-release readback convention.
 - `docs/16-m14-jingyun-production-backup-restore-plan.md`: production backup/restore plan.
 
 Every artifact must keep `CANDIDATE - DO NOT APPLY` visible until a later
@@ -51,6 +52,7 @@ authorization:
 ```text
 /opt/tiny-ipa/releases/<release-id>
 /opt/tiny-ipa/current -> /opt/tiny-ipa/releases/<release-id>
+/opt/tiny-ipa/current/REVISION
 /var/www/tiny-ipa/releases/<release-id>
 /var/www/tiny-ipa/current -> /var/www/tiny-ipa/releases/<release-id>
 /var/lib/tiny-ipa/tiny-ipa.sqlite
@@ -64,6 +66,51 @@ The frontend build must use `VITE_API_BASE=/api`. The backend must read
 exactly `https://ipa.jingyun.bj.cn`, with `TINY_IPA_COOKIE_SECURE=true` and
 `TINY_IPA_COOKIE_SAMESITE=lax`.
 
+## Release Identity and Version Readback
+
+GitHub is the source of truth for every deployable release. A later
+Human-authorized operator must select one explicit immutable identity before any
+host mutation:
+
+```text
+release_id=<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>
+commit=<INTENDED_GITHUB_COMMIT_SHA>
+tag=<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>
+previous_release=<PREVIOUS_ACTIVE_RELEASE_ID_RECORDED_BEFORE_CHANGE>
+rollback_pointer=<PREVIOUS_ACTIVE_RELEASE_PATH_RECORDED_BEFORE_CHANGE>
+```
+
+Do not deploy from uncommitted local files, direct VPS edits, local-only patches,
+or an unpushed branch. The intended release must be visible on GitHub before it
+is copied or built for the VPS.
+
+Each backend release directory must contain a generated `REVISION` file with
+the same release ID, commit, optional tag, and timestamp shape as
+`deploy/jingyun/REVISION.candidate`. The backend environment must set:
+
+```dotenv
+TINY_IPA_RELEASE_ID=<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>
+TINY_IPA_RELEASE_COMMIT=<INTENDED_GITHUB_COMMIT_SHA>
+TINY_IPA_RELEASE_TAG=<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>
+```
+
+The live backend exposes only these explicit non-secret environment fields at
+`/api/version`, with `Cache-Control: no-store`. It does not read or return the
+contents of `REVISION` or any operator-selected file path. After any later
+authorized activation, the operator must compare the disk and API evidence as
+separate sources:
+
+```text
+local git rev-parse HEAD
+intended GitHub commit/tag
+/opt/tiny-ipa/current/REVISION
+GET https://ipa.jingyun.bj.cn/api/version
+```
+
+Stop before public activation when any of these identities differ, when
+`/api/version` is unreachable, or when the active `current` pointer does not
+match the pre-recorded release directory.
+
 ## Validation Before Activation
 
 Each later phase must validate before moving to the next phase:
@@ -71,13 +118,17 @@ Each later phase must validate before moving to the next phase:
 1. Record pre-state evidence and Xue Tu Zhi Ban baseline health.
 2. Verify the candidate service user is not root and owns only the approved Tiny IPA paths.
 3. Verify port `18110` is still free before any backend start.
-4. Validate the systemd unit syntax without enabling or starting it.
-5. Build the frontend with `VITE_API_BASE=/api` before any web-root pointer change.
-6. Validate the Nginx candidate without reload and confirm it owns only `ipa.jingyun.bj.cn`.
-7. Re-check Xue Tu Zhi Ban health before requesting any proxy reload or public activation.
-8. Run Tiny IPA health, login, Settings save, Today resume, and `/audio/`
-   checks only after the relevant host action is authorized.
-9. Re-check Xue Tu Zhi Ban health after each authorized phase.
+4. Record the intended GitHub commit/tag, previous active release, and rollback pointer.
+5. Generate `REVISION` in the candidate release directory before any `current` pointer change.
+6. Validate the systemd unit syntax without enabling or starting it.
+7. Build the frontend with `VITE_API_BASE=/api` before any web-root pointer change.
+8. Validate the Nginx candidate without reload and confirm it owns only `ipa.jingyun.bj.cn`.
+9. Re-check Xue Tu Zhi Ban health before requesting any proxy reload or public activation.
+10. Run Tiny IPA health, `/api/version`, login, Settings save, Today resume,
+    and `/audio/` checks only after the relevant host action is authorized.
+11. Compare local/GitHub/REVISION/live `/api/version` release identity before
+    considering the phase valid.
+12. Re-check Xue Tu Zhi Ban health after each authorized phase.
 
 ## Stop Conditions
 
@@ -91,6 +142,11 @@ certificate files.
 Stop after validation, before activation, if Tiny IPA health succeeds but Xue
 Tu Zhi Ban health is missing or regressed. Tiny IPA success never substitutes
 for the higher-priority application baseline.
+
+Stop before pointer changes, proxy activation, or smoke completion if the
+previous release ID, previous active path, rollback owner, or rollback pointer
+is missing. A rollback plan without a concrete previous-release pointer is not a
+rollback plan.
 
 ## Later Authorization Boundary
 

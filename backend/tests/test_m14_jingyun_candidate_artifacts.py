@@ -10,6 +10,7 @@ CANDIDATE_DIR = ROOT / "deploy" / "jingyun"
 SYSTEMD = CANDIDATE_DIR / "tiny-ipa-api.service.candidate"
 NGINX = CANDIDATE_DIR / "ipa.jingyun.bj.cn.nginx.candidate"
 ENV_EXAMPLE = CANDIDATE_DIR / "tiny-ipa.production.env.example"
+REVISION = CANDIDATE_DIR / "REVISION.candidate"
 DEPLOYMENT_PLAN = ROOT / "docs" / "15-m14-jingyun-candidate-deployment-plan.md"
 BACKUP_PLAN = ROOT / "docs" / "16-m14-jingyun-production-backup-restore-plan.md"
 
@@ -18,6 +19,7 @@ REQUIRED_FILES = (
     SYSTEMD,
     NGINX,
     ENV_EXAMPLE,
+    REVISION,
     DEPLOYMENT_PLAN,
     BACKUP_PLAN,
 )
@@ -28,6 +30,8 @@ APPROVED_NAMESPACE = (
     "/var/www/tiny-ipa",
     "/var/lib/tiny-ipa",
     "/var/backups/tiny-ipa",
+    "/opt/tiny-ipa/current/REVISION",
+    "/api/version",
     "tiny-ipa-api.service",
     "127.0.0.1:18110",
 )
@@ -42,6 +46,12 @@ HUMAN_PLACEHOLDERS = (
     "<HUMAN_APPROVED_BACKUP_OWNER>",
     "<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>",
     "<HUMAN_APPROVED_ROLLBACK_OWNER>",
+    "<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>",
+    "<INTENDED_GITHUB_COMMIT_SHA>",
+    "<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>",
+    "<UTC_RELEASE_ARTIFACT_TIMESTAMP>",
+    "<PREVIOUS_ACTIVE_RELEASE_ID_RECORDED_BEFORE_CHANGE>",
+    "<PREVIOUS_ACTIVE_RELEASE_PATH_RECORDED_BEFORE_CHANGE>",
 )
 
 FORBIDDEN_CONFIG_REFERENCES = (
@@ -139,6 +149,9 @@ def test_m14_jingyun_nginx_candidate_owns_only_subdomain_and_expected_routes() -
     assert "ssl_certificate_key <HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>;" in nginx
     assert "location = /api/health" in nginx
     assert "proxy_pass http://127.0.0.1:18110/api/health;" in nginx
+    assert "location = /api/version" in nginx
+    assert "proxy_pass http://127.0.0.1:18110/api/version;" in nginx
+    assert 'add_header Cache-Control "no-store" always;' in nginx
     assert "location /api/" in nginx
     assert "proxy_pass http://127.0.0.1:18110/api/;" in nginx
     assert "location ^~ /audio/" in nginx
@@ -162,13 +175,27 @@ def test_m14_jingyun_env_example_is_non_secret_and_matches_runtime_contract() ->
         "TINY_IPA_COOKIE_SECURE=true",
         "TINY_IPA_COOKIE_SAMESITE=lax",
         "TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio",
+        "TINY_IPA_RELEASE_ID=<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>",
+        "TINY_IPA_RELEASE_COMMIT=<INTENDED_GITHUB_COMMIT_SHA>",
+        "TINY_IPA_RELEASE_TAG=<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>",
     }
 
     assert expected_lines.issubset(set(env.splitlines()))
     assert "TINY_IPA_SESSION_SECRET=" in env
     assert "TINY_IPA_CORS_ORIGINS" not in env
+    assert "TINY_IPA_REVISION_PATH" not in env
     assert "http://" not in env
     assert "*" not in env
+
+
+def test_m14_jingyun_revision_candidate_records_non_secret_release_identity() -> None:
+    revision = _text(REVISION)
+
+    assert "release_id=<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>" in revision
+    assert "commit=<INTENDED_GITHUB_COMMIT_SHA>" in revision
+    assert "tag=<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>" in revision
+    assert "created_at=<UTC_RELEASE_ARTIFACT_TIMESTAMP>" in revision
+    assert "secret" not in revision.lower()
 
 
 def test_m14_jingyun_plans_preserve_deployment_and_backup_stop_conditions() -> None:
@@ -177,16 +204,22 @@ def test_m14_jingyun_plans_preserve_deployment_and_backup_stop_conditions() -> N
 
     for phrase in (
         "Record pre-state evidence and Xue Tu Zhi Ban baseline health",
+        "Record the intended GitHub commit/tag, previous active release, and rollback pointer",
+        "Generate `REVISION` in the candidate release directory",
         "Verify port `18110` is still free",
         "Validate the Nginx candidate without reload",
+        "Compare local/GitHub/REVISION/live `/api/version` release identity",
         "Tiny IPA success never substitutes",
         "does not authorize applying any artifact",
+        "A rollback plan without a concrete previous-release pointer is not a rollback plan",
     ):
         assert phrase in deployment
 
     for phrase in (
         "#280 proved only a temporary fixture backup/restore method",
         "/var/backups/tiny-ipa/<timestamp>/tiny-ipa.sqlite.backup",
+        "/opt/tiny-ipa/current/REVISION",
+        "live `/api/version` identity",
         "/var/lib/tiny-ipa/restore-candidates/<timestamp>/tiny-ipa.sqlite",
         "never the only known-good production database",
         "Retention cleanup is not part of this candidate",
@@ -198,6 +231,7 @@ def test_m14_jingyun_plans_preserve_deployment_and_backup_stop_conditions() -> N
     ("old", "new", "failure"),
     [
         ("127.0.0.1:18110", "127.0.0.1:8010", "approved namespace missing"),
+        ("/api/version", "/api/build-info", "approved namespace missing"),
         (
             "<HUMAN_APPROVED_BACKUP_OWNER>",
             "ubuntu",

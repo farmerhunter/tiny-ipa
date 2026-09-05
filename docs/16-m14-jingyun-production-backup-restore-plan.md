@@ -33,9 +33,16 @@ timestamped artifacts under the approved backup root:
 ```
 
 The manifest should include release ID, database source path, backup artifact
-path, sanitized SQLite `PRAGMA quick_check` result, checksum, operator, and
-retention owner. It must not include user rows, password hashes, session token
-hashes, secrets, cookies, certificate paths, SSH keys, or private learner data.
+path, `/opt/tiny-ipa/current/REVISION` identity, live `/api/version` identity,
+previous release ID, rollback pointer, sanitized SQLite `PRAGMA quick_check`
+result, checksum, operator, and retention owner. It must not include user rows,
+password hashes, session token hashes, secrets, cookies, certificate paths, SSH
+keys, or private learner data.
+
+The release ID, checked-in or generated `REVISION` file, and live
+`/api/version` response must agree before the backup can be treated as a
+release rollback artifact. Stop when a backup manifest cannot name both the
+current release and the previous active release path.
 
 ## Restore Candidate
 
@@ -61,6 +68,8 @@ Stop before backup or restore if any of these are true:
 - the backup destination is outside `/var/backups/tiny-ipa`;
 - the restore target is the active production database path;
 - backup owner, retention policy, or rollback owner is missing;
+- release ID, `/api/version`, `REVISION`, previous release, or rollback pointer
+  evidence is missing or inconsistent;
 - Xue Tu Zhi Ban baseline health evidence is absent;
 - the action would read, copy, delete, overwrite, or restore another
   application's data;
