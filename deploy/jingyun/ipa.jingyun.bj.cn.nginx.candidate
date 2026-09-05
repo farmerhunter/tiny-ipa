@@ -1,0 +1,39 @@
+# CANDIDATE - DO NOT APPLY.
+# Repository-only Nginx server-block candidate for Tiny IPA.
+# Do not write this to an enabled site, edit existing routes, run nginx -t, or
+# reload Nginx without a later Human-authorized host action.
+# TLS certificate ownership remains unresolved and Human-gated.
+
+server {
+    listen 443 ssl;
+    server_name ipa.jingyun.bj.cn;
+
+    ssl_certificate <HUMAN_PROVIDED_TLS_CERTIFICATE_PATH_FOR_IPA_JINGYUN>;
+    ssl_certificate_key <HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>;
+
+    root /var/www/tiny-ipa/current;
+    index index.html;
+
+    location = /api/health {
+        proxy_pass http://127.0.0.1:18110/api/health;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:18110/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location ^~ /audio/ {
+        alias /var/lib/tiny-ipa/audio/;
+        add_header Cache-Control "public, max-age=31536000";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
