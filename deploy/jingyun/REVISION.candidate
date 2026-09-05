@@ -1,0 +1,12 @@
+CANDIDATE - DO NOT APPLY.
+
+release_id=<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>
+commit=<INTENDED_GITHUB_COMMIT_SHA>
+tag=<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>
+created_at=<UTC_RELEASE_ARTIFACT_TIMESTAMP>
+
+This repository-only candidate documents the active-release readback convention.
+A later Human-authorized deployment may generate `/opt/tiny-ipa/current/REVISION`
+from the reviewed GitHub commit or tag. The VPS copy must match both the
+intended GitHub identity and the live `/api/version` response before public
+activation.
