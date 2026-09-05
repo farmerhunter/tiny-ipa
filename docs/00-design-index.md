@@ -53,6 +53,9 @@
 13. [M11 UI Language Contract and Copy Inventory](13-m11-ui-language-contract.md)
     定义 M11 的 UI 语言边界、copy inventory、locale key 约定、缺失 key 行为，以及不应进入 localization resource 的 IPA/domain/content 数据。
 
+14. [M14 Jingyun 共存部署方案](14-m14-jingyun-coexistence-plan.md)
+    定义 Tiny IPA 在 `jingyun.bj.cn` 上与学途智伴共存的冻结边界、隔离路径、端口、Nginx/TLS 策略和后续 Human gate。
+
 ## 工程随笔
 
 1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)

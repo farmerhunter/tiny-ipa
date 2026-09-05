@@ -548,10 +548,11 @@ Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 Roadmap status:
 
 ```text
-Blocked while child work proceeds. Epic #27 has moved after M11 Localization,
-M12 Minimal Auth, and M13 Practice Modes. It has been decomposed into M14 child
-issues. #276 is the only released child issue; #277-#282 remain blocked until
-the deployment target/runtime config contract is accepted.
+Blocked at the Human-gated real-host readiness step. #276 through #281 are
+accepted on the M14 integration branch. #282 completed the local/disposable
+readiness review and the Human-authorized read-only inventory for
+`jingyun.bj.cn`; the host is shared with the higher-priority Xue Tu Zhi Ban
+application, so no staged deployment is released yet.
 
 No real VPS, DNS, secret, deployment config, or private SQLite mutation is
 authorized without an explicit Human gate.
@@ -560,13 +561,13 @@ authorized without an explicit Human gate.
 Child issues:
 
 ```text
-#276 [P0] Deployment target and runtime config contract - released to Implementer
-#277 [P1] Production auth, origin, CORS, and secret hardening - blocked
-#278 [P1] VPS install and systemd runbook - blocked
-#279 [P2] Frontend build and reverse-proxy routing contract - blocked
-#280 [P2] SQLite backup and restore dry-run verification - blocked
-#281 [P3] Deployment smoke and rollback checklist - blocked
-#282 [P4] VPS deployment readiness review and human deployment gate - blocked
+#276 [P0] Deployment target and runtime config contract - Done
+#277 [P1] Production auth, origin, CORS, and secret hardening - Done
+#278 [P1] VPS install and systemd runbook - Done
+#279 [P2] Frontend build and reverse-proxy routing contract - Done
+#280 [P2] SQLite backup and restore dry-run verification - Done
+#281 [P3] Deployment smoke and rollback checklist - Done
+#282 [P4] VPS deployment readiness review and human deployment gate - active / blocked
 ```
 
 Dependency graph:
