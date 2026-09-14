@@ -56,6 +56,12 @@
 14. [M14 Jingyun 共存部署方案](14-m14-jingyun-coexistence-plan.md)
     定义 Tiny IPA 在 `jingyun.bj.cn` 上与学途智伴共存的冻结边界、隔离路径、端口、Nginx/TLS 策略和后续 Human gate。
 
+15. [M14 Jingyun 候选部署计划](15-m14-jingyun-candidate-deployment-plan.md)
+    定义 Human 已批准命名空间下的不可直接应用候选配置、分阶段部署顺序、学途智伴健康检查和停止条件。
+
+16. [M14 Jingyun 生产备份与恢复候选计划](16-m14-jingyun-production-backup-restore-plan.md)
+    定义独立备份命名空间、完整性证据、保留策略占位符和禁止原地恢复的 Human gate。
+
 ## 工程随笔
 
 1. [Vibe Coding 中的老登式多 Agent 调度经历](anecdote_Reinventing_agent_scheduler.md)
