@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -204,14 +205,14 @@ def test_m14_jingyun_plans_preserve_deployment_and_backup_stop_conditions() -> N
 
     for phrase in (
         "Record pre-state evidence and Xue Tu Zhi Ban baseline health",
-        "Record the intended GitHub commit/tag, previous active release, and rollback pointer",
+        "Record the intended GitHub commit/tag and verified first-install or upgrade recovery record",
         "Generate `REVISION` in the candidate release directory",
         "Verify port `18110` is still free",
         "Validate the Nginx candidate without reload",
         "Compare local/GitHub/REVISION/live `/api/version` release identity",
         "Tiny IPA success never substitutes",
         "does not authorize applying any artifact",
-        "A rollback plan without a concrete previous-release pointer is not a rollback plan",
+        "A first installation instead requires verified absence",
     ):
         assert phrase in deployment
 
@@ -250,3 +251,113 @@ def test_m14_jingyun_boundary_check_detects_namespace_or_placeholder_drift(
 
     with pytest.raises(AssertionError, match=failure):
         _assert_bundle_text(bad_text)
+
+
+def _records(path: Path) -> list[dict]:
+    return json.loads(re.search(r"```json\n(.*?)\n```", _text(path), re.S).group(1))
+
+
+def _assert_history(record: dict) -> None:
+    assert record["kind"] in {"first_install", "upgrade"}
+    if record["kind"] == "first_install":
+        assert record["pre_state"] == "verified_absent"
+        assert record["previous_release"] == "none"
+    else:
+        assert record["pre_state"] == "verified_existing"
+        assert record["previous_release"] not in {None, "", "none", "unknown"}
+
+
+def _assert_recovery_record(record: dict) -> None:
+    _assert_history(record)
+    assert record["recovery_owner"] not in {None, "", "unknown"}
+    assert record["recovery_scope"] == "tiny_ipa_only"
+    assert record["preserve_data"] is True
+    assert record["delete"] is False
+    assert record["in_place_restore"] is False
+    assert record["phase_authorization_required"] is True
+    assert record["version_stages"] == [
+        "loopback_after_backend_start", "https_after_public_activation"
+    ]
+    if record["kind"] == "first_install":
+        assert record["backend_pointer"] is None
+        assert record["frontend_pointer"] is None
+        assert record["previous_env_identity"] is None
+        assert record["recovery_plan"] == "withdraw_this_trial_activation"
+    else:
+        release = record["previous_release"]
+        assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", release)
+        assert record["backend_pointer"] == f"/opt/tiny-ipa/releases/{release}"
+        assert record["frontend_pointer"] == f"/var/www/tiny-ipa/releases/{release}"
+        assert record["previous_env_identity"] == release
+        assert record["db_compatibility"] == "verified"
+        assert record["recovery_plan"] == "restore_backend_frontend_env_identity"
+
+
+def _assert_backup_record(record: dict) -> None:
+    _assert_history(record)
+    assert record["current_identity_matches"] is True
+    assert record["source"] == "/var/lib/tiny-ipa/tiny-ipa.sqlite"
+    assert record["integrity"] == "ok"
+    for field in ("timestamp", "checksum", "backup_owner", "retention"):
+        assert record[field] not in {None, "", "unknown"}
+
+
+def test_documented_first_install_and_upgrade_records_are_valid() -> None:
+    recovery = _records(DEPLOYMENT_PLAN)
+    backup = _records(BACKUP_PLAN)
+    assert [r["kind"] for r in recovery] == ["first_install", "upgrade"]
+    assert [r["kind"] for r in backup] == ["first_install", "upgrade"]
+    for record in recovery:
+        _assert_recovery_record(record)
+    for record in backup:
+        _assert_backup_record(record)
+
+
+@pytest.mark.parametrize(
+    ("index", "field", "value"),
+    [
+        (0, "pre_state", "unknown"),
+        (0, "pre_state", "partial_install"),
+        (0, "previous_release", "unknown"),
+        (0, "backend_pointer", "/opt/tiny-ipa/current"),
+        (0, "recovery_owner", ""),
+        (0, "recovery_plan", ""),
+        (0, "recovery_scope", "xuetuzhiban"),
+        (0, "preserve_data", False),
+        (0, "delete", True),
+        (0, "in_place_restore", True),
+        (0, "phase_authorization_required", False),
+        (0, "version_stages", ["https_before_public_activation"]),
+        (0, "version_stages", ["loopback_after_backend_start"]),
+        (1, "backend_pointer", None),
+        (1, "frontend_pointer", None),
+        (1, "previous_env_identity", "different-release"),
+        (1, "previous_release", "none"),
+        (1, "db_compatibility", "unknown"),
+        (1, "recovery_scope", "shared_nginx_defaults"),
+    ],
+)
+def test_lifecycle_validator_rejects_unsafe_mutations(index, field, value) -> None:
+    record = _records(DEPLOYMENT_PLAN)[index]
+    record[field] = value
+    with pytest.raises(AssertionError):
+        _assert_recovery_record(record)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("pre_state", "unknown"),
+        ("previous_release", ""),
+        ("current_identity_matches", False),
+        ("source", "/opt/hermes/private.sqlite"),
+        ("integrity", "failed"),
+        ("backup_owner", ""),
+        ("retention", "unknown"),
+    ],
+)
+def test_first_release_backup_rejects_missing_or_unsafe_evidence(field, value) -> None:
+    record = _records(BACKUP_PLAN)[0]
+    record[field] = value
+    with pytest.raises(AssertionError):
+        _assert_backup_record(record)

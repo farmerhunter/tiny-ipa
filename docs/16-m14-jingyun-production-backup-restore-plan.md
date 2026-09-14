@@ -34,15 +34,40 @@ timestamped artifacts under the approved backup root:
 
 The manifest should include release ID, database source path, backup artifact
 path, `/opt/tiny-ipa/current/REVISION` identity, live `/api/version` identity,
-previous release ID, rollback pointer, sanitized SQLite `PRAGMA quick_check`
+deployment kind, verified previous-release state, sanitized SQLite `PRAGMA quick_check`
 result, checksum, operator, and retention owner. It must not include user rows,
 password hashes, session token hashes, secrets, cookies, certificate paths, SSH
 keys, or private learner data.
 
 The release ID, checked-in or generated `REVISION` file, and live
-`/api/version` response must agree before the backup can be treated as a
-release rollback artifact. Stop when a backup manifest cannot name both the
-current release and the previous active release path.
+`/api/version` response must agree before accepting a current-release backup.
+Record source, timestamp, integrity result, checksum, backup owner and retention
+policy. The first release may have `previous_release=none` when the first-install
+pre-state verified absence as defined in docs/15; unknown or missing history
+is not verified absence. A current-release backup does not require an older
+release and does not authorize restore.
+
+An upgrade rollback package additionally requires the real previous release,
+both backend/frontend pointers, matching non-secret environment identity,
+recovery owner and database compatibility evidence from docs/15. A backup of
+the current database alone does not prove compatibility with previous code.
+Keep new data and recovery evidence; never silently roll back or restore data.
+
+These synthetic current-backup records complement the lifecycle examples in
+docs/15. Tests validate both cases; they are not production evidence.
+
+```json
+[
+  {"kind": "first_install", "previous_release": "none", "pre_state": "verified_absent",
+   "current_identity_matches": true, "source": "/var/lib/tiny-ipa/tiny-ipa.sqlite",
+   "timestamp": "example-time", "integrity": "ok", "checksum": "example-checksum",
+   "backup_owner": "example-owner", "retention": "example-policy"},
+  {"kind": "upgrade", "previous_release": "example-v1", "pre_state": "verified_existing",
+   "current_identity_matches": true, "source": "/var/lib/tiny-ipa/tiny-ipa.sqlite",
+   "timestamp": "example-time", "integrity": "ok", "checksum": "example-checksum",
+   "backup_owner": "example-owner", "retention": "example-policy"}
+]
+```
 
 ## Restore Candidate
 
@@ -68,8 +93,10 @@ Stop before backup or restore if any of these are true:
 - the backup destination is outside `/var/backups/tiny-ipa`;
 - the restore target is the active production database path;
 - backup owner, retention policy, or rollback owner is missing;
-- release ID, `/api/version`, `REVISION`, previous release, or rollback pointer
+- current release ID, `/api/version`, `REVISION` or verified deployment-kind
   evidence is missing or inconsistent;
+- an upgrade rollback package lacks previous release, backend/frontend pointers,
+  matching environment identity or database compatibility evidence;
 - Xue Tu Zhi Ban baseline health evidence is absent;
 - the action would read, copy, delete, overwrite, or restore another
   application's data;

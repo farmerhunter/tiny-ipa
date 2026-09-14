@@ -76,8 +76,7 @@ host mutation:
 release_id=<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>
 commit=<INTENDED_GITHUB_COMMIT_SHA>
 tag=<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>
-previous_release=<PREVIOUS_ACTIVE_RELEASE_ID_RECORDED_BEFORE_CHANGE>
-rollback_pointer=<PREVIOUS_ACTIVE_RELEASE_PATH_RECORDED_BEFORE_CHANGE>
+deployment_kind=first_install|upgrade
 ```
 
 Do not deploy from uncommitted local files, direct VPS edits, local-only patches,
@@ -107,9 +106,81 @@ intended GitHub commit/tag
 GET https://ipa.jingyun.bj.cn/api/version
 ```
 
-Stop before public activation when any of these identities differ, when
-`/api/version` is unreachable, or when the active `current` pointer does not
-match the pre-recorded release directory.
+Before public activation, after separately authorized backend start, compare
+GitHub, disk REVISION, non-secret environment identity and loopback
+`http://127.0.0.1:18110/api/version`; verify both current pointers and the
+frontend build's source commit match the intended release. Stop on mismatch or
+unreachable loopback API. The public HTTPS endpoint is checked only after
+separately authorized public activation. Loopback evidence is not public/TLS
+evidence; the HTTPS comparison above and full smoke must then pass.
+
+## First Installation and Upgrade Recovery
+
+Choose `first_install` only after authorized observations verify that there is
+no Tiny IPA active release, neither backend nor frontend current pointer, no
+Tiny IPA service or public route, and no existing Tiny IPA data or partial
+installation. Record service, route, both pointer and DB/audio/path ownership
+pre-state. Unknown ownership, an old database or partial deployment means HOLD,
+not first installation. `previous_release=none` records verified absence; an
+empty field, unknown state or fabricated pointer is never equivalent.
+
+For `upgrade`, record `previous_release=<PREVIOUS_ACTIVE_RELEASE_ID_RECORDED_BEFORE_CHANGE>`,
+backend pointer `<PREVIOUS_ACTIVE_RELEASE_PATH_RECORDED_BEFORE_CHANGE>`, frontend
+pointer, and the matching previous non-secret release environment identity.
+Rollback restores frontend, backend and environment identity together. Require
+a named recovery owner and verified database compatibility/data-loss boundary;
+unknown compatibility means HOLD. Code rollback is not database restore.
+
+First-install withdrawal returns Tiny IPA to the recorded disabled/unpublished
+state. Only withdraw this trial's Tiny IPA activation and stop the Tiny IPA
+service started by this trial. Preserve new DB, audio, backups, release files
+and evidence. Service/proxy/pointer withdrawal commands require explicit later
+phase authorization. Failure never authorizes shared Nginx reload, deletion,
+in-place restore, or any change to Xue Tu Zhi Ban. Record the recovery owner,
+phase-specific withdrawal plan and independently recheck Xue Tu Zhi Ban health.
+
+The following two **synthetic review examples** define the minimum lifecycle
+record checked by repository tests. They are not current host observations or
+deployment authorization. Actual records must link concrete pre-state evidence,
+owners and separately approved command lists before host use.
+
+```json
+[
+  {
+    "kind": "first_install",
+    "pre_state": "verified_absent",
+    "previous_release": "none",
+    "backend_pointer": null,
+    "frontend_pointer": null,
+    "previous_env_identity": null,
+    "recovery_owner": "example-owner",
+    "recovery_plan": "withdraw_this_trial_activation",
+    "recovery_scope": "tiny_ipa_only",
+    "preserve_data": true,
+    "delete": false,
+    "in_place_restore": false,
+    "phase_authorization_required": true,
+    "version_stages": ["loopback_after_backend_start", "https_after_public_activation"]
+  },
+  {
+    "kind": "upgrade",
+    "pre_state": "verified_existing",
+    "previous_release": "example-v1",
+    "backend_pointer": "/opt/tiny-ipa/releases/example-v1",
+    "frontend_pointer": "/var/www/tiny-ipa/releases/example-v1",
+    "previous_env_identity": "example-v1",
+    "db_compatibility": "verified",
+    "recovery_owner": "example-owner",
+    "recovery_plan": "restore_backend_frontend_env_identity",
+    "recovery_scope": "tiny_ipa_only",
+    "preserve_data": true,
+    "delete": false,
+    "in_place_restore": false,
+    "phase_authorization_required": true,
+    "version_stages": ["loopback_after_backend_start", "https_after_public_activation"]
+  }
+]
+```
 
 ## Validation Before Activation
 
@@ -118,12 +189,13 @@ Each later phase must validate before moving to the next phase:
 1. Record pre-state evidence and Xue Tu Zhi Ban baseline health.
 2. Verify the candidate service user is not root and owns only the approved Tiny IPA paths.
 3. Verify port `18110` is still free before any backend start.
-4. Record the intended GitHub commit/tag, previous active release, and rollback pointer.
+4. Record the intended GitHub commit/tag and verified first-install or upgrade recovery record.
 5. Generate `REVISION` in the candidate release directory before any `current` pointer change.
 6. Validate the systemd unit syntax without enabling or starting it.
 7. Build the frontend with `VITE_API_BASE=/api` before any web-root pointer change.
 8. Validate the Nginx candidate without reload and confirm it owns only `ipa.jingyun.bj.cn`.
-9. Re-check Xue Tu Zhi Ban health before requesting any proxy reload or public activation.
+9. After authorized backend start, compare loopback version identity and frontend build source;
+   re-check Xue Tu Zhi Ban health before requesting any proxy reload or public activation.
 10. Run Tiny IPA health, `/api/version`, login, Settings save, Today resume,
     and `/audio/` checks only after the relevant host action is authorized.
 11. Compare local/GitHub/REVISION/live `/api/version` release identity before
@@ -144,9 +216,10 @@ Tu Zhi Ban health is missing or regressed. Tiny IPA success never substitutes
 for the higher-priority application baseline.
 
 Stop before pointer changes, proxy activation, or smoke completion if the
-previous release ID, previous active path, rollback owner, or rollback pointer
-is missing. A rollback plan without a concrete previous-release pointer is not a
-rollback plan.
+deployment kind, verified pre-state, recovery owner or phase recovery plan is
+missing. An upgrade additionally requires real previous backend/frontend
+pointers and matching environment identity. A first installation instead
+requires verified absence and an authorized withdrawal plan preserving data.
 
 ## Later Authorization Boundary
 
