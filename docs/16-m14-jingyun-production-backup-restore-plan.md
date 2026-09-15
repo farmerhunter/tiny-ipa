@@ -15,6 +15,9 @@ The production database candidate path is
 is `/var/backups/tiny-ipa`. Backup owner
 `<HUMAN_APPROVED_BACKUP_OWNER>` and retention policy
 `<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>` remain unresolved Human decisions.
+Those placeholders apply to production/real-data operation. P1a fixes the
+synthetic-only operator to `tiny-ipa`, permits at most seven complete snapshots,
+and never deletes; it does not settle the later production retention policy.
 
 #280 proved only a temporary fixture backup/restore method. It does not
 authorize production data access, production backup creation, private database
@@ -110,3 +113,51 @@ define `<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>`, off-host copy policy, and the
 accountable owner before any deletion command is reviewed. A successful #280
 temporary dry run is method evidence only; it is not a production retention or
 restore gate.
+
+## P1a Synthetic Trial Operation
+
+`deploy/jingyun/p1a-backup.py` turns the #280 online SQLite method into a
+bounded candidate for new synthetic trial state. Every invocation requires an
+explicit source, declared root, destination, release ID, and limits. It rejects
+symlink components, paths outside declared roots, unsafe IDs, collisions,
+invalid checksums, a backup larger than 100 MiB, and an eighth complete
+snapshot. It never deletes an older snapshot.
+
+While a backup is being created it remains under
+`.incomplete-<snapshot-id>`. Only a verified SQLite copy with `quick_check=ok`,
+schema fingerprint, table counts, byte size, and SHA-256 is renamed to the final
+snapshot directory with a `status=complete` manifest. A precheck failure writes
+nothing; a failure after creation leaves a bounded `.incomplete-*` directory
+with a `FAILED` marker and never becomes a valid snapshot. The manifest and output
+exclude rows, cookies, token values, password hashes, secrets, certificates,
+raw response headers, and query data.
+
+Restore verification is a separate explicit command. It verifies the supplied
+SHA-256, creates a new
+`/var/lib/tiny-ipa/restore-candidates/<trial-id>/tiny-ipa.sqlite`, uses SQLite
+online backup semantics, and compares integrity, schema fingerprint, and table
+counts with the backup. It refuses an existing restore trial and never changes
+the active database pointer or starts a service.
+
+The candidate timer runs daily at 03:20 UTC with `Persistent=false`. During
+P1a it is started without `enable`, after one observed oneshot succeeds. A
+future scheduled run remains `pending` until observed. At the retention or size
+cap the service fails and the operator records the failure. Automatic prune,
+off-host copy, in-place restore, real user data, and a disaster-recovery/RPO
+claim remain outside P1a.
+
+The trial now uses the same readonly H0, authorized H1-staging,
+H1-activation, and H2 boundary as docs/15. Backup unit materialization uses a
+collision-refusing file inside `/tmp/tiny-ipa-p1a`; it does not create a second
+unowned `/tmp` path. Failure during dependency staging cannot reach the backup
+root or units. Failure after activation follows the checked preserve-data
+withdrawal and retains every backup/restore artifact.
+
+For the first P1a trial, H1-activation exclusively creates the previously
+absent source database and initializes it through the frozen release's current
+`app.services.db_schema.init_db`. The accepted synthetic invariant is exactly
+nine application tables with zero users and zero auth sessions, private mode,
+matching owner, and `PRAGMA integrity_check=ok`. H2 must preserve that schema
+and all-zero table counts in the online backup and separate restore. No account,
+session, learner content, existing database migration, or provider call is part
+of this witness.
