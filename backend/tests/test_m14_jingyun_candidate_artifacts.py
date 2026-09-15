@@ -95,10 +95,76 @@ def _marked(text: str, begin: str, end: str) -> str:
     return text.split(begin, 1)[1].split(end, 1)[0].strip()
 
 
+def _p0_probe() -> str:
+    return _marked(
+        _text(DEPLOYMENT_PLAN),
+        "# P1A_P0_PROBE_BEGIN",
+        "# P1A_P0_PROBE_END",
+    )
+
+
+def _p0_parser() -> str:
+    return _marked(
+        _text(DEPLOYMENT_PLAN),
+        "# P1A_P0_PARSER_BEGIN",
+        "# P1A_P0_PARSER_END",
+    )
+
+
+def _materialize_p0(script: str) -> str:
+    assert script.count("<P1A_CANONICAL_P0_PROBE>") == 1
+    return script.replace("<P1A_CANONICAL_P0_PROBE>", _p0_probe())
+
+
+def _run_p0_parser(path: str, payload: object | str) -> subprocess.CompletedProcess[str]:
+    body = payload if isinstance(payload, str) else json.dumps(payload)
+    return subprocess.run(
+        [sys.executable, "-I", "-B", "-c", _p0_parser(), path],
+        input=body,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def _fake_command(directory: Path, name: str, body: str) -> None:
     path = directory / name
     path.write_text("#!/usr/bin/env bash\n" + body + "\n", encoding="utf-8")
     path.chmod(0o755)
+
+
+def _fake_p0_curl_body() -> str:
+    production = json.dumps({"status": 200, "headers": {}}, separators=(",", ":"))
+    test_demo = json.dumps(
+        {
+            "status": 302,
+            "headers": {
+                "cache-control": ["no-store"],
+                "location": ["/apps/xuetuzhiban/demo/"],
+            },
+        },
+        separators=(",", ":"),
+    )
+    unavailable = json.dumps(
+        {"status": 503, "headers": {"cache-control": ["no-store"]}},
+        separators=(",", ":"),
+    )
+    return (
+        "if test \"${1:-}\" = -q && test \"${2:-}\" = --version; then\n"
+        "  printf 'curl 8.5.0 fixture\\n'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if test -n \"${FAKE_CURL_PAYLOAD+x}\"; then\n"
+        "  printf '%s' \"$FAKE_CURL_PAYLOAD\"\n"
+        "  exit \"${FAKE_CURL_RC:-0}\"\n"
+        "fi\n"
+        "case \"${*: -1}\" in\n"
+        f"  */apps/xuetuzhiban/demo/) printf '%s' {shlex.quote(production)} ;;\n"
+        f"  */apps/xuetuzhiban-test/demo/) printf '%s' {shlex.quote(test_demo)} ;;\n"
+        f"  *) printf '%s' {shlex.quote(unavailable)} ;;\n"
+        "esac\n"
+        "exit \"${FAKE_CURL_RC:-0}\""
+    )
 
 
 def _h0_fake_bin(tmp_path: Path) -> Path:
@@ -163,11 +229,7 @@ def _h0_fake_bin(tmp_path: Path) -> Path:
     _fake_command(
         fake,
         "curl",
-        "case \"${*: -1}\" in\n"
-        "  */apps/xuetuzhiban/demo/) printf '200||' ;;\n"
-        "  */apps/xuetuzhiban-test/demo/) printf '302||/apps/xuetuzhiban/demo/' ;;\n"
-        "  *) printf '503|no-store|' ;;\n"
-        "esac",
+        _fake_p0_curl_body(),
     )
     for command in ("useradd", "install", "scp"):
         _fake_command(
@@ -190,6 +252,10 @@ def _run_h0(tmp_path: Path, **overrides: str) -> subprocess.CompletedProcess[str
     for source, target in replacements.items():
         script = script.replace(source, target)
     fake = _h0_fake_bin(tmp_path)
+    script = script.replace(
+        "readonly P1A_CURL=/usr/bin/curl",
+        f"readonly P1A_CURL={shlex.quote(str(fake / 'curl'))}",
+    )
     environment = os.environ.copy()
     environment.update(overrides)
     environment["PATH"] = f"{fake}:{environment['PATH']}"
@@ -339,11 +405,11 @@ def _run_runtime_probe(
 
 
 def _run_acceptance(tmp_path: Path, **overrides: str) -> subprocess.CompletedProcess[str]:
-    script = _marked(
+    script = _materialize_p0(_marked(
         _text(DEPLOYMENT_PLAN),
         "# P1A_H1_ACCEPTANCE_BEGIN",
         "# P1A_H1_ACCEPTANCE_END",
-    ).replace("<APPROVED_RELEASE_ID>", "release-1").replace(
+    )).replace("<APPROVED_RELEASE_ID>", "release-1").replace(
         "<APPROVED_GITHUB_SHA>", "a" * 40
     )
     fake = tmp_path / "accept-bin"
@@ -387,11 +453,11 @@ def _run_acceptance(tmp_path: Path, **overrides: str) -> subprocess.CompletedPro
     _fake_command(
         fake,
         "curl",
-        "case \"${*: -1}\" in\n"
-        "  */apps/xuetuzhiban/demo/) printf '200||' ;;\n"
-        "  */apps/xuetuzhiban-test/demo/) printf '302||/apps/xuetuzhiban/demo/' ;;\n"
-        "  *) printf '503|no-store|' ;;\n"
-        "esac",
+        _fake_p0_curl_body(),
+    )
+    script = script.replace(
+        "readonly P1A_CURL=/usr/bin/curl",
+        f"readonly P1A_CURL={shlex.quote(str(fake / 'curl'))}",
     )
     environment = os.environ.copy()
     environment.update(overrides)
@@ -595,7 +661,7 @@ def test_m14_p1a_preflight_and_withdrawal_are_fail_closed() -> None:
         "bootstrap/get-pip.py --no-setuptools --no-wheel",
         "pip==%s --hash=sha256:%s",
         "sysconfig.get_config_var",
-        "test \"$status\" = 503",
+        '"/apps/xuetuzhiban/app/": ("prod-app", 503)',
         "sudo -n useradd --system --user-group",
         "TINY_IPA_SESSION_SECRET=$secret",
         "sha256sum -c OFFLINE-MANIFEST.sha256",
@@ -613,10 +679,196 @@ def test_m14_p1a_preflight_and_withdrawal_are_fail_closed() -> None:
 def test_m14_p1a_h0_canonical_gate_accepts_only_checked_absence(tmp_path: Path) -> None:
     result = _run_h0(tmp_path)
     assert result.returncode == 0, result.stderr
-    assert "200||" in result.stdout
-    assert "302||/apps/xuetuzhiban/demo/" in result.stdout
-    assert result.stdout.count("503|no-store|") == 4
+    records = [json.loads(line) for line in result.stdout.splitlines()]
+    assert [record["status"] for record in records] == [200, 302, 503, 503, 503, 503]
+    assert records[1]["location"] == "/apps/xuetuzhiban/demo/"
+    assert records[1]["location_count"] == 1
+    assert all(record["cache_no_store"] for record in records[1:])
     assert not (tmp_path / "h0-mutation-sentinel").exists()
+
+
+def test_m14_p1a_p0_probe_has_one_materialized_strict_source() -> None:
+    plan = _text(DEPLOYMENT_PLAN)
+    probe = _p0_probe()
+    parser = _p0_parser()
+    acceptance = _materialize_p0(
+        _marked(plan, "# P1A_H1_ACCEPTANCE_BEGIN", "# P1A_H1_ACCEPTANCE_END")
+    )
+
+    assert plan.count("# P1A_P0_PROBE_BEGIN") == 1
+    assert plan.count("<P1A_CANONICAL_P0_PROBE>") == 1
+    assert probe in acceptance
+    assert probe.count('"$P1A_CURL" -q') == 1
+    for option in (
+        "--noproxy '*'",
+        "--proto '=http'",
+        "--http1.1",
+        "--connect-timeout 3",
+        "--max-time 8",
+        "--max-redirs 0",
+        "--head",
+        "--output /dev/null",
+        "%{header_json}",
+        "--header 'Host: 127.0.0.1'",
+    ):
+        assert option in probe
+    assert "--dump-header" not in probe
+    assert "curl --noproxy" not in plan
+    assert "curl --version" not in plan
+    assert "ALLOWED_LOCATIONS" in parser
+    assert "location not in ALLOWED_LOCATIONS" in parser
+    assert "len(locations) != 1" in parser
+    assert "name == \"no-store\"" in parser
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "/apps/xuetuzhiban/demo/",
+        "http://127.0.0.1/apps/xuetuzhiban/demo/",
+        "http://127.0.0.1:80/apps/xuetuzhiban/demo/",
+    ],
+)
+def test_m14_p1a_p0_parser_accepts_only_three_locations(location: str) -> None:
+    payload = {
+        "status": 302,
+        "headers": {
+            "cache-control": ["private, no-store"],
+            "location": [location],
+        },
+    }
+    result = _run_p0_parser("/apps/xuetuzhiban-test/demo/", payload)
+    assert result.returncode == 0, result.stdout
+    assert json.loads(result.stdout)["location"] == location
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "///apps/xuetuzhiban/demo/",
+        "/apps/xuetuzhiban/demo/?",
+        "/apps/xuetuzhiban/demo/#",
+        "/apps/xuetuzhiban/\tdemo/",
+        "/apps/xuetuzhiban/\x00demo/",
+        "HTTP://127.0.0.1/apps/xuetuzhiban/demo/",
+        "https://127.0.0.1/apps/xuetuzhiban/demo/",
+        "http://127.0.0.1:080/apps/xuetuzhiban/demo/",
+        "http://127.0.0.1:81/apps/xuetuzhiban/demo/",
+        "http://localhost/apps/xuetuzhiban/demo/",
+        "http://user@127.0.0.1/apps/xuetuzhiban/demo/",
+        "http://127.0.0.1/apps/xuetuzhiban/%64emo/",
+        "http://127.0.0.1/apps/xuetuzhiban/demo/extra",
+        "http://127.0.0.1/apps/xuetuzhiban/demo/?p1a=1",
+        "http://127.0.0.1/apps/xuetuzhiban/demo/#fragment",
+    ],
+)
+def test_m14_p1a_p0_parser_rejects_noncanonical_location_without_leak(
+    location: str,
+) -> None:
+    payload = {
+        "status": 302,
+        "headers": {"cache-control": ["no-store"], "location": [location]},
+    }
+    result = _run_p0_parser("/apps/xuetuzhiban-test/demo/", payload)
+    assert result.returncode != 0
+    assert location not in result.stdout
+    assert location not in result.stderr
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"status": 302, "headers": {"cache-control": ["no-store"]}},
+        {
+            "status": 302,
+            "headers": {
+                "cache-control": ["no-store"],
+                "location": [
+                    "/apps/xuetuzhiban/demo/",
+                    "/apps/xuetuzhiban/demo/",
+                ],
+            },
+        },
+        {
+            "status": 200,
+            "headers": {
+                "cache-control": ["no-store"],
+                "location": ["/apps/xuetuzhiban/demo/"],
+            },
+        },
+        {
+            "status": 302,
+            "headers": {
+                "cache-control": ["x-no-store"],
+                "location": ["/apps/xuetuzhiban/demo/"],
+            },
+        },
+        {
+            "status": 302,
+            "headers": {
+                "cache-control": ['private="x,no-store"'],
+                "location": ["/apps/xuetuzhiban/demo/"],
+            },
+        },
+        {"status": 302, "headers": {"location": "not-a-list"}},
+        {"status": "302", "headers": {}},
+        {"status": 302, "headers": {}, "extra": "unexpected"},
+        "{",
+    ],
+)
+def test_m14_p1a_p0_parser_rejects_missing_duplicate_status_cache_and_shape(
+    payload: object | str,
+) -> None:
+    result = _run_p0_parser("/apps/xuetuzhiban-test/demo/", payload)
+    assert result.returncode != 0
+
+
+def test_m14_p1a_p0_parser_does_not_emit_unknown_headers_or_stderr() -> None:
+    secret = "https://example.invalid/private?token=secret-value"
+    payload = {
+        "status": 302,
+        "headers": {
+            "cache-control": ["no-store"],
+            "location": [secret],
+            "set-cookie": ["session=private"],
+            "x-debug": ["internal-detail"],
+        },
+    }
+    result = _run_p0_parser("/apps/xuetuzhiban-test/demo/", payload)
+    assert result.returncode != 0
+    combined = result.stdout + result.stderr
+    for value in (secret, "secret-value", "session=private", "internal-detail"):
+        assert value not in combined
+
+
+def test_m14_p1a_h0_malformed_or_unknown_curl_payload_cannot_leak_or_advance(
+    tmp_path: Path,
+) -> None:
+    secret = "https://example.invalid/private?token=secret-value"
+    payload = json.dumps(
+        {
+            "status": 302,
+            "headers": {
+                "cache-control": ["no-store"],
+                "location": [secret],
+                "set-cookie": ["session=private"],
+            },
+        }
+    )
+    unknown_root = tmp_path / "unknown"
+    unknown_root.mkdir()
+    result = _run_h0(unknown_root, FAKE_CURL_PAYLOAD=payload)
+    assert result.returncode != 0
+    combined = result.stdout + result.stderr
+    for value in (secret, "secret-value", "session=private"):
+        assert value not in combined
+    assert not (unknown_root / "h0-mutation-sentinel").exists()
+
+    malformed_root = tmp_path / "malformed"
+    malformed_root.mkdir()
+    malformed = _run_h0(malformed_root, FAKE_CURL_PAYLOAD="{")
+    assert malformed.returncode != 0
+    assert not (malformed_root / "h0-mutation-sentinel").exists()
 
 
 @pytest.mark.parametrize(
@@ -635,6 +887,7 @@ def test_m14_p1a_h0_canonical_gate_accepts_only_checked_absence(tmp_path: Path) 
         {"FAKE_PYTHON_RC": "61"},
         {"FAKE_PYTHON_RC": "65"},
         {"FAKE_PYTHON_RC": "66"},
+        {"FAKE_CURL_RC": "28"},
     ],
 )
 def test_m14_p1a_h0_query_and_python_boundary_failures_hold(
@@ -967,6 +1220,7 @@ def test_m14_p1a_acceptance_observes_restart_and_loopback_only(tmp_path: Path) -
         {"FAKE_RESTART_RC": "124"},
         {"FAKE_UNCHANGED": "1"},
         {"FAKE_PROBE_RC": "1"},
+        {"FAKE_CURL_RC": "28"},
     ],
 )
 def test_m14_p1a_acceptance_rejects_listener_restart_and_probe_failures(

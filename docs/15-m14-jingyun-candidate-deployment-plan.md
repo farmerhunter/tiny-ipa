@@ -274,18 +274,13 @@ getent group tiny-ipa
 for p in /opt/tiny-ipa /opt/tiny-ipa/current /var/www/tiny-ipa /var/www/tiny-ipa/current /etc/tiny-ipa /var/lib/tiny-ipa /var/lib/tiny-ipa/tiny-ipa.sqlite /var/lib/tiny-ipa/audio /var/backups/tiny-ipa; do stat --printf='%n|%F|%U|%G|%a\n' -- "$p"; done
 ```
 
-```sh
-curl --version | sed -n '1p'
-for p in /apps/xuetuzhiban/demo/ /apps/xuetuzhiban-test/demo/ /apps/xuetuzhiban/app/ /apps/xuetuzhiban-test/app/ /api/xuetuzhiban /api/xuetuzhiban-test; do
-  result=$(curl --noproxy '*' --connect-timeout 3 --max-time 8 --max-redirs 0 -sS -I -o /dev/null -w '%{http_code}|%header{cache-control}|%header{location}' "http://127.0.0.1$p") || exit $?
-  printf '%s\n' "$result"
-done
-```
-
-The route sequence must be `200`, `302` to `/apps/xuetuzhiban/demo/`, then
-four `503` responses with `no-store`. The write-out emits only status,
-Cache-Control, and Location. Unsupported `%header{}` syntax stops H0; never dump
-raw headers. Require at least 1 GiB available RAM, 5 GiB disk, free port 18110,
+The canonical marked P0 probe later in this document is the sole executable
+route-check source. It invokes `/usr/bin/curl -q`, captures curl
+`%{header_json}` only in memory, and passes it to the marked parser without
+printing raw headers or stderr. The route sequence must be production demo 200,
+test demo 302 with one strictly allowed Location and `no-store`, then four 503
+responses with `no-store`. Unsupported write-out syntax stops H0. Never dump raw
+headers. Require at least 1 GiB available RAM, 5 GiB disk, free port 18110,
 and complete absence of the Tiny IPA account, units, and every listed path.
 Any leftover is a HOLD even when its owner appears known; it requires a new
 recovery decision and is never reused, overwritten, or deleted here. NSS
@@ -333,23 +328,9 @@ python3 -c 'import platform, sys, sysconfig; print(sys.version.split()[0]); prin
 The builder must match those Python/platform values. Missing `venv`, an
 unexpected SOABI/platform, or a binary wheel is fatal. H1 creates the isolated
 venv and lets its own pip perform an offline `--dry-run` before installation.
-Validate the P0 tuple rather than merely printing it:
-
-```sh
-set -eu
-for p in /apps/xuetuzhiban/demo/ /apps/xuetuzhiban-test/demo/ /apps/xuetuzhiban/app/ /apps/xuetuzhiban-test/app/ /api/xuetuzhiban /api/xuetuzhiban-test; do
-  result=$(curl --noproxy '*' --connect-timeout 3 --max-time 8 --max-redirs 0 -sS -I -o /dev/null -w '%{http_code}|%header{cache-control}|%header{location}' "http://127.0.0.1$p") || exit $?
-  IFS='|' read -r status cache location <<EOF
-$result
-EOF
-  case "$p" in
-    /apps/xuetuzhiban/demo/) test "$status" = 200 ;;
-    /apps/xuetuzhiban-test/demo/) test "$status" = 302; test "$location" = /apps/xuetuzhiban/demo/ ;;
-    *) test "$status" = 503; case "$cache" in *no-store*) : ;; *) exit 24 ;; esac ;;
-  esac
-  printf '%s\n' "$result"
-done
-```
+The final packet copies the canonical marked P0 probe byte-for-byte into H0,
+the post-staging recheck, H1 acceptance, H2 completion, and both withdrawal
+paths. Each copy validates the tuple rather than merely printing it.
 
 ### Locked offline release assembly
 
@@ -861,24 +842,141 @@ PY
 python_rc=$?
 test "$python_rc" -eq 0 || hold 67 "python-gate rc=$python_rc"
 
-capture curl_version curl-version curl --version
-for path in /apps/xuetuzhiban/demo/ /apps/xuetuzhiban-test/demo/ /apps/xuetuzhiban/app/ /apps/xuetuzhiban-test/app/ /api/xuetuzhiban /api/xuetuzhiban-test; do
-  result=$(curl --noproxy '*' --connect-timeout 3 --max-time 8 --max-redirs 0 -sS -I -o /dev/null -w '%{http_code}|%header{cache-control}|%header{location}' "http://127.0.0.1$path" 2>&1)
+readonly P1A_CURL=/usr/bin/curl
+readonly P1A_P0_HOLD_CODE=68
+capture curl_version curl-version "$P1A_CURL" -q --version
+export P1A_CURL
+# P1A_P0_PROBE_BEGIN
+readonly P1A_P0_PARSER='
+# P1A_P0_PARSER_BEGIN
+import json
+import sys
+
+SPECS = {
+    "/apps/xuetuzhiban/demo/": ("prod-demo", 200),
+    "/apps/xuetuzhiban-test/demo/": ("test-demo", 302),
+    "/apps/xuetuzhiban/app/": ("prod-app", 503),
+    "/apps/xuetuzhiban-test/app/": ("test-app", 503),
+    "/api/xuetuzhiban": ("prod-api", 503),
+    "/api/xuetuzhiban-test": ("test-api", 503),
+}
+ALLOWED_LOCATIONS = frozenset((
+    "/apps/xuetuzhiban/demo/",
+    "http://127.0.0.1/apps/xuetuzhiban/demo/",
+    "http://127.0.0.1:80/apps/xuetuzhiban/demo/",
+))
+
+
+def fail(reason):
+    print(reason)
+    raise SystemExit(1)
+
+
+def directives(value):
+    parts = []
+    current = []
+    quoted = False
+    escaped = False
+    for character in value:
+        if escaped:
+            current.append(character)
+            escaped = False
+        elif quoted and character == "\\":
+            current.append(character)
+            escaped = True
+        elif character == "\"":
+            current.append(character)
+            quoted = not quoted
+        elif character == "," and not quoted:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(character)
+    if quoted or escaped:
+        fail("cache-format")
+    parts.append("".join(current).strip())
+    return parts
+
+
+def has_no_store(values):
+    for value in values:
+        for directive in directives(value):
+            name = directive.split("=", 1)[0].strip().lower()
+            if name == "no-store":
+                return True
+    return False
+
+
+def header_values(headers, name):
+    values = headers.get(name, [])
+    if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+        fail("header-format")
+    return values
+
+
+path = sys.argv[1] if len(sys.argv) == 2 else ""
+if path not in SPECS:
+    fail("path")
+path_id, expected_status = SPECS[path]
+try:
+    payload = json.load(sys.stdin)
+except (UnicodeDecodeError, json.JSONDecodeError):
+    fail("curl-json")
+if not isinstance(payload, dict) or set(payload) != {"status", "headers"}:
+    fail("curl-shape")
+status = payload["status"]
+headers = payload["headers"]
+if not isinstance(status, int) or isinstance(status, bool) or not isinstance(headers, dict):
+    fail("curl-types")
+if any(not isinstance(name, str) or name != name.lower() for name in headers):
+    fail("header-name")
+locations = header_values(headers, "location")
+cache_values = header_values(headers, "cache-control")
+no_store = has_no_store(cache_values)
+if status != expected_status:
+    fail(path_id + "-status")
+result = {
+    "cache_no_store": no_store,
+    "location_count": len(locations),
+    "path_id": path_id,
+    "status": status,
+}
+if path_id == "test-demo":
+    if len(locations) != 1:
+        fail("test-demo-location-count")
+    location = locations[0]
+    if any(ord(character) < 32 or ord(character) == 127 for character in location):
+        fail("test-demo-location-control")
+    if location not in ALLOWED_LOCATIONS:
+        fail("test-demo-location")
+    if not no_store:
+        fail("test-demo-cache")
+    result["location"] = location
+elif path_id != "prod-demo" and not no_store:
+    fail(path_id + "-cache")
+print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+# P1A_P0_PARSER_END
+'
+
+p0_probe() {
+  local path=$1 raw curl_rc filtered filter_rc
+  raw=$("$P1A_CURL" -q --noproxy '*' --proto '=http' --http1.1 --connect-timeout 3 --max-time 8 --max-redirs 0 --silent --show-error --head --output /dev/null --header 'Host: 127.0.0.1' --header 'User-Agent: tiny-ipa-p1a-p0/1' --header 'Accept: */*' --header 'Accept-Encoding: identity' --header 'Connection: close' --write-out '{"status":%{http_code},"headers":%{header_json}}' "http://127.0.0.1$path" 2>/dev/null)
   curl_rc=$?
-  test "$curl_rc" -eq 0 || hold 68 "curl-$path rc=$curl_rc"
-  IFS='|' read -r status cache location extra <<<"$result"
-  test -z "${extra:-}" || hold 69 "curl-$path-format"
-  case "$path" in
-    /apps/xuetuzhiban/demo/) test "$status" = 200 || hold 70 p0-prod-demo ;;
-    /apps/xuetuzhiban-test/demo/)
-      test "$status" = 302 || hold 71 p0-test-demo-status
-      test "$location" = /apps/xuetuzhiban/demo/ || hold 72 p0-test-demo-location ;;
-    *)
-      test "$status" = 503 || hold 73 "p0-$path-status"
-      case "$cache" in *no-store*) : ;; *) hold 74 "p0-$path-cache" ;; esac ;;
-  esac
-  printf '%s\n' "$result"
+  if test "$curl_rc" -ne 0; then
+    unset raw
+    hold "$P1A_P0_HOLD_CODE" "p0-$path-curl-rc=$curl_rc"
+  fi
+  filtered=$(printf '%s' "$raw" | /usr/bin/python3 -I -B -c "$P1A_P0_PARSER" "$path" 2>/dev/null)
+  filter_rc=$?
+  unset raw
+  test "$filter_rc" -eq 0 || hold "$P1A_P0_HOLD_CODE" "p0-$path-${filtered:-filter}"
+  printf '%s\n' "$filtered"
+}
+
+for path in /apps/xuetuzhiban/demo/ /apps/xuetuzhiban-test/demo/ /apps/xuetuzhiban/app/ /apps/xuetuzhiban-test/app/ /api/xuetuzhiban /api/xuetuzhiban-test; do
+  p0_probe "$path"
 done
+# P1A_P0_PROBE_END
 # P1A_H0_GATE_END
 ```
 
@@ -1188,22 +1286,11 @@ test "$restart_rc" -eq 0 || hold 110 "restart-rc=$restart_rc"
 runtime_accept after-restart
 test "$P1A_INVOCATION" != "$before_invocation" || hold 111 unchanged-invocation
 
-for path in /apps/xuetuzhiban/demo/ /apps/xuetuzhiban-test/demo/ /apps/xuetuzhiban/app/ /apps/xuetuzhiban-test/app/ /api/xuetuzhiban /api/xuetuzhiban-test; do
-  result=$(curl --noproxy '*' --connect-timeout 3 --max-time 8 --max-redirs 0 -sS -I -o /dev/null -w '%{http_code}|%header{cache-control}|%header{location}' "http://127.0.0.1$path" 2>&1)
-  curl_rc=$?
-  test "$curl_rc" -eq 0 || hold 112 "p0-$path-rc=$curl_rc"
-  IFS='|' read -r status cache location extra <<<"$result"
-  test -z "${extra:-}" || hold 113 "p0-$path-format"
-  case "$path" in
-    /apps/xuetuzhiban/demo/) test "$status" = 200 || hold 114 p0-prod-demo ;;
-    /apps/xuetuzhiban-test/demo/)
-      test "$status" = 302 || hold 115 p0-test-demo-status
-      test "$location" = /apps/xuetuzhiban/demo/ || hold 116 p0-test-demo-location ;;
-    *)
-      test "$status" = 503 || hold 117 "p0-$path-status"
-      case "$cache" in *no-store*) : ;; *) hold 118 "p0-$path-cache" ;; esac ;;
-  esac
-done
+readonly P1A_CURL=/usr/bin/curl
+readonly P1A_P0_HOLD_CODE=112
+capture curl_version curl-version "$P1A_CURL" -q --version
+export P1A_CURL
+<P1A_CANONICAL_P0_PROBE>
 # P1A_H1_ACCEPTANCE_END
 ```
 
