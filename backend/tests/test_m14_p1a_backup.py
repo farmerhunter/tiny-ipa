@@ -377,8 +377,70 @@ def test_candidate_units_are_bounded_and_nonpersistent() -> None:
     assert "EnvironmentFile=" not in service
     assert "--release-id <APPROVED_RELEASE_ID>" in service
     assert "--max-bytes 104857600 --retention-limit 7" in service
+    assert service.count("TimeoutStartSec=30s") == 1
+    assert service.count("TimeoutStopSec=10s") == 1
+    assert "TimeoutStartSec=infinity" not in service
     assert "ReadOnlyPaths=/var/lib/tiny-ipa" in service
     assert "ReadWritePaths=/var/backups/tiny-ipa" in service
     assert "OnCalendar=*-*-* 03:20:00 UTC" in timer
     assert "Persistent=false" in timer
     assert "RandomizedDelaySec" not in timer
+
+
+def test_h2_records_bounded_steps_and_filters_unit_failure_summary() -> None:
+    plan = (ROOT / "docs/15-m14-jingyun-candidate-deployment-plan.md").read_text()
+    required = (
+        'printf \'{"r2_step":"%s","rc":%s}\\n\'',
+        "r2_run start-backup /usr/bin/timeout 60s",
+        "r2_finish backup-result",
+        "r2_finish timer-active",
+        "r2_finish timer-disabled",
+        '"r2_unit_summary":"unavailable"',
+        '"r2_unit_summary": values',
+        "--property=ExecMainStatus",
+        "--property=InvocationID",
+    )
+    for value in required:
+        assert value in plan
+    assert "journalctl" not in plan
+
+
+def test_h2_unit_summary_executes_and_rejects_extra_fields() -> None:
+    plan = DEPLOYMENT_PLAN.read_text()
+    parser = plan.split("# P1A_R2_SUMMARY_PYTHON_BEGIN", 1)[1].split(
+        "# P1A_R2_SUMMARY_PYTHON_END", 1
+    )[0].strip()
+    valid = "\n".join(
+        (
+            "ActiveState=failed",
+            "SubState=failed",
+            "Result=timeout",
+            "ExecMainCode=1",
+            "ExecMainStatus=15",
+            "NRestarts=0",
+            f"InvocationID={'a' * 32}",
+        )
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", parser],
+        input=valid,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["r2_unit_summary"]["Result"] == "timeout"
+
+    secret = "SECRET_MUST_NOT_LEAK"
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", parser],
+        input=f"{valid}\nEnvironment={secret}\n",
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == '{"r2_unit_summary":"invalid"}'
+    assert secret not in result.stdout

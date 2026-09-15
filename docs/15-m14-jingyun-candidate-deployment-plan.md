@@ -586,25 +586,88 @@ sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py verify-re
 ```
 
 After that restore verifies, materialize and start the bounded timer without
-enabling it:
+enabling it. The backup oneshot owns a 30-second start limit and a 10-second
+stop limit; the outer 60-second `systemctl start` bound leaves time to capture
+its terminal result. Every R2 operation emits one fixed step identifier and
+numeric return code. A failed step emits the same filtered seven-field unit
+summary used by runtime acceptance before the packet enters withdrawal; it
+never prints raw unit output or a journal:
 
 ```sh
-set -eu
+set -u
 release_id=<APPROVED_RELEASE_ID>
-[[ $release_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
+[[ $release_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 148
+r2_summary() {
+  local raw rc
+  raw=$(/usr/bin/timeout 5s systemctl show tiny-ipa-backup.service --no-pager \
+    --property=ActiveState --property=SubState --property=Result \
+    --property=ExecMainCode --property=ExecMainStatus --property=NRestarts \
+    --property=InvocationID 2>/dev/null); rc=$?
+  if test "$rc" -ne 0; then
+    printf '%s\n' '{"r2_unit_summary":"unavailable"}' >&2
+    return
+  fi
+  /usr/bin/timeout 5s /usr/bin/python3 -I -B -c '
+# P1A_R2_SUMMARY_PYTHON_BEGIN
+import json, re, sys
+keys = {"ActiveState", "SubState", "Result", "ExecMainCode", "ExecMainStatus", "NRestarts", "InvocationID"}
+values = {}
+valid = True
+for line in sys.stdin.read().splitlines():
+    if "=" not in line:
+        valid = False
+        continue
+    key, value = line.split("=", 1)
+    if key not in keys or key in values:
+        valid = False
+        continue
+    values[key] = value
+valid = valid and set(values) == keys
+valid = valid and values.get("ActiveState") in {"active", "inactive", "activating", "deactivating", "failed"}
+valid = valid and all(re.fullmatch(r"[a-z][a-z0-9-]{0,63}", values.get(key, "")) for key in ("SubState", "Result"))
+valid = valid and all(re.fullmatch(r"-?[0-9]+", values.get(key, "")) for key in ("ExecMainCode", "ExecMainStatus", "NRestarts"))
+valid = valid and re.fullmatch(r"(?:|[0-9a-f]{32})", values.get("InvocationID", "")) is not None
+print(json.dumps({"r2_unit_summary": values if valid else "invalid"}, sort_keys=True, separators=(",", ":")))
+# P1A_R2_SUMMARY_PYTHON_END
+' <<<"$raw" >&2
+}
+r2_finish() {
+  local step=$1 rc=$2
+  [[ $step =~ ^[a-z0-9-]+$ ]] && [[ $rc =~ ^[0-9]+$ ]] || exit 149
+  printf '{"r2_step":"%s","rc":%s}\n' "$step" "$rc"
+  if test "$rc" -ne 0; then
+    r2_summary
+    exit "$rc"
+  fi
+}
+r2_run() {
+  local step=$1 rc
+  shift
+  "$@"; rc=$?
+  r2_finish "$step" "$rc"
+}
 unit_stage=/tmp/tiny-ipa-p1a/tiny-ipa-backup.service
 test ! -e "$unit_stage" && test ! -L "$unit_stage"
-(umask 077; set -o noclobber; sed "s|<APPROVED_RELEASE_ID>|$release_id|g" /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate > "$unit_stage")
-sudo -n install -o root -g root -m 0644 "$unit_stage" /etc/systemd/system/tiny-ipa-backup.service
-sudo -n install -o root -g root -m 0644 /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.timer.candidate /etc/systemd/system/tiny-ipa-backup.timer
-sudo -n systemd-analyze verify /etc/systemd/system/tiny-ipa-backup.service /etc/systemd/system/tiny-ipa-backup.timer
-sudo -n systemctl daemon-reload
-sudo -n systemctl start tiny-ipa-backup.service
-test "$(systemctl show tiny-ipa-backup.service -p Result --value)" = success
-sudo -n systemctl start tiny-ipa-backup.timer
-test "$(systemctl show tiny-ipa-backup.timer -p ActiveState --value)" = active
-test "$(systemctl show tiny-ipa-backup.timer -p UnitFileState --value)" = disabled
-systemctl list-timers tiny-ipa-backup.timer --no-pager
+set +e
+(umask 077; set -o noclobber; /usr/bin/timeout 5s sed "s|<APPROVED_RELEASE_ID>|$release_id|g" /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate > "$unit_stage")
+rc=$?
+r2_finish unit-stage "$rc"
+r2_run install-service /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 "$unit_stage" /etc/systemd/system/tiny-ipa-backup.service
+r2_run install-timer /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.timer.candidate /etc/systemd/system/tiny-ipa-backup.timer
+r2_run verify-units /usr/bin/timeout 20s sudo -n systemd-analyze verify /etc/systemd/system/tiny-ipa-backup.service /etc/systemd/system/tiny-ipa-backup.timer
+r2_run daemon-reload /usr/bin/timeout 20s sudo -n systemctl daemon-reload
+r2_run start-backup /usr/bin/timeout 60s sudo -n systemctl start tiny-ipa-backup.service
+result=$(/usr/bin/timeout 5s systemctl show tiny-ipa-backup.service -p Result --value); rc=$?
+if test "$rc" -eq 0; then test "$result" = success; rc=$?; fi
+r2_finish backup-result "$rc"
+r2_run start-timer /usr/bin/timeout 20s sudo -n systemctl start tiny-ipa-backup.timer
+active=$(/usr/bin/timeout 5s systemctl show tiny-ipa-backup.timer -p ActiveState --value); rc=$?
+if test "$rc" -eq 0; then test "$active" = active; rc=$?; fi
+r2_finish timer-active "$rc"
+unit_file=$(/usr/bin/timeout 5s systemctl show tiny-ipa-backup.timer -p UnitFileState --value); rc=$?
+if test "$rc" -eq 0; then test "$unit_file" = disabled; rc=$?; fi
+r2_finish timer-disabled "$rc"
+r2_run list-timer /usr/bin/timeout 5s systemctl list-timers tiny-ipa-backup.timer --no-pager
 ```
 
 H2 adds only `/etc/systemd/system/tiny-ipa-backup.service`,
