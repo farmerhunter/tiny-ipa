@@ -152,3 +152,12 @@ collision-refusing file inside `/tmp/tiny-ipa-p1a`; it does not create a second
 unowned `/tmp` path. Failure during dependency staging cannot reach the backup
 root or units. Failure after activation follows the checked preserve-data
 withdrawal and retains every backup/restore artifact.
+
+For the first P1a trial, H1-activation exclusively creates the previously
+absent source database and initializes it through the frozen release's current
+`app.services.db_schema.init_db`. The accepted synthetic invariant is exactly
+nine application tables with zero users and zero auth sessions, private mode,
+matching owner, and `PRAGMA integrity_check=ok`. H2 must preserve that schema
+and all-zero table counts in the online backup and separate restore. No account,
+session, learner content, existing database migration, or provider call is part
+of this witness.

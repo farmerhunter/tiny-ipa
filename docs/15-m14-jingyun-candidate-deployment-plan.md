@@ -429,6 +429,91 @@ sudo -n python3 -m venv .venv
 sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -m pip install --dry-run --ignore-installed --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
 sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -m pip install --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
 sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 20s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -c 'import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("activation imports passed")'
+sudo -n -u tiny-ipa /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 /usr/bin/timeout 20s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B - "/opt/tiny-ipa/releases/$release_id/backend" /var/lib/tiny-ipa /var/lib/tiny-ipa/tiny-ipa.sqlite <<'PY'
+# P1A_INIT_DB_PYTHON_BEGIN
+import json
+import os
+import pathlib
+import sqlite3
+import stat
+import sys
+import urllib.parse
+
+backend = pathlib.Path(sys.argv[1])
+state_root = pathlib.Path(sys.argv[2])
+database = pathlib.Path(sys.argv[3])
+expected_tables = {
+    "attempts", "auth_sessions", "daily_sessions", "phoneme_stats", "phonemes",
+    "session_items", "settings", "users", "words",
+}
+
+def require_real_directory(path):
+    current = pathlib.Path(path.anchor)
+    for part in path.parts[1:]:
+        current /= part
+        entry = os.lstat(current)
+        if stat.S_ISLNK(entry.st_mode):
+            raise RuntimeError("symlink path component")
+    if not stat.S_ISDIR(os.lstat(path).st_mode):
+        raise RuntimeError("required directory is not a directory")
+
+def require_absent(path):
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return
+    raise RuntimeError("database namespace collision")
+
+try:
+    if not backend.is_absolute() or not state_root.is_absolute() or not database.is_absolute():
+        raise RuntimeError("absolute paths required")
+    require_real_directory(backend)
+    require_real_directory(state_root)
+    if database.parent != state_root:
+        raise RuntimeError("database must be directly below state root")
+    if not (backend / "app/services/db_schema.py").is_file():
+        raise RuntimeError("frozen schema module missing")
+    for candidate in (database, pathlib.Path(str(database) + "-wal"), pathlib.Path(str(database) + "-shm"), pathlib.Path(str(database) + "-journal")):
+        require_absent(candidate)
+    os.umask(0o077)
+    flags = os.O_CREAT | os.O_EXCL | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(database, flags, 0o600)
+    os.close(descriptor)
+    sys.path.insert(0, str(backend))
+    from app.services.db_schema import init_db
+    uri = "file:" + urllib.parse.quote(str(database), safe="/") + "?mode=rw"
+    connection = sqlite3.connect(uri, uri=True, timeout=10)
+    try:
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA busy_timeout=10000")
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA foreign_keys=ON")
+        init_db(connection)
+        connection.commit()
+        tables = {
+            row[0] for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+        integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+        users = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        sessions = connection.execute("SELECT COUNT(*) FROM auth_sessions").fetchone()[0]
+    finally:
+        connection.close()
+    metadata = os.lstat(database)
+    if tables != expected_tables or integrity != "ok" or users != 0 or sessions != 0:
+        raise RuntimeError("initialized database invariant failed")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise RuntimeError("initialized database is not a regular file")
+    if stat.S_IMODE(metadata.st_mode) != 0o600 or metadata.st_uid != os.getuid() or metadata.st_gid != os.getgid():
+        raise RuntimeError("initialized database ownership or mode failed")
+except Exception:
+    raise SystemExit("database initialization failed") from None
+print(json.dumps({"auth_sessions": sessions, "integrity": integrity, "mode": "600", "status": "initialized", "tables": len(tables), "users": users}, sort_keys=True))
+# P1A_INIT_DB_PYTHON_END
+PY
 sudo -n sh -c 'umask 0027; secret=$(openssl rand -hex 32) || exit 30; { printf "%s\n" "TINY_IPA_ENV=production" "TINY_IPA_DB_PATH=/var/lib/tiny-ipa/tiny-ipa.sqlite" "TINY_IPA_SESSION_SECRET=$secret" "TINY_IPA_ALLOWED_ORIGINS=https://ipa.jingyun.bj.cn" "TINY_IPA_COOKIE_SECURE=true" "TINY_IPA_COOKIE_SAMESITE=lax" "TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio" "TINY_IPA_RELEASE_ID=<APPROVED_RELEASE_ID>" "TINY_IPA_RELEASE_COMMIT=<APPROVED_GITHUB_SHA>" "TINY_IPA_RELEASE_TAG="; } > /etc/tiny-ipa/tiny-ipa.env; chown root:tiny-ipa /etc/tiny-ipa/tiny-ipa.env; chmod 0640 /etc/tiny-ipa/tiny-ipa.env'
 sudo -n chmod -R a-w "/opt/tiny-ipa/releases/$release_id"
 sudo -n ln -s "/opt/tiny-ipa/releases/$release_id" /opt/tiny-ipa/current
@@ -438,8 +523,18 @@ sudo -n systemctl daemon-reload
 timeout 45s sudo -n systemctl start tiny-ipa-api.service
 ```
 
+The database initialization command runs as `tiny-ipa` with the frozen release
+interpreter and current `app.services.db_schema.init_db`. It exclusively creates
+one private database, refuses an existing database or sidecar namespace and any
+symlinked parent, and verifies exactly the nine current application tables with
+zero users and zero auth sessions. It does not invoke app startup, account
+bootstrap, content generation, migration of an existing database, or a provider.
+Failure preserves the partial new file for diagnosis and stops before env,
+pointer, unit, service, or H2 operations; retry or deletion requires a later
+decision.
+
 The installed paths are the single release directory, `current` symlink,
-`/etc/tiny-ipa/tiny-ipa.env`, the new DB/audio/restore roots, backup root, and
+`/etc/tiny-ipa/tiny-ipa.env`, the new empty-schema DB/audio/restore roots, backup root, and
 `/etc/systemd/system/tiny-ipa-api.service`. No command uses overwrite or force
 against a namespace that H0 requires to be absent.
 
@@ -856,8 +951,11 @@ H1-activation starts by rerunning the canonical H0 block with the one staging
 exception. It then creates a fresh final venv and repeats the same manifest,
 `--require-hashes`, `--only-binary=:all:`, `--no-index`, `--no-cache-dir`,
 offline dry-run, install, and representative imports. It never moves or copies
-the staging venv. The activation commands earlier in this document apply only
-after this recheck and must use the staged, validated artifact.
+the staging venv. Before service start it also exclusively initializes the new
+private database with the frozen current schema and verifies nine tables, zero
+users, zero auth sessions, integrity, ownership, and mode. The activation
+commands earlier in this document apply only after this recheck and must use the
+staged, validated artifact.
 
 ### Canonical H1 runtime acceptance
 

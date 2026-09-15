@@ -1,17 +1,36 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "deploy" / "jingyun" / "p1a-backup.py"
+DEPLOYMENT_PLAN = ROOT / "docs" / "15-m14-jingyun-candidate-deployment-plan.md"
 SPEC = importlib.util.spec_from_file_location("p1a_backup", SCRIPT)
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+
+
+def _initialise_from_document(state: Path, database: Path) -> subprocess.CompletedProcess[str]:
+    plan = DEPLOYMENT_PLAN.read_text(encoding="utf-8")
+    body = plan.split("# P1A_INIT_DB_PYTHON_BEGIN", 1)[1].split(
+        "# P1A_INIT_DB_PYTHON_END", 1
+    )[0].strip()
+    return subprocess.run(
+        [sys.executable, "-I", "-B", "-", str(ROOT / "backend"), str(state), str(database)],
+        input=body,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
 
 
 def _database(path: Path) -> None:
@@ -62,6 +81,115 @@ def test_online_backup_and_separate_restore_preserve_schema_and_content(tmp_path
     assert restored["status"] == "verified"
     assert restored["verification"] == backup["verification"]
     assert Path(restored["restore"]) != artifact
+
+
+def test_documented_first_install_initializes_backup_and_restore_source(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    backups = tmp_path / "backups"
+    restores = state / "restore-candidates"
+    state.mkdir()
+    backups.mkdir()
+    restores.mkdir()
+    source = state / "tiny-ipa.sqlite"
+
+    initialized = _initialise_from_document(state, source)
+    assert initialized.returncode == 0, initialized.stderr
+    assert json.loads(initialized.stdout) == {
+        "auth_sessions": 0,
+        "integrity": "ok",
+        "mode": "600",
+        "status": "initialized",
+        "tables": 9,
+        "users": 0,
+    }
+    with sqlite3.connect(source) as connection:
+        expected_tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+        expected_counts = {
+            table: connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
+            for table in expected_tables
+        }
+    assert expected_tables == {
+        "attempts",
+        "auth_sessions",
+        "daily_sessions",
+        "phoneme_stats",
+        "phonemes",
+        "session_items",
+        "settings",
+        "users",
+        "words",
+    }
+    assert set(expected_counts.values()) == {0}
+    assert source.stat().st_mode & 0o777 == 0o600
+
+    backup = MODULE.create_backup(
+        source=str(source),
+        state_root=str(state),
+        destination_root=str(backups),
+        snapshot_id="first-install",
+        release_id="release-1",
+        max_bytes=104857600,
+        retention_limit=7,
+    )
+    artifact = backups / "first-install" / backup["artifact"]
+    restored = MODULE.verify_restore(
+        backup_file=str(artifact),
+        backup_root=str(backups),
+        restore_root=str(restores),
+        trial_id="first-restore",
+        expected_sha256=backup["sha256"],
+    )
+    assert backup["verification"]["table_counts"] == expected_counts
+    assert restored["verification"]["table_counts"] == expected_counts
+    assert set(restored["verification"]["table_counts"]) == expected_tables
+
+
+def test_documented_first_install_refuses_database_and_namespace_collisions(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    database = state / "tiny-ipa.sqlite"
+    database.write_bytes(b"existing")
+    before = database.read_bytes()
+    collision = _initialise_from_document(state, database)
+    assert collision.returncode != 0
+    assert database.read_bytes() == before
+
+    database.unlink()
+    outside = tmp_path / "outside.sqlite"
+    outside.write_bytes(b"outside")
+    database.symlink_to(outside)
+    symlink = _initialise_from_document(state, database)
+    assert symlink.returncode != 0
+    assert database.is_symlink()
+    assert outside.read_bytes() == b"outside"
+
+    database.unlink()
+    sidecar = Path(str(database) + "-wal")
+    sidecar.write_bytes(b"existing-sidecar")
+    sidecar_collision = _initialise_from_document(state, database)
+    assert sidecar_collision.returncode != 0
+    assert not database.exists()
+    assert sidecar.read_bytes() == b"existing-sidecar"
+
+    real_state = tmp_path / "real-state"
+    real_state.mkdir()
+    linked_state = tmp_path / "linked-state"
+    linked_state.symlink_to(real_state, target_is_directory=True)
+    linked_parent = _initialise_from_document(
+        linked_state, linked_state / "tiny-ipa.sqlite"
+    )
+    assert linked_parent.returncode != 0
+    assert not (real_state / "tiny-ipa.sqlite").exists()
 
 
 def test_requires_explicit_cli_parameters() -> None:
