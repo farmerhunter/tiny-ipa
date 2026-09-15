@@ -403,3 +403,44 @@ def test_h2_records_bounded_steps_and_filters_unit_failure_summary() -> None:
     for value in required:
         assert value in plan
     assert "journalctl" not in plan
+
+
+def test_h2_unit_summary_executes_and_rejects_extra_fields() -> None:
+    plan = DEPLOYMENT_PLAN.read_text()
+    parser = plan.split("# P1A_R2_SUMMARY_PYTHON_BEGIN", 1)[1].split(
+        "# P1A_R2_SUMMARY_PYTHON_END", 1
+    )[0].strip()
+    valid = "\n".join(
+        (
+            "ActiveState=failed",
+            "SubState=failed",
+            "Result=timeout",
+            "ExecMainCode=1",
+            "ExecMainStatus=15",
+            "NRestarts=0",
+            f"InvocationID={'a' * 32}",
+        )
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", parser],
+        input=valid,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["r2_unit_summary"]["Result"] == "timeout"
+
+    secret = "SECRET_MUST_NOT_LEAK"
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", parser],
+        input=f"{valid}\nEnvironment={secret}\n",
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == '{"r2_unit_summary":"invalid"}'
+    assert secret not in result.stdout

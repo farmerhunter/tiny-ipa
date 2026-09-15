@@ -608,6 +608,7 @@ r2_summary() {
     return
   fi
   /usr/bin/timeout 5s /usr/bin/python3 -I -B -c '
+# P1A_R2_SUMMARY_PYTHON_BEGIN
 import json, re, sys
 keys = {"ActiveState", "SubState", "Result", "ExecMainCode", "ExecMainStatus", "NRestarts", "InvocationID"}
 values = {}
@@ -626,7 +627,8 @@ valid = valid and values.get("ActiveState") in {"active", "inactive", "activatin
 valid = valid and all(re.fullmatch(r"[a-z][a-z0-9-]{0,63}", values.get(key, "")) for key in ("SubState", "Result"))
 valid = valid and all(re.fullmatch(r"-?[0-9]+", values.get(key, "")) for key in ("ExecMainCode", "ExecMainStatus", "NRestarts"))
 valid = valid and re.fullmatch(r"(?:|[0-9a-f]{32})", values.get("InvocationID", "")) is not None
-print(json.dumps({"r2_unit_summary": values}, sort_keys=True, separators=(",", ":")) if valid else "{\\"r2_unit_summary\\":\\"invalid\\"}")
+print(json.dumps({"r2_unit_summary": values if valid else "invalid"}, sort_keys=True, separators=(",", ":")))
+# P1A_R2_SUMMARY_PYTHON_END
 ' <<<"$raw" >&2
 }
 r2_finish() {
