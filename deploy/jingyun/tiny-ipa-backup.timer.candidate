@@ -1,0 +1,11 @@
+# CANDIDATE - DO NOT APPLY.
+[Unit]
+Description=Tiny IPA bounded P1a daily backup schedule
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 UTC
+Persistent=false
+Unit=tiny-ipa-backup.service
+
+[Install]
+WantedBy=timers.target

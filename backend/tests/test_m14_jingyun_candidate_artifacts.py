@@ -124,16 +124,18 @@ def test_m14_jingyun_candidate_files_exist_and_keep_human_gates() -> None:
 def test_m14_jingyun_systemd_candidate_is_loopback_non_root_and_isolated() -> None:
     unit = _text(SYSTEMD)
 
-    assert "User=<HUMAN_APPROVED_TINY_IPA_SERVICE_USER>" in unit
-    assert "Group=<HUMAN_APPROVED_TINY_IPA_SERVICE_GROUP>" in unit
+    assert "User=tiny-ipa" in unit
+    assert "Group=tiny-ipa" in unit
     assert "User=root" not in unit
     assert "Group=root" not in unit
     assert "WorkingDirectory=/opt/tiny-ipa/current/backend" in unit
-    assert "EnvironmentFile=<HUMAN_OWNED_TINY_IPA_ENV_FILE>" in unit
+    assert "EnvironmentFile=/etc/tiny-ipa/tiny-ipa.env" in unit
     assert "--host 127.0.0.1 --port 18110" in unit
     assert "ReadWritePaths=/var/lib/tiny-ipa" in unit
     assert "NoNewPrivileges=true" in unit
     assert "ProtectSystem=strict" in unit
+    assert "MemoryMax=512M" in unit
+    assert "TasksMax=64" in unit
 
     assert re.findall(r"--port\s+(\d+)", unit) == ["18110"]
     for forbidden in FORBIDDEN_CONFIG_REFERENCES:
@@ -205,7 +207,8 @@ def test_m14_jingyun_plans_preserve_deployment_and_backup_stop_conditions() -> N
 
     for phrase in (
         "Record pre-state evidence and Xue Tu Zhi Ban baseline health",
-        "Record the intended GitHub commit/tag and verified first-install or upgrade recovery record",
+        "Record the intended GitHub commit/tag and verified first-install "
+        "or upgrade recovery record",
         "Generate `REVISION` in the candidate release directory",
         "Verify port `18110` is still free",
         "Validate the Nginx candidate without reload",

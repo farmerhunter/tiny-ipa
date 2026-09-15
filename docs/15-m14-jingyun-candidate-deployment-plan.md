@@ -228,3 +228,132 @@ transfer, command list, expected output, rollback owner
 `<HUMAN_APPROVED_ROLLBACK_OWNER>`, and backup owner
 `<HUMAN_APPROVED_BACKUP_OWNER>`. Approval for this candidate plan alone does
 not authorize applying any artifact.
+
+## P1a Private Loopback Trial Packet
+
+P1a is narrower than the full first-install lifecycle record above. It creates
+only a private backend and synthetic state, so public Tiny IPA route absence is
+not inferred or required. The full `first_install` record remains `incomplete`
+until P1b verifies Nginx, DNS, TLS, and public-route boundaries. P1a neither
+serves the frontend nor weakens `TINY_IPA_COOKIE_SECURE=true` or origin policy.
+
+Before a Human decision, replace `<APPROVED_RELEASE_ID>`,
+`<APPROVED_GITHUB_SHA>`, and `<APPROVED_ARTIFACT_SHA256>` with the exact
+Reviewer- and Architect-accepted Epic-integrated commit and artifact digest.
+The same frozen values must be recorded in #282. Placeholders are not authority
+to execute this packet.
+
+### H0: readonly preflight
+
+Use this wrapper for each quoted block:
+
+```text
+ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o ConnectTimeout=10 -o ConnectionAttempts=1 -o ClearAllForwardings=yes -o ForwardAgent=no -o ForwardX11=no -o ControlMaster=no -o ControlPath=none jingyun '<reviewed command block>'
+```
+
+Run the blocks independently. Expected identity is `ubuntu` and
+`VM-0-7-ubuntu`; architecture is `x86_64`. Each curl failure is fatal.
+
+```sh
+date -u +%FT%TZ
+whoami
+hostname
+uname -m
+python3 --version
+df -Pk / /var/lib /var/backups
+free -m
+ss -ltn
+systemctl show nginx.service xuetuzhiban-api.service tiny-ipa-api.service tiny-ipa-backup.service tiny-ipa-backup.timer --no-pager -p Id -p LoadState -p ActiveState -p SubState -p UnitFileState
+getent passwd tiny-ipa
+getent group tiny-ipa
+for p in /opt/tiny-ipa /opt/tiny-ipa/current /var/www/tiny-ipa /var/www/tiny-ipa/current /etc/tiny-ipa /var/lib/tiny-ipa /var/lib/tiny-ipa/tiny-ipa.sqlite /var/lib/tiny-ipa/audio /var/backups/tiny-ipa; do stat --printf='%n|%F|%U|%G|%a\n' -- "$p"; done
+```
+
+```sh
+curl --version | sed -n '1p'
+for p in /apps/xuetuzhiban/demo/ /apps/xuetuzhiban-test/demo/ /apps/xuetuzhiban/app/ /apps/xuetuzhiban-test/app/ /api/xuetuzhiban /api/xuetuzhiban-test; do
+  result=$(curl --noproxy '*' --connect-timeout 3 --max-time 8 --max-redirs 0 -sS -I -o /dev/null -w '%{http_code}|%header{cache-control}|%header{location}' "http://127.0.0.1$p") || exit $?
+  printf '%s\n' "$result"
+done
+```
+
+The route sequence must be `200`, `302` to `/apps/xuetuzhiban/demo/`, then
+four `503` responses with `no-store`. The write-out emits only status,
+Cache-Control, and Location. Unsupported `%header{}` syntax stops H0; never dump
+raw headers. Require at least 1 GiB available RAM, 5 GiB disk, free port 18110,
+and absent or exactly explained Tiny IPA account, units, and paths. Unknown
+state, another host writer, incompatible Python/wheels, or P0 route drift means
+HOLD before writes.
+
+### Locked offline release assembly
+
+From the `backend` directory on an isolated Linux x86_64 build environment
+matching the H0 Python minor, derive dependencies from `backend/uv.lock`
+without an unlocked solve:
+
+```sh
+uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file requirements.lock.txt
+python3 -m pip download --requirement requirements.lock.txt --dest wheelhouse --only-binary=:all:
+python3 -m pip install --no-index --find-links wheelhouse --requirement requirements.lock.txt --target dependency-check
+python3 -m compileall -q dependency-check
+sha256sum requirements.lock.txt wheelhouse/* > OFFLINE-MANIFEST.sha256
+```
+
+The release artifact contains the repository tree at `<APPROVED_GITHUB_SHA>`,
+the requirements file, wheelhouse, and manifest. H0 runs
+`sha256sum -c OFFLINE-MANIFEST.sha256`, confirms wheel compatibility with the
+observed CPython/x86_64 target, and uses `--no-index` for the release venv. A
+source distribution, missing wheel, network fallback, apt, global Python
+update, Docker, or mutable host checkout stops the trial.
+
+### H1: conditional private backend activation
+
+Only after H0 passes under one Human approval, the sole host writer may create
+non-login `tiny-ipa:tiny-ipa`, immutable root-owned release
+`/opt/tiny-ipa/releases/<APPROVED_RELEASE_ID>`, root-owned 0640
+`/etc/tiny-ipa/tiny-ipa.env`, and new Tiny IPA-only state/backup roots. Generate
+the session secret directly into the env file and never print it. Populate the
+venv offline, verify the manifest, make the release service-readable and
+non-writable, then select it through `current`.
+
+Install only the reviewed `tiny-ipa-api.service`, run `systemd-analyze verify`,
+`sudo -n systemctl daemon-reload`, and
+`sudo -n systemctl start tiny-ipa-api.service`; do not enable it. Verify
+`MemoryMax=512M`, `TasksMax=64`, listener `127.0.0.1:18110`, and matching
+GitHub, `REVISION`, env, and loopback `/api/version` identity. Check loopback
+health and unauthenticated fail-closed APIs. Do not create accounts, import
+data, invoke TTS/models/providers, or read private rows. Repeat the P0 route
+checks after activation.
+
+### H2: backup, separate restore, and timer
+
+```sh
+sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id <UNIQUE_UTC_SNAPSHOT_ID> --release-id <APPROVED_RELEASE_ID> --max-bytes 104857600 --retention-limit 7
+sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py verify-restore --backup-file /var/backups/tiny-ipa/<UNIQUE_UTC_SNAPSHOT_ID>/tiny-ipa.sqlite.backup --backup-root /var/backups/tiny-ipa --restore-root /var/lib/tiny-ipa/restore-candidates --trial-id <UNIQUE_RESTORE_ID> --expected-sha256 <OBSERVED_BACKUP_SHA256>
+```
+
+Accept `status=complete` followed by `status=verified` with matching checksum,
+schema fingerprint, and table counts. The restore remains separate and never
+replaces the active DB. Install and verify the reviewed backup service/timer,
+run one `sudo -n systemctl start tiny-ipa-backup.service`, then
+`sudo -n systemctl start tiny-ipa-backup.timer`, and inspect its oneshot result
+and `systemctl list-timers tiny-ipa-backup.timer`. Do not enable it. The timer
+runs at 03:20 UTC with `Persistent=false`; a future occurrence is `pending`
+until observed. Seven complete snapshots or 100 MiB causes failure and a
+recorded notification; nothing is pruned.
+
+### Withdrawal and evidence
+
+On post-write failure, stop only `tiny-ipa-backup.timer`, a running
+`tiny-ipa-backup.service`, and `tiny-ipa-api.service`; verify port 18110 closed
+and repeat the P0 route checks. Preserve the account, env, release, pointer,
+state, backups, restore candidate, and unit files as evidence. Do not change
+shared services, delete files, return to another app configuration, or restore
+in place. Record only release ID, times, unit states, size, checksums,
+integrity/schema/table-count summary, timer result, and route tuples. Exclude
+rows, cookies, raw headers, secrets, tokens, certificate paths, and query data.
+
+P1a proves only private coexistence and the bounded backup operation. P1b owns
+public frontend, shared ingress, DNS, HTTPS, supported ACME renewal, and full
+phone smoke. Disaster recovery and RPO remain unclaimed until off-host storage,
+permanent retention/deletion, and failure notification have separate owners.
