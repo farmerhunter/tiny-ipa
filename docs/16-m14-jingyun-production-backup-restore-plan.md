@@ -150,9 +150,11 @@ SQLite's online backup reader must lock the WAL shared-memory file. The backup
 unit therefore keeps `/var/lib/tiny-ipa` read-only and grants write access only
 to the existing regular, non-symlink `tiny-ipa.sqlite-shm` file. It does not
 grant write access to the database, WAL, restore directory, or state root. If
-the SHM file is absent or has an unexpected type when the unit starts, the unit
-fails instead of creating it or treating the run as successful. This means an
-idle database without an SHM file is a known P1a availability limitation.
+the SHM file is absent, is not writable, has an unexpected type, or does not
+have the same owner and group as the database when the backup entrypoint opens
+it, the unit fails instead of creating it or treating the run as successful.
+This means an idle database without an SHM file is a known P1a availability
+limitation.
 
 The trial now uses the same readonly H0, authorized H1-staging,
 H1-activation, and H2 boundary as docs/15. Backup unit materialization uses a

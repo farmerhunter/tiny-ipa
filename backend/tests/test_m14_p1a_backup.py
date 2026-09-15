@@ -6,6 +6,7 @@ import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -382,8 +383,7 @@ def test_candidate_units_are_bounded_and_nonpersistent() -> None:
     assert "TimeoutStartSec=infinity" not in service
     assert "ReadOnlyPaths=/var/lib/tiny-ipa" in service
     assert "ReadWritePaths=/var/backups/tiny-ipa" in service
-    assert "ExecStartPre=/usr/bin/test -f /var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
-    assert "ExecStartPre=/usr/bin/test ! -L /var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
+    assert "--writable-wal-shm /var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
     assert "ReadWritePaths=/var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
     assert "ReadWritePaths=/var/lib/tiny-ipa\n" not in service
     assert "ReadWritePaths=-/var/lib/tiny-ipa/tiny-ipa.sqlite-shm" not in service
@@ -391,6 +391,86 @@ def test_candidate_units_are_bounded_and_nonpersistent() -> None:
     assert "OnCalendar=*-*-* 03:20:00 UTC" in timer
     assert "Persistent=false" in timer
     assert "RandomizedDelaySec" not in timer
+
+
+def test_wal_coordination_file_is_validated_in_backup_entrypoint(tmp_path: Path) -> None:
+    state, backups, _, source = _roots(tmp_path)
+    connection = sqlite3.connect(source)
+    try:
+        assert connection.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+        connection.execute("INSERT INTO sample(value) VALUES ('live-writer')")
+        connection.commit()
+        shm = Path(f"{source}-shm")
+        assert shm.is_file()
+        result = MODULE.main([
+            "backup", "--source", str(source), "--state-root", str(state),
+            "--destination-root", str(backups), "--snapshot-id", "with-shm",
+            "--release-id", "release-1", "--max-bytes", "104857600",
+            "--retention-limit", "7", "--writable-wal-shm", str(shm),
+        ])
+    finally:
+        connection.close()
+    assert result == 0
+    report = json.loads((backups / "with-shm" / "manifest.json").read_text())
+    assert report["status"] == "complete"
+    assert report["verification"]["table_counts"]["sample"] == 2
+
+
+@pytest.mark.parametrize("unexpected_type", ["missing", "directory", "symlink"])
+def test_wal_coordination_file_fails_before_backup_artifact(
+    tmp_path: Path, unexpected_type: str,
+) -> None:
+    state, backups, _, source = _roots(tmp_path)
+    shm = Path(f"{source}-shm")
+    if unexpected_type == "directory":
+        shm.mkdir()
+    elif unexpected_type == "symlink":
+        target = state / "outside-shm"
+        target.write_bytes(b"")
+        shm.symlink_to(target)
+    result = MODULE.main([
+        "backup", "--source", str(source), "--state-root", str(state),
+        "--destination-root", str(backups), "--snapshot-id", "invalid-shm",
+        "--release-id", "release-1", "--max-bytes", "104857600",
+        "--retention-limit", "7", "--writable-wal-shm", str(shm),
+    ])
+    assert result == 2
+    assert list(backups.iterdir()) == []
+
+
+def test_wal_coordination_file_rejects_different_owner(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    state, backups, _, source = _roots(tmp_path)
+    connection = sqlite3.connect(source)
+    try:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("INSERT INTO sample(value) VALUES ('owner-check')")
+        connection.commit()
+        shm = Path(f"{source}-shm")
+        actual_lstat = Path.lstat
+
+        def mismatched_owner(path: Path):
+            result = actual_lstat(path)
+            if path == shm:
+                return SimpleNamespace(
+                    st_mode=result.st_mode, st_uid=result.st_uid + 1,
+                    st_gid=result.st_gid, st_dev=result.st_dev, st_ino=result.st_ino,
+                )
+            return result
+
+        monkeypatch.setattr(Path, "lstat", mismatched_owner)
+        with pytest.raises(MODULE.OperationError, match="owner must match"):
+            with MODULE._validated_wal_shm(str(shm), source):
+                MODULE.create_backup(
+                    source=str(source), state_root=str(state),
+                    destination_root=str(backups), snapshot_id="owner-mismatch",
+                    release_id="release-1", max_bytes=104857600,
+                    retention_limit=7,
+                )
+    finally:
+        connection.close()
+    assert list(backups.iterdir()) == []
 
 
 def test_h2_records_bounded_steps_and_filters_unit_failure_summary() -> None:
