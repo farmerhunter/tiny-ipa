@@ -384,6 +384,8 @@ def test_candidate_units_are_bounded_and_nonpersistent() -> None:
     assert "ReadOnlyPaths=/var/lib/tiny-ipa" in service
     assert "ReadWritePaths=/var/backups/tiny-ipa" in service
     assert "--writable-wal-shm /var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
+    assert "/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py" in service
+    assert "/opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py" not in service
     assert "ReadWritePaths=/var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
     assert "ReadWritePaths=/var/lib/tiny-ipa\n" not in service
     assert "ReadWritePaths=-/var/lib/tiny-ipa/tiny-ipa.sqlite-shm" not in service

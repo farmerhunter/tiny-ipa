@@ -581,8 +581,8 @@ readback checks.
 ### H2: backup, separate restore, and timer
 
 ```sh
-sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id <UNIQUE_UTC_SNAPSHOT_ID> --release-id <APPROVED_RELEASE_ID> --max-bytes 104857600 --retention-limit 7
-sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py verify-restore --backup-file /var/backups/tiny-ipa/<UNIQUE_UTC_SNAPSHOT_ID>/tiny-ipa.sqlite.backup --backup-root /var/backups/tiny-ipa --restore-root /var/lib/tiny-ipa/restore-candidates --trial-id <UNIQUE_RESTORE_ID> --expected-sha256 <OBSERVED_BACKUP_SHA256>
+sudo -n -u tiny-ipa /opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id <UNIQUE_UTC_SNAPSHOT_ID> --release-id <APPROVED_RELEASE_ID> --max-bytes 104857600 --retention-limit 7
+sudo -n -u tiny-ipa /opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py verify-restore --backup-file /var/backups/tiny-ipa/<UNIQUE_UTC_SNAPSHOT_ID>/tiny-ipa.sqlite.backup --backup-root /var/backups/tiny-ipa --restore-root /var/lib/tiny-ipa/restore-candidates --trial-id <UNIQUE_RESTORE_ID> --expected-sha256 <OBSERVED_BACKUP_SHA256>
 ```
 
 After that restore verifies, materialize and start the bounded timer without
@@ -596,7 +596,9 @@ never prints raw unit output or a journal:
 ```sh
 set -u
 release_id=<APPROVED_RELEASE_ID>
+tool_revision=<APPROVED_TOOL_REVISION>
 [[ $release_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 148
+[[ $tool_revision =~ ^[0-9a-f]{40}$ ]] || exit 148
 r2_summary() {
   local raw rc
   raw=$(/usr/bin/timeout 5s systemctl show tiny-ipa-backup.service --no-pager \
@@ -649,7 +651,7 @@ r2_run() {
 unit_stage=/tmp/tiny-ipa-p1a/tiny-ipa-backup.service
 test ! -e "$unit_stage" && test ! -L "$unit_stage"
 set +e
-(umask 077; set -o noclobber; /usr/bin/timeout 5s sed "s|<APPROVED_RELEASE_ID>|$release_id|g" /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate > "$unit_stage")
+(umask 077; set -o noclobber; /usr/bin/timeout 5s sed -e "s|<APPROVED_RELEASE_ID>|$release_id|g" -e "s|<APPROVED_TOOL_REVISION>|$tool_revision|g" /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate > "$unit_stage")
 rc=$?
 r2_finish unit-stage "$rc"
 r2_run install-service /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 "$unit_stage" /etc/systemd/system/tiny-ipa-backup.service
@@ -674,6 +676,13 @@ H2 adds only `/etc/systemd/system/tiny-ipa-backup.service`,
 `/etc/systemd/system/tiny-ipa-backup.timer`, complete/incomplete snapshot
 directories, and the separate restore-candidate directory. `/tmp` staging is
 retained for evidence until a later cleanup authorization.
+
+The Human-reviewed recovery packet must install the exact `p1a-backup.py` bytes
+under `/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/` before H2. The version
+directory and script are `root:root` mode `0555`, and their absence is a
+precondition: the packet refuses a collision instead of overwriting an
+operational tool. There is no `ops/current` pointer. This leaves the immutable
+application release, its manifest, and `/opt/tiny-ipa/current` unchanged.
 
 Accept `status=complete` followed by `status=verified` with matching checksum,
 schema fingerprint, and table counts. The restore remains separate and never
