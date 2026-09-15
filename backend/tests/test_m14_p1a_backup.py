@@ -35,7 +35,7 @@ def _roots(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     state.mkdir()
     backups.mkdir()
     restores.mkdir()
-    source = state / "tiny-ipa.sqlite"
+    source = state / "tiny ipa?#.sqlite"
     _database(source)
     return state, backups, restores, source
 
@@ -92,6 +92,24 @@ def test_rejects_source_outside_declared_root(tmp_path: Path) -> None:
         )
 
 
+def test_rejects_parent_traversal_for_backup_and_restore(tmp_path: Path) -> None:
+    state, backups, restores, _ = _roots(tmp_path)
+    outside = tmp_path / "outside.sqlite"
+    _database(outside)
+    with pytest.raises(MODULE.OperationError, match="parent traversal"):
+        MODULE.create_backup(
+            source=str(state / ".." / "outside.sqlite"), state_root=str(state),
+            destination_root=str(backups), snapshot_id="trial-1",
+            release_id="release-1", max_bytes=104857600, retention_limit=7,
+        )
+    with pytest.raises(MODULE.OperationError, match="parent traversal"):
+        MODULE.verify_restore(
+            backup_file=str(backups / ".." / "outside.sqlite"),
+            backup_root=str(backups), restore_root=str(restores),
+            trial_id="restore-1", expected_sha256="0" * 64,
+        )
+
+
 def test_rejects_symlink_source_and_snapshot_collision(tmp_path: Path) -> None:
     state, backups, _, source = _roots(tmp_path)
     link = state / "linked.sqlite"
@@ -115,6 +133,24 @@ def test_rejects_symlink_source_and_snapshot_collision(tmp_path: Path) -> None:
         )
 
 
+def test_rejects_symlink_operation_roots(tmp_path: Path) -> None:
+    state, backups, restores, source = _roots(tmp_path)
+    backup_link = tmp_path / "backup-link"
+    restore_link = tmp_path / "restore-link"
+    backup_link.symlink_to(backups, target_is_directory=True)
+    restore_link.symlink_to(restores, target_is_directory=True)
+    with pytest.raises(MODULE.OperationError, match="symlink"):
+        MODULE.create_backup(
+            source=str(source), state_root=str(state),
+            destination_root=str(backup_link), snapshot_id="trial-1",
+            release_id="release-1", max_bytes=104857600, retention_limit=7,
+        )
+    with pytest.raises(MODULE.OperationError, match="symlink"):
+        MODULE.verify_restore(
+            backup_file=str(source), backup_root=str(state),
+            restore_root=str(restore_link), trial_id="restore-1",
+            expected_sha256=MODULE._sha256(source),
+        )
 def test_retention_cap_fails_without_deleting_snapshots(tmp_path: Path) -> None:
     state, backups, _, source = _roots(tmp_path)
     for index in range(2):
@@ -133,7 +169,17 @@ def test_retention_cap_fails_without_deleting_snapshots(tmp_path: Path) -> None:
     assert sorted(path.name for path in backups.iterdir()) == before
 
 
-def test_size_failure_remains_incomplete(tmp_path: Path) -> None:
+def test_external_manifest_symlink_does_not_count_as_snapshot(tmp_path: Path) -> None:
+    _, backups, _, _ = _roots(tmp_path)
+    outside = tmp_path / "manifest.json"
+    outside.write_text('{"status":"complete"}')
+    fake = backups / "fake"
+    fake.mkdir()
+    (fake / "manifest.json").symlink_to(outside)
+    assert MODULE._valid_snapshots(backups) == []
+
+
+def test_size_precheck_failure_writes_no_artifact(tmp_path: Path) -> None:
     state, backups, _, source = _roots(tmp_path)
     with pytest.raises(MODULE.OperationError, match="size cap"):
         MODULE.create_backup(
@@ -142,7 +188,38 @@ def test_size_failure_remains_incomplete(tmp_path: Path) -> None:
             retention_limit=7,
         )
     assert not (backups / "too-large").exists()
-    assert (backups / ".incomplete-too-large" / "FAILED").is_file()
+    assert not (backups / ".incomplete-too-large").exists()
+    assert MODULE._valid_snapshots(backups) == []
+
+
+def test_low_free_space_fails_before_writing(tmp_path: Path, monkeypatch) -> None:
+    state, backups, _, source = _roots(tmp_path)
+    usage = MODULE.shutil._ntuple_diskusage(total=10, used=9, free=1)
+    monkeypatch.setattr(MODULE.shutil, "disk_usage", lambda _: usage)
+    with pytest.raises(MODULE.OperationError, match="enough free space"):
+        MODULE.create_backup(
+            source=str(source), state_root=str(state), destination_root=str(backups),
+            snapshot_id="no-space", release_id="release-1", max_bytes=104857600,
+            retention_limit=7,
+        )
+    assert list(backups.iterdir()) == []
+
+
+def test_copy_growth_failure_stays_incomplete_and_bounded(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    state, backups, _, source = _roots(tmp_path)
+    monkeypatch.setattr(MODULE, "_database_bytes", lambda _: 0)
+    limit = MODULE.METADATA_RESERVE_BYTES + 1
+    with pytest.raises(MODULE.OperationError, match="grew beyond"):
+        MODULE.create_backup(
+            source=str(source), state_root=str(state), destination_root=str(backups),
+            snapshot_id="grew", release_id="release-1", max_bytes=limit,
+            retention_limit=7,
+        )
+    incomplete = backups / ".incomplete-grew"
+    assert (incomplete / "FAILED").is_file()
+    assert sum(path.stat().st_size for path in incomplete.iterdir()) <= limit
     assert MODULE._valid_snapshots(backups) == []
 
 

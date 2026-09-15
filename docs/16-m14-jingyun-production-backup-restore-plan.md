@@ -15,6 +15,9 @@ The production database candidate path is
 is `/var/backups/tiny-ipa`. Backup owner
 `<HUMAN_APPROVED_BACKUP_OWNER>` and retention policy
 `<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>` remain unresolved Human decisions.
+Those placeholders apply to production/real-data operation. P1a fixes the
+synthetic-only operator to `tiny-ipa`, permits at most seven complete snapshots,
+and never deletes; it does not settle the later production retention policy.
 
 #280 proved only a temporary fixture backup/restore method. It does not
 authorize production data access, production backup creation, private database
@@ -123,8 +126,9 @@ snapshot. It never deletes an older snapshot.
 While a backup is being created it remains under
 `.incomplete-<snapshot-id>`. Only a verified SQLite copy with `quick_check=ok`,
 schema fingerprint, table counts, byte size, and SHA-256 is renamed to the final
-snapshot directory with a `status=complete` manifest. A failure leaves a
-`FAILED` marker and never becomes a valid snapshot. The manifest and output
+snapshot directory with a `status=complete` manifest. A precheck failure writes
+nothing; a failure after creation leaves a bounded `.incomplete-*` directory
+with a `FAILED` marker and never becomes a valid snapshot. The manifest and output
 exclude rows, cookies, token values, password hashes, secrets, certificates,
 raw response headers, and query data.
 

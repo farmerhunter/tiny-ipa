@@ -142,6 +142,32 @@ def test_m14_jingyun_systemd_candidate_is_loopback_non_root_and_isolated() -> No
         assert forbidden not in unit
 
 
+def test_m14_p1a_preflight_and_withdrawal_are_fail_closed() -> None:
+    plan = _text(DEPLOYMENT_PLAN)
+    required = (
+        'test "$(whoami)" = ubuntu',
+        'test "$(hostname)" = VM-0-7-ubuntu',
+        'test "$(uname -m)" = x86_64',
+        "test -z \"$(ss -ltnH 'sport = :18110')\"",
+        "if getent passwd tiny-ipa >/dev/null; then exit 20; fi",
+        "if getent group tiny-ipa >/dev/null; then exit 21; fi",
+        "permission failure are distinct results",
+        "python3 -m venv --help >/dev/null",
+        "sysconfig.get_config_var",
+        "test \"$status\" = 503",
+        "sudo -n useradd --system --user-group",
+        "TINY_IPA_SESSION_SECRET=$secret",
+        "sha256sum -c OFFLINE-MANIFEST.sha256",
+        "for unit in tiny-ipa-backup.timer tiny-ipa-backup.service "
+        "tiny-ipa-api.service",
+        'sudo -n systemctl stop "$unit"',
+        "No `rm`, `unlink`,",
+    )
+    for phrase in required:
+        assert phrase in plan
+    assert "absent or exactly explained" not in plan
+
+
 def test_m14_jingyun_nginx_candidate_owns_only_subdomain_and_expected_routes() -> None:
     nginx = _text(NGINX)
 

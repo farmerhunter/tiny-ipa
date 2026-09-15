@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -16,6 +17,7 @@ from typing import Any, Iterable
 
 DEFAULT_MAX_BYTES = 100 * 1024 * 1024
 DEFAULT_RETENTION_LIMIT = 7
+METADATA_RESERVE_BYTES = 64 * 1024
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
 
@@ -24,7 +26,10 @@ class OperationError(RuntimeError):
 
 
 def _path_without_symlinks(path: Path, label: str) -> Path:
-    absolute = path.expanduser().absolute()
+    expanded = path.expanduser()
+    if ".." in expanded.parts:
+        raise OperationError(f"{label} must not contain parent traversal")
+    absolute = expanded.absolute()
     current = Path(absolute.anchor)
     for part in absolute.parts[1:]:
         current /= part
@@ -41,7 +46,7 @@ def _existing_directory(path: str, label: str) -> Path:
 
 
 def _child_file(path: str, root: Path, label: str, *, must_exist: bool) -> Path:
-    candidate = _path_without_symlinks(Path(path), label)
+    candidate = _path_without_symlinks(Path(path), label).resolve(strict=must_exist)
     try:
         candidate.relative_to(root)
     except ValueError as exc:
@@ -64,7 +69,7 @@ def _quoted_identifier(value: str) -> str:
 
 
 def _snapshot(path: Path) -> dict[str, Any]:
-    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
     try:
         quick_check = [row[0] for row in conn.execute("PRAGMA quick_check")]
         if quick_check != ["ok"]:
@@ -97,21 +102,43 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _copy_sqlite(source: Path, destination: Path) -> None:
-    source_conn = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
+def _copy_sqlite(source: Path, destination: Path, *, max_bytes: int | None = None) -> None:
+    source_conn = sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True)
     destination_conn = sqlite3.connect(destination)
     try:
-        source_conn.backup(destination_conn)
+        page_size = source_conn.execute("PRAGMA page_size").fetchone()[0]
+
+        def enforce_limit(status: int, remaining: int, total: int) -> None:
+            del status, remaining
+            if max_bytes is not None and total * page_size + METADATA_RESERVE_BYTES > max_bytes:
+                raise OperationError("backup grew beyond the approved size cap")
+
+        source_conn.backup(destination_conn, pages=16, progress=enforce_limit)
     finally:
         destination_conn.close()
         source_conn.close()
+
+
+def _database_bytes(path: Path) -> int:
+    conn = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
+    try:
+        page_count = conn.execute("PRAGMA page_count").fetchone()[0]
+        page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+    finally:
+        conn.close()
+    return page_count * page_size
 
 
 def _valid_snapshots(root: Path) -> list[Path]:
     valid = []
     for child in root.iterdir():
         manifest = child / "manifest.json"
-        if child.is_dir() and not child.is_symlink() and manifest.is_file():
+        if (
+            not child.is_symlink()
+            and child.is_dir()
+            and not manifest.is_symlink()
+            and manifest.is_file()
+        ):
             try:
                 record = json.loads(manifest.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
@@ -137,6 +164,12 @@ def create_backup(
     if len(_valid_snapshots(destination)) >= retention_limit:
         raise OperationError("retention cap reached; no snapshot was deleted")
 
+    expected_bytes = _database_bytes(source_path)
+    if expected_bytes + METADATA_RESERVE_BYTES > max_bytes:
+        raise OperationError("source database cannot fit inside the approved size cap")
+    if shutil.disk_usage(destination).free < expected_bytes + METADATA_RESERVE_BYTES:
+        raise OperationError("destination does not have enough free space")
+
     final_dir = destination / snapshot
     incomplete_dir = destination / f".incomplete-{snapshot}"
     if final_dir.exists() or incomplete_dir.exists():
@@ -145,9 +178,9 @@ def create_backup(
     backup = incomplete_dir / "tiny-ipa.sqlite.backup"
     try:
         source_snapshot = _snapshot(source_path)
-        _copy_sqlite(source_path, backup)
+        _copy_sqlite(source_path, backup, max_bytes=max_bytes)
         size = backup.stat().st_size
-        if size > max_bytes:
+        if size + METADATA_RESERVE_BYTES > max_bytes:
             raise OperationError("backup exceeds the approved size cap")
         backup_snapshot = _snapshot(backup)
         if backup_snapshot != source_snapshot:
@@ -163,9 +196,10 @@ def create_backup(
             "sha256": checksum,
             "verification": backup_snapshot,
         }
-        (incomplete_dir / "manifest.json").write_text(
-            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        manifest_text = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+        if len(manifest_text.encode()) >= METADATA_RESERVE_BYTES:
+            raise OperationError("backup manifest exceeds the reserved metadata cap")
+        (incomplete_dir / "manifest.json").write_text(manifest_text, encoding="utf-8")
         os.replace(incomplete_dir, final_dir)
         return manifest
     except Exception as exc:
@@ -185,6 +219,8 @@ def verify_restore(
         raise OperationError("expected sha256 must be an explicit lowercase digest")
     if _sha256(backup) != expected_sha256:
         raise OperationError("backup checksum mismatch")
+    if shutil.disk_usage(restores).free < backup.stat().st_size + METADATA_RESERVE_BYTES:
+        raise OperationError("restore root does not have enough free space")
     trial_dir = restores / trial
     restore = trial_dir / "tiny-ipa.sqlite"
     if trial_dir.exists():

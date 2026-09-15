@@ -33,7 +33,8 @@ Tiny IPA namespace path. The Xue Tu Zhi Ban baseline must be recorded through an
 owner-approved application health check, not inferred from Tiny IPA health or a
 systemd active state alone.
 
-Stop before mutation when any of these are missing or ambiguous:
+For the later full public deployment, stop before mutation when any of these
+are missing or ambiguous:
 
 - approved service user: `<HUMAN_APPROVED_TINY_IPA_SERVICE_USER>`;
 - approved service group: `<HUMAN_APPROVED_TINY_IPA_SERVICE_GROUP>`;
@@ -43,6 +44,10 @@ Stop before mutation when any of these are missing or ambiguous:
 - backup owner and retention policy;
 - rollback owner and acceptable data-loss boundary;
 - Xue Tu Zhi Ban baseline health evidence.
+
+P1a uses the fixed service identity, env path, backup bounds, and preserve-data
+withdrawal below. It does not wait for or change TLS, but it still requires the
+exact Human approval and fresh H0 evidence defined in its packet.
 
 ## Staged Release Shape
 
@@ -281,9 +286,70 @@ The route sequence must be `200`, `302` to `/apps/xuetuzhiban/demo/`, then
 four `503` responses with `no-store`. The write-out emits only status,
 Cache-Control, and Location. Unsupported `%header{}` syntax stops H0; never dump
 raw headers. Require at least 1 GiB available RAM, 5 GiB disk, free port 18110,
-and absent or exactly explained Tiny IPA account, units, and paths. Unknown
-state, another host writer, incompatible Python/wheels, or P0 route drift means
-HOLD before writes.
+and complete absence of the Tiny IPA account, units, and every listed path.
+Any leftover is a HOLD even when its owner appears known; it requires a new
+recovery decision and is never reused, overwritten, or deleted here. NSS
+absence, path `ENOENT`, and permission failure are distinct results. Unknown
+state, another host writer, incompatible Python/wheels, or P0 route drift also
+means HOLD before writes.
+
+The final H0 blocks enforce those predicates without writing:
+
+```sh
+set -eu
+test "$(whoami)" = ubuntu
+test "$(hostname)" = VM-0-7-ubuntu
+test "$(uname -m)" = x86_64
+test "$(free -m | awk '/^Mem:/ {print $7}')" -ge 1024
+test "$(df -Pk / | awk 'NR==2 {print $4}')" -ge 5242880
+test -z "$(ss -ltnH 'sport = :18110')"
+if getent passwd tiny-ipa >/dev/null; then exit 20; fi
+if getent group tiny-ipa >/dev/null; then exit 21; fi
+for unit in tiny-ipa-api.service tiny-ipa-backup.service tiny-ipa-backup.timer; do
+  test "$(systemctl show "$unit" --no-pager -p LoadState --value)" = not-found
+done
+LC_ALL=C
+export LC_ALL
+for p in /opt/tiny-ipa /opt/tiny-ipa/current /var/www/tiny-ipa /var/www/tiny-ipa/current /etc/tiny-ipa /var/lib/tiny-ipa /var/lib/tiny-ipa/tiny-ipa.sqlite /var/lib/tiny-ipa/audio /var/backups/tiny-ipa; do
+  if result=$(stat --printf='%n|%F|%U|%G|%a' -- "$p" 2>&1); then
+    printf '%s\n' "$result"
+    exit 22
+  else
+    case "$result" in *'No such file or directory'*) : ;; *) printf '%s\n' "$result" >&2; exit 23 ;; esac
+  fi
+done
+```
+
+```sh
+set -eu
+python3 -m venv --help >/dev/null
+systemd-analyze --version | sed -n '1p'
+openssl version
+tar --version | sed -n '1p'
+sha256sum --version | sed -n '1p'
+python3 -c 'import platform, sys, sysconfig; print(sys.version.split()[0]); print(platform.machine()); print(sysconfig.get_config_var("SOABI")); print(sysconfig.get_platform())'
+```
+
+The builder must match those Python/platform values. Missing `venv`, an
+unexpected SOABI/platform, or a binary wheel is fatal. H1 creates the isolated
+venv and lets its own pip perform an offline `--dry-run` before installation.
+Validate the P0 tuple rather than merely printing it:
+
+```sh
+set -eu
+for p in /apps/xuetuzhiban/demo/ /apps/xuetuzhiban-test/demo/ /apps/xuetuzhiban/app/ /apps/xuetuzhiban-test/app/ /api/xuetuzhiban /api/xuetuzhiban-test; do
+  result=$(curl --noproxy '*' --connect-timeout 3 --max-time 8 --max-redirs 0 -sS -I -o /dev/null -w '%{http_code}|%header{cache-control}|%header{location}' "http://127.0.0.1$p") || exit $?
+  IFS='|' read -r status cache location <<EOF
+$result
+EOF
+  case "$p" in
+    /apps/xuetuzhiban/demo/) test "$status" = 200 ;;
+    /apps/xuetuzhiban-test/demo/) test "$status" = 302; test "$location" = /apps/xuetuzhiban/demo/ ;;
+    *) test "$status" = 503; case "$cache" in *no-store*) : ;; *) exit 24 ;; esac ;;
+  esac
+  printf '%s\n' "$result"
+done
+```
 
 ### Locked offline release assembly
 
@@ -299,8 +365,36 @@ python3 -m compileall -q dependency-check
 sha256sum requirements.lock.txt wheelhouse/* > OFFLINE-MANIFEST.sha256
 ```
 
+The isolated Linux builder packages that exact commit and transfers only after
+the Human gate opens H1:
+
+```sh
+set -eu
+release_id=<APPROVED_RELEASE_ID>
+commit=<APPROVED_GITHUB_SHA>
+build_root=$(mktemp -d)
+git fetch origin "$commit"
+test "$(git rev-parse "$commit^{commit}")" = "$commit"
+git archive "$commit" | tar -x -C "$build_root"
+cd "$build_root/backend"
+uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file requirements.lock.txt
+python3 -m pip download --requirement requirements.lock.txt --dest wheelhouse --only-binary=:all:
+python3 -m pip install --no-index --find-links wheelhouse --requirement requirements.lock.txt --target dependency-check
+python3 -m compileall -q dependency-check
+sha256sum requirements.lock.txt wheelhouse/* > OFFLINE-MANIFEST.sha256
+cd "$build_root"
+printf 'release_id=%s\ncommit=%s\ntag=\ncreated_at=%s\n' "$release_id" "$commit" "$(date -u +%FT%TZ)" > REVISION
+tar --create --gzip --file "../tiny-ipa-$release_id.tar.gz" .
+sha256sum "../tiny-ipa-$release_id.tar.gz"
+ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o ConnectTimeout=10 -o ConnectionAttempts=1 -o ClearAllForwardings=yes -o ForwardAgent=no -o ForwardX11=no -o ControlMaster=no -o ControlPath=none jingyun 'install -d -m 0700 /tmp/tiny-ipa-p1a'
+scp -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o ConnectTimeout=10 -o ConnectionAttempts=1 -o ClearAllForwardings=yes -o ForwardAgent=no -o ForwardX11=no -o ControlMaster=no -o ControlPath=none "../tiny-ipa-$release_id.tar.gz" jingyun:/tmp/tiny-ipa-p1a/
+```
+
+The locally observed archive digest is materialized as
+`<APPROVED_ARTIFACT_SHA256>` before the remote H1 block continues.
+
 The release artifact contains the repository tree at `<APPROVED_GITHUB_SHA>`,
-the requirements file, wheelhouse, and manifest. H0 runs
+the requirements file, wheelhouse, and manifest. H1 runs
 `sha256sum -c OFFLINE-MANIFEST.sha256`, confirms wheel compatibility with the
 observed CPython/x86_64 target, and uses `--no-index` for the release venv. A
 source distribution, missing wheel, network fallback, apt, global Python
@@ -316,6 +410,40 @@ the session secret directly into the env file and never print it. Populate the
 venv offline, verify the manifest, make the release service-readable and
 non-writable, then select it through `current`.
 
+The reviewed H1 command sequence is:
+
+```sh
+set -eu
+release_id=<APPROVED_RELEASE_ID>
+artifact=/tmp/tiny-ipa-p1a/tiny-ipa-<APPROVED_RELEASE_ID>.tar.gz
+test "$(printf '%s' "$release_id" | sed 's/[A-Za-z0-9._-]//g')" = ''
+test "$(sha256sum "$artifact" | awk '{print $1}')" = <APPROVED_ARTIFACT_SHA256>
+sudo -n useradd --system --user-group --home-dir /var/lib/tiny-ipa --no-create-home --shell /usr/sbin/nologin tiny-ipa
+sudo -n install -d -o root -g root -m 0755 /opt/tiny-ipa/releases
+sudo -n install -d -o root -g root -m 0755 "/opt/tiny-ipa/releases/$release_id"
+sudo -n install -d -o root -g tiny-ipa -m 0750 /etc/tiny-ipa
+sudo -n install -d -o tiny-ipa -g tiny-ipa -m 0750 /var/lib/tiny-ipa /var/lib/tiny-ipa/audio
+sudo -n install -d -o tiny-ipa -g tiny-ipa -m 0700 /var/lib/tiny-ipa/restore-candidates /var/backups/tiny-ipa
+sudo -n tar --extract --gzip --file "$artifact" --directory "/opt/tiny-ipa/releases/$release_id" --no-same-owner
+cd "/opt/tiny-ipa/releases/$release_id/backend"
+sha256sum -c OFFLINE-MANIFEST.sha256
+sudo -n python3 -m venv .venv
+sudo -n "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -m pip install --dry-run --ignore-installed --no-index --find-links wheelhouse --requirement requirements.lock.txt
+sudo -n "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -m pip install --no-index --find-links wheelhouse --requirement requirements.lock.txt
+sudo -n sh -c 'umask 0027; secret=$(openssl rand -hex 32) || exit 30; { printf "%s\n" "TINY_IPA_ENV=production" "TINY_IPA_DB_PATH=/var/lib/tiny-ipa/tiny-ipa.sqlite" "TINY_IPA_SESSION_SECRET=$secret" "TINY_IPA_ALLOWED_ORIGINS=https://ipa.jingyun.bj.cn" "TINY_IPA_COOKIE_SECURE=true" "TINY_IPA_COOKIE_SAMESITE=lax" "TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio" "TINY_IPA_RELEASE_ID=<APPROVED_RELEASE_ID>" "TINY_IPA_RELEASE_COMMIT=<APPROVED_GITHUB_SHA>" "TINY_IPA_RELEASE_TAG="; } > /etc/tiny-ipa/tiny-ipa.env; chown root:tiny-ipa /etc/tiny-ipa/tiny-ipa.env; chmod 0640 /etc/tiny-ipa/tiny-ipa.env'
+sudo -n chmod -R a-w "/opt/tiny-ipa/releases/$release_id"
+sudo -n ln -s "/opt/tiny-ipa/releases/$release_id" /opt/tiny-ipa/current
+sudo -n install -o root -g root -m 0644 /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-api.service.candidate /etc/systemd/system/tiny-ipa-api.service
+sudo -n systemd-analyze verify /etc/systemd/system/tiny-ipa-api.service
+sudo -n systemctl daemon-reload
+sudo -n systemctl start tiny-ipa-api.service
+```
+
+The installed paths are the single release directory, `current` symlink,
+`/etc/tiny-ipa/tiny-ipa.env`, the new DB/audio/restore roots, backup root, and
+`/etc/systemd/system/tiny-ipa-api.service`. No command uses overwrite or force
+against a namespace that H0 requires to be absent.
+
 Install only the reviewed `tiny-ipa-api.service`, run `systemd-analyze verify`,
 `sudo -n systemctl daemon-reload`, and
 `sudo -n systemctl start tiny-ipa-api.service`; do not enable it. Verify
@@ -325,12 +453,47 @@ health and unauthenticated fail-closed APIs. Do not create accounts, import
 data, invoke TTS/models/providers, or read private rows. Repeat the P0 route
 checks after activation.
 
+```sh
+set -eu
+test "$(systemctl show tiny-ipa-api.service -p ActiveState --value)" = active
+test "$(systemctl show tiny-ipa-api.service -p MemoryMax --value)" = 536870912
+test "$(systemctl show tiny-ipa-api.service -p TasksMax --value)" = 64
+test -n "$(ss -ltnH 'sport = :18110' | awk '$4 ~ /127.0.0.1:18110$/')"
+curl --noproxy '*' --fail --silent --show-error --max-time 8 http://127.0.0.1:18110/api/health >/dev/null
+curl --noproxy '*' --fail --silent --show-error --max-time 8 http://127.0.0.1:18110/api/version
+```
+
 ### H2: backup, separate restore, and timer
 
 ```sh
 sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id <UNIQUE_UTC_SNAPSHOT_ID> --release-id <APPROVED_RELEASE_ID> --max-bytes 104857600 --retention-limit 7
 sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py verify-restore --backup-file /var/backups/tiny-ipa/<UNIQUE_UTC_SNAPSHOT_ID>/tiny-ipa.sqlite.backup --backup-root /var/backups/tiny-ipa --restore-root /var/lib/tiny-ipa/restore-candidates --trial-id <UNIQUE_RESTORE_ID> --expected-sha256 <OBSERVED_BACKUP_SHA256>
 ```
+
+After that restore verifies, materialize and start the bounded timer without
+enabling it:
+
+```sh
+set -eu
+release_id=<APPROVED_RELEASE_ID>
+test "$(printf '%s' "$release_id" | sed 's/[A-Za-z0-9._-]//g')" = ''
+sed "s|<APPROVED_RELEASE_ID>|$release_id|g" /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate > /tmp/tiny-ipa-backup.service
+sudo -n install -o root -g root -m 0644 /tmp/tiny-ipa-backup.service /etc/systemd/system/tiny-ipa-backup.service
+sudo -n install -o root -g root -m 0644 /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.timer.candidate /etc/systemd/system/tiny-ipa-backup.timer
+sudo -n systemd-analyze verify /etc/systemd/system/tiny-ipa-backup.service /etc/systemd/system/tiny-ipa-backup.timer
+sudo -n systemctl daemon-reload
+sudo -n systemctl start tiny-ipa-backup.service
+test "$(systemctl show tiny-ipa-backup.service -p Result --value)" = success
+sudo -n systemctl start tiny-ipa-backup.timer
+test "$(systemctl show tiny-ipa-backup.timer -p ActiveState --value)" = active
+test "$(systemctl show tiny-ipa-backup.timer -p UnitFileState --value)" = disabled
+systemctl list-timers tiny-ipa-backup.timer --no-pager
+```
+
+H2 adds only `/etc/systemd/system/tiny-ipa-backup.service`,
+`/etc/systemd/system/tiny-ipa-backup.timer`, complete/incomplete snapshot
+directories, and the separate restore-candidate directory. `/tmp` staging is
+retained for evidence until a later cleanup authorization.
 
 Accept `status=complete` followed by `status=verified` with matching checksum,
 schema fingerprint, and table counts. The restore remains separate and never
@@ -357,3 +520,24 @@ P1a proves only private coexistence and the bounded backup operation. P1b owns
 public frontend, shared ingress, DNS, HTTPS, supported ACME renewal, and full
 phone smoke. Disaster recovery and RPO remain unclaimed until off-host storage,
 permanent retention/deletion, and failure notification have separate owners.
+
+The exact preserve-data withdrawal is:
+
+```sh
+set -eu
+for unit in tiny-ipa-backup.timer tiny-ipa-backup.service tiny-ipa-api.service; do
+  if test "$(systemctl show "$unit" --no-pager -p LoadState --value)" != not-found; then
+    sudo -n systemctl stop "$unit"
+  fi
+done
+test "$(systemctl show tiny-ipa-api.service -p ActiveState --value)" = inactive
+test -z "$(ss -ltnH 'sport = :18110')"
+for unit in tiny-ipa-api.service tiny-ipa-backup.service tiny-ipa-backup.timer; do
+  systemctl show "$unit" --no-pager -p Id -p LoadState -p ActiveState -p SubState -p UnitFileState
+done
+stat --printf='%n|%F|%U|%G|%a\n' /opt/tiny-ipa/current /etc/tiny-ipa /var/lib/tiny-ipa /var/backups/tiny-ipa
+```
+
+After this block, repeat the exact P0 tuple-validation block. No `rm`, `unlink`,
+`disable`, shared-service action, pointer rewrite, or restore command belongs to
+withdrawal.

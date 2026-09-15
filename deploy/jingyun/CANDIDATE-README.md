@@ -20,11 +20,8 @@ directory creation, environment-file writes, secret generation, database
 creation or mutation, systemd/Nginx/firewall/DNS/TLS changes, service reloads,
 backup, restore, rollback, or deployment.
 
-Human placeholders that must remain unresolved until a later host-action gate:
+Full-public P1b placeholders that remain unresolved at the P1a gate:
 
-- `<HUMAN_APPROVED_TINY_IPA_SERVICE_USER>`
-- `<HUMAN_APPROVED_TINY_IPA_SERVICE_GROUP>`
-- `<HUMAN_OWNED_TINY_IPA_ENV_FILE>`
 - `<HUMAN_PROVIDED_TLS_CERTIFICATE_PATH_FOR_IPA_JINGYUN>`
 - `<HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>`
 - `<HUMAN_PROVISIONED_TINY_IPA_SESSION_SECRET>`
@@ -35,6 +32,10 @@ Human placeholders that must remain unresolved until a later host-action gate:
 - `<INTENDED_GITHUB_COMMIT_SHA>`
 - `<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>`
 - `<UTC_RELEASE_ARTIFACT_TIMESTAMP>`
+
+P1a instead fixes `tiny-ipa:tiny-ipa` and `/etc/tiny-ipa/tiny-ipa.env`; its
+exact accepted release ID, commit, artifact digest, trial operator, and bounded
+withdrawal are materialized in #282 before the host-action decision.
 
 Review these files with `backend/tests/test_m14_jingyun_candidate_artifacts.py`
 before any future Human-authorized transfer to a VPS.
