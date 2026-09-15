@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import base64
 import errno
+import hashlib
 import io
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tarfile
 import threading
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -235,11 +239,12 @@ def _run_staging(
     _fake_command(
         fake,
         "timeout",
-        "count=0\n"
-        "test -f \"$FAKE_COUNTER\" && count=$(cat \"$FAKE_COUNTER\")\n"
-        "count=$((count + 1))\nprintf '%s' \"$count\" > \"$FAKE_COUNTER\"\n"
-        "test \"${FAKE_FAIL_STEP:-0}\" -eq \"$count\" && exit 1\nexit 0",
+        f"count=0\n"
+        f"test -f {shlex.quote(str(counter))} && count=$(cat {shlex.quote(str(counter))})\n"
+        f"count=$((count + 1))\nprintf '%s' \"$count\" > {shlex.quote(str(counter))}\n"
+        f"test {fail_step} -eq \"$count\" && exit 1\nexit 0",
     )
+    script = script.replace("/usr/bin/timeout", str(fake / "timeout"))
     for command in ("sudo", "useradd", "systemctl", "install"):
         _fake_command(
             fake,
@@ -474,6 +479,31 @@ def _run_archive_validator(
     )
 
 
+def _write_test_wheel(wheelhouse: Path) -> tuple[Path, str]:
+    wheelhouse.mkdir()
+    wheel = wheelhouse / "demo_pkg-1.0-py3-none-any.whl"
+    files = {
+        "demo_pkg/__init__.py": b'VALUE = "inside-venv"\n',
+        "demo_pkg-1.0.dist-info/METADATA": (
+            b"Metadata-Version: 2.1\nName: demo-pkg\nVersion: 1.0\n"
+        ),
+        "demo_pkg-1.0.dist-info/WHEEL": (
+            b"Wheel-Version: 1.0\nGenerator: m14-test\n"
+            b"Root-Is-Purelib: true\nTag: py3-none-any\n"
+        ),
+    }
+    records = []
+    for name, payload in files.items():
+        digest = base64.urlsafe_b64encode(hashlib.sha256(payload).digest()).rstrip(b"=")
+        records.append(f"{name},sha256={digest.decode()},{len(payload)}")
+    record_name = "demo_pkg-1.0.dist-info/RECORD"
+    files[record_name] = ("\n".join((*records, f"{record_name},,")) + "\n").encode()
+    with zipfile.ZipFile(wheel, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        for name, payload in files.items():
+            bundle.writestr(name, payload)
+    return wheel, hashlib.sha256(wheel.read_bytes()).hexdigest()
+
+
 def _all_candidate_text() -> str:
     return "\n".join(_text(path) for path in REQUIRED_FILES)
 
@@ -685,6 +715,105 @@ def test_m14_p1a_staging_hash_failure_stops_before_activation(
     result, sentinel = _run_staging(tmp_path, bad_digest=True)
     assert result.returncode != 0
     assert not sentinel.exists()
+
+
+def test_m14_p1a_installer_ignores_hostile_inherited_environment(
+    tmp_path: Path,
+) -> None:
+    staging = _marked(
+        _text(DEPLOYMENT_PLAN),
+        "# P1A_H1_STAGING_BEGIN",
+        "# P1A_H1_STAGING_END",
+    )
+    assert staging.count("/usr/bin/env -i") == 3
+    assert "env -u" not in staging
+    assert staging.count('"$stage/venv/bin/python" -I -B') == 3
+
+    wheelhouse = tmp_path / "wheelhouse"
+    wheel, digest = _write_test_wheel(wheelhouse)
+    requirements = tmp_path / "requirements.lock.txt"
+    requirements.write_text(
+        f"demo-pkg==1.0 --hash=sha256:{digest}\n", encoding="utf-8"
+    )
+    venv = tmp_path / "venv"
+    subprocess.run(
+        [sys.executable, "-m", "venv", str(venv)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    hostile_target = tmp_path / "outside-target"
+    hostile_prefix = tmp_path / "outside-prefix"
+    hostile_requirements = tmp_path / "outside-requirements.txt"
+    hostile_requirements.write_text("missing-package==999\n", encoding="utf-8")
+    hostile_pythonpath = tmp_path / "outside-pythonpath"
+    hostile_pythonpath.mkdir()
+    sentinel = tmp_path / "pythonpath-sentinel"
+    (hostile_pythonpath / "sitecustomize.py").write_text(
+        f"from pathlib import Path\nPath({str(sentinel)!r}).touch()\n",
+        encoding="utf-8",
+    )
+    pip_tmp = tmp_path / "pip-tmp"
+    pip_tmp.mkdir()
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "PIP_TARGET": str(hostile_target),
+            "PIP_PREFIX": str(hostile_prefix),
+            "PIP_REQUIREMENT": str(hostile_requirements),
+            "PYTHONPATH": str(hostile_pythonpath),
+        }
+    )
+    result = subprocess.run(
+        [
+            "/usr/bin/env",
+            "-i",
+            "PATH=/usr/bin:/bin",
+            "LANG=C.UTF-8",
+            "LC_ALL=C.UTF-8",
+            "PIP_CONFIG_FILE=/dev/null",
+            "PIP_DISABLE_PIP_VERSION_CHECK=1",
+            f"TMPDIR={pip_tmp}",
+            str(venv / "bin" / "python"),
+            "-I",
+            "-B",
+            "-m",
+            "pip",
+            "install",
+            "--require-hashes",
+            "--only-binary=:all:",
+            "--no-index",
+            "--no-cache-dir",
+            "--find-links",
+            str(wheelhouse),
+            "--requirement",
+            str(requirements),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+        timeout=45,
+    )
+    assert result.returncode == 0, result.stderr
+    imported = subprocess.run(
+        [
+            str(venv / "bin" / "python"),
+            "-I",
+            "-B",
+            "-c",
+            "import demo_pkg; print(demo_pkg.__file__)",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert Path(imported.stdout.strip()).is_relative_to(venv)
+    assert not hostile_target.exists()
+    assert not hostile_prefix.exists()
+    assert not sentinel.exists()
+    assert wheel.exists()
 
 
 def test_m14_p1a_archive_validator_accepts_only_bounded_wheel_payload(

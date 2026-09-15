@@ -426,9 +426,9 @@ sudo -n tar --extract --gzip --file "$artifact" --directory "/opt/tiny-ipa/relea
 cd "/opt/tiny-ipa/releases/$release_id/backend"
 sha256sum -c OFFLINE-MANIFEST.sha256
 sudo -n python3 -m venv .venv
-sudo -n env -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_FIND_LINKS -u PIP_TRUSTED_HOST PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONNOUSERSITE=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -m pip install --dry-run --ignore-installed --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
-sudo -n env -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_FIND_LINKS -u PIP_TRUSTED_HOST PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONNOUSERSITE=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -m pip install --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
-sudo -n timeout 20s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -c 'import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("activation imports passed")'
+sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -m pip install --dry-run --ignore-installed --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
+sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -m pip install --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
+sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 20s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -c 'import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("activation imports passed")'
 sudo -n sh -c 'umask 0027; secret=$(openssl rand -hex 32) || exit 30; { printf "%s\n" "TINY_IPA_ENV=production" "TINY_IPA_DB_PATH=/var/lib/tiny-ipa/tiny-ipa.sqlite" "TINY_IPA_SESSION_SECRET=$secret" "TINY_IPA_ALLOWED_ORIGINS=https://ipa.jingyun.bj.cn" "TINY_IPA_COOKIE_SECURE=true" "TINY_IPA_COOKIE_SAMESITE=lax" "TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio" "TINY_IPA_RELEASE_ID=<APPROVED_RELEASE_ID>" "TINY_IPA_RELEASE_COMMIT=<APPROVED_GITHUB_SHA>" "TINY_IPA_RELEASE_TAG="; } > /etc/tiny-ipa/tiny-ipa.env; chown root:tiny-ipa /etc/tiny-ipa/tiny-ipa.env; chmod 0640 /etc/tiny-ipa/tiny-ipa.env'
 sudo -n chmod -R a-w "/opt/tiny-ipa/releases/$release_id"
 sudo -n ln -s "/opt/tiny-ipa/releases/$release_id" /opt/tiny-ipa/current
@@ -828,19 +828,20 @@ if not files or any(not item.is_file() or item.suffix != ".whl" for item in file
 # P1A_STAGE_ARCHIVE_PYTHON_END
 PY
 timeout 45s python3 -I -B -m venv "$stage/venv" || exit 87
-env -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_FIND_LINKS -u PIP_TRUSTED_HOST \
-  PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONNOUSERSITE=1 TMPDIR="$stage/tmp" \
-  timeout 45s "$stage/venv/bin/python" -m pip install --dry-run --ignore-installed \
+/usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+  PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR="$stage/tmp" \
+  /usr/bin/timeout 45s "$stage/venv/bin/python" -I -B -m pip install --dry-run --ignore-installed \
   --require-hashes --only-binary=:all: --no-index --no-cache-dir \
   --find-links "$stage/extracted/backend/wheelhouse" \
   --requirement "$stage/extracted/backend/requirements.lock.txt" || exit 88
-env -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_FIND_LINKS -u PIP_TRUSTED_HOST \
-  PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONNOUSERSITE=1 TMPDIR="$stage/tmp" \
-  timeout 45s "$stage/venv/bin/python" -m pip install \
+/usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+  PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR="$stage/tmp" \
+  /usr/bin/timeout 45s "$stage/venv/bin/python" -I -B -m pip install \
   --require-hashes --only-binary=:all: --no-index --no-cache-dir \
   --find-links "$stage/extracted/backend/wheelhouse" \
   --requirement "$stage/extracted/backend/requirements.lock.txt" || exit 89
-timeout 20s "$stage/venv/bin/python" -I -B -c \
+/usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 TMPDIR="$stage/tmp" \
+  /usr/bin/timeout 20s "$stage/venv/bin/python" -I -B -c \
   'import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("staging imports passed")' || exit 90
 # P1A_H1_STAGING_END
 ```
