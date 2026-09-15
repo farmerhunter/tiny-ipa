@@ -382,6 +382,12 @@ def test_candidate_units_are_bounded_and_nonpersistent() -> None:
     assert "TimeoutStartSec=infinity" not in service
     assert "ReadOnlyPaths=/var/lib/tiny-ipa" in service
     assert "ReadWritePaths=/var/backups/tiny-ipa" in service
+    assert "ExecStartPre=/usr/bin/test -f /var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
+    assert "ExecStartPre=/usr/bin/test ! -L /var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
+    assert "ReadWritePaths=/var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
+    assert "ReadWritePaths=/var/lib/tiny-ipa\n" not in service
+    assert "ReadWritePaths=-/var/lib/tiny-ipa/tiny-ipa.sqlite-shm" not in service
+    assert "ConditionPathIsReadWrite=/var/lib/tiny-ipa/tiny-ipa.sqlite-shm" not in service
     assert "OnCalendar=*-*-* 03:20:00 UTC" in timer
     assert "Persistent=false" in timer
     assert "RandomizedDelaySec" not in timer
