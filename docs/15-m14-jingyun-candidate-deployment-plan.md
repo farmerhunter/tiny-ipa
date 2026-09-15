@@ -1410,7 +1410,7 @@ def readiness(
             except (OSError, http.client.HTTPException):
                 health = None
             if health is not None:
-                if health[0] != 200 or health[2] != {"status": "ok"}:
+                if health[0] != 200 or health[2].get("status") != "ok":
                     raise ReadinessError("health-contract")
                 version = request(
                     "/api/version", deadline, connection_factory, monotonic,

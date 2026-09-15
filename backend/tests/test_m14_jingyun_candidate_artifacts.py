@@ -348,7 +348,11 @@ def _run_runtime_probe(
     release = "release-1"
     commit = "a" * 40
     responses = {
-        "/api/health": (200, {}, b'{"status":"ok"}'),
+        "/api/health": (
+            200,
+            {},
+            b'{"status":"ok","content_version":"test","db_ready":true}',
+        ),
         "/api/version": (
             200,
             {"Cache-Control": "no-store"},
@@ -1261,7 +1265,15 @@ def test_m14_p1a_runtime_probe_accepts_exact_anonymous_contract(
 
 @pytest.mark.parametrize(
     "failure",
-    ["wrong_sha", "wrong_release", "disk_sha", "non_401", "malformed", "oversized"],
+    [
+        "wrong_sha",
+        "wrong_release",
+        "disk_sha",
+        "health_status",
+        "non_401",
+        "malformed",
+        "oversized",
+    ],
 )
 def test_m14_p1a_runtime_probe_rejects_identity_auth_and_body_failures(
     tmp_path: Path, failure: str,
@@ -1278,6 +1290,10 @@ def test_m14_p1a_runtime_probe_rejects_identity_auth_and_body_failures(
             200,
             {"Cache-Control": "no-store"},
             b'{"status":"ok","release_id":"wrong","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","tag":null}',
+        )
+    elif failure == "health_status":
+        overrides["/api/health"] = (
+            200, {}, b'{"content_version":"test","db_ready":true}'
         )
     elif failure == "non_401":
         overrides["/api/progress"] = (
