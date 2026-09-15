@@ -512,7 +512,7 @@ def test_h2_records_bounded_steps_and_filters_unit_failure_summary() -> None:
 
 
 @pytest.mark.parametrize(
-    "failure", ["missing", "hash-mismatch", "collision", "success"]
+    "failure", ["missing", "hash-mismatch", "collision", "bad-report", "success"]
 )
 def test_h2_tool_materialization_fixture(
     tmp_path: Path, failure: str,
@@ -527,8 +527,20 @@ def test_h2_tool_materialization_fixture(
     tool = stage / f"p1a-backup-{revision}.py"
     unit = stage / f"tiny-ipa-backup-{revision}.service.candidate"
     if failure != "missing":
-        tool.write_text("tool\n")
-        unit.write_text("<APPROVED_TOOL_REVISION>\n")
+        backup_digest = "bad" if failure == "bad-report" else "b" * 64
+        tool.write_text(
+            "#!/bin/sh\n"
+            "case $1 in\n"
+            "backup) printf '%s\\n' "
+            f"'{{\"status\":\"complete\",\"sha256\":\"{backup_digest}\"}}' ;;\n"
+            "verify-restore) printf '%s\\n' '{\"status\":\"verified\"}' ;;\n"
+            "*) exit 2 ;;\n"
+            "esac\n"
+        )
+        unit.write_text(
+            "ExecStart=/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py "
+            "--release-id <APPROVED_RELEASE_ID>\n"
+        )
     tool_sha = hashlib.sha256(tool.read_bytes()).hexdigest() if tool.exists() else "0" * 64
     unit_sha = hashlib.sha256(unit.read_bytes()).hexdigest() if unit.exists() else "0" * 64
     if failure == "hash-mismatch":
@@ -538,12 +550,14 @@ def test_h2_tool_materialization_fixture(
         target.mkdir(parents=True)
         (target / "sentinel").write_text("preserve\n")
     replacements = {
-        "<APPROVED_RELEASE_ID>": "release-1",
-        "<APPROVED_TOOL_REVISION>": revision,
-        "<APPROVED_TOOL_SHA256>": tool_sha,
-        "<APPROVED_UNIT_TEMPLATE_SHA256>": unit_sha,
-        "<UNIQUE_UTC_SNAPSHOT_ID>": "snapshot-1",
-        "<UNIQUE_RESTORE_ID>": "restore-1",
+        "release_id=<APPROVED_RELEASE_ID>": "release_id=release-1",
+        "tool_revision=<APPROVED_TOOL_REVISION>": f"tool_revision={revision}",
+        "tool_sha256=<APPROVED_TOOL_SHA256>": f"tool_sha256={tool_sha}",
+        "unit_template_sha256=<APPROVED_UNIT_TEMPLATE_SHA256>": (
+            f"unit_template_sha256={unit_sha}"
+        ),
+        "snapshot_id=<UNIQUE_UTC_SNAPSHOT_ID>": "snapshot_id=snapshot-1",
+        "restore_id=<UNIQUE_RESTORE_ID>": "restore_id=restore-1",
         "/tmp/tiny-ipa-p1a": str(stage),
         "/opt/tiny-ipa/ops": str(ops),
         "/usr/bin/sha256sum": shutil.which("sha256sum") or "sha256sum",
@@ -552,7 +566,9 @@ def test_h2_tool_materialization_fixture(
         "sudo -n install -o root -g root -m": "install -m",
         "sudo -n chmod": "chmod",
         "sudo -n /usr/bin/python3": "/usr/bin/python3",
+        "sudo -n -u tiny-ipa ": "",
         "sudo -n test": "test",
+        "/usr/bin/timeout 5s sed": "sed",
     }
     for old, new in replacements.items():
         block = block.replace(old, new)
@@ -562,26 +578,43 @@ def test_h2_tool_materialization_fixture(
         block,
         flags=re.DOTALL,
     )
-    block = block.split("# P1A_TOOL_MATERIALIZATION_END", 1)[0]
+    end_marker = (
+        "# P1A_UNIT_MATERIALIZATION_END"
+        if failure in {"bad-report", "success"}
+        else "# P1A_TOOL_MATERIALIZATION_END"
+    )
+    block = block.split(end_marker, 1)[0]
     completed = subprocess.run(
         ["/bin/bash"], input=block, text=True, capture_output=True, timeout=10,
     )
     if failure == "success":
         assert completed.returncode == 0, completed.stderr
-        assert (target / "p1a-backup.py").read_text() == "tool\n"
+        assert (target / "p1a-backup.py").read_text() == tool.read_text()
         assert (target / "tiny-ipa-backup.service.candidate").read_text() == (
-            "<APPROVED_TOOL_REVISION>\n"
+            unit.read_text()
         )
         assert target.stat().st_mode & 0o777 == 0o555
         assert (target / "p1a-backup.py").stat().st_mode & 0o777 == 0o555
         assert (
             target / "tiny-ipa-backup.service.candidate"
         ).stat().st_mode & 0o777 == 0o444
+        materialized = (stage / "tiny-ipa-backup.service").read_text()
+        assert revision in materialized
+        assert "release-1" in materialized
+        assert "<APPROVED_" not in materialized
+        assert '"r2_step":"direct-backup-report","rc":0' in completed.stdout
+        assert '"r2_step":"direct-restore","rc":0' in completed.stdout
+        assert '"r2_step":"unit-stage","rc":0' in completed.stdout
     elif failure == "collision":
         assert completed.returncode != 0
         assert '"r2_step":"tool-dir-absent","rc":1' in completed.stdout
         assert (target / "sentinel").read_text() == "preserve\n"
         assert sorted(path.name for path in target.iterdir()) == ["sentinel"]
+    elif failure == "bad-report":
+        assert completed.returncode != 0
+        assert '"r2_step":"direct-backup-report","rc":1' in completed.stdout
+        assert target.is_dir()
+        assert not (stage / "tiny-ipa-backup.service").exists()
     else:
         assert completed.returncode != 0
         expected_step = "tool-source-type" if failure == "missing" else "tool-source-sha"

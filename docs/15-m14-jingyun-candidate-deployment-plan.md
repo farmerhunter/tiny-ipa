@@ -718,7 +718,7 @@ r2_finish tool-install-metadata "$rc"
 # P1A_TOOL_MATERIALIZATION_END
 backup_output=$(sudo -n -u tiny-ipa "$tool_path" backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id "$snapshot_id" --release-id "$release_id" --max-bytes 104857600 --retention-limit 7); rc=$?
 r2_finish direct-backup "$rc"
-backup_sha=$(printf '%s' "$backup_output" | /usr/bin/python3 -I -B -c 'import json, re, sys; value=json.load(sys.stdin); digest=value.get("sha256", "") if isinstance(value, dict) and value.get("status") == "complete" else ""; print(digest) if re.fullmatch(r"[0-9a-f]{64}", digest) else raise SystemExit(1)'); rc=$?
+backup_sha=$(printf '%s' "$backup_output" | /usr/bin/python3 -I -B -c 'import json, re, sys; value=json.load(sys.stdin); digest=value.get("sha256", "") if isinstance(value, dict) and value.get("status") == "complete" else ""; sys.exit(1) if not re.fullmatch(r"[0-9a-f]{64}", digest) else print(digest)'); rc=$?
 unset backup_output
 r2_finish direct-backup-report "$rc"
 r2_run direct-restore sudo -n -u tiny-ipa "$tool_path" verify-restore --backup-file "/var/backups/tiny-ipa/$snapshot_id/tiny-ipa.sqlite.backup" --backup-root /var/backups/tiny-ipa --restore-root /var/lib/tiny-ipa/restore-candidates --trial-id "$restore_id" --expected-sha256 "$backup_sha"
@@ -727,6 +727,7 @@ set +e
 (umask 077; set -o noclobber; /usr/bin/timeout 5s sed -e "s|<APPROVED_RELEASE_ID>|$release_id|g" -e "s|<APPROVED_TOOL_REVISION>|$tool_revision|g" "$unit_template_path" > "$unit_stage")
 rc=$?
 r2_finish unit-stage "$rc"
+# P1A_UNIT_MATERIALIZATION_END
 r2_run install-service /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 "$unit_stage" /etc/systemd/system/tiny-ipa-backup.service
 r2_run install-timer /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.timer.candidate /etc/systemd/system/tiny-ipa-backup.timer
 r2_run verify-units /usr/bin/timeout 20s sudo -n systemd-analyze verify /etc/systemd/system/tiny-ipa-backup.service /etc/systemd/system/tiny-ipa-backup.timer
