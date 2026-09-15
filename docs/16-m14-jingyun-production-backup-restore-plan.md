@@ -145,3 +145,10 @@ future scheduled run remains `pending` until observed. At the retention or size
 cap the service fails and the operator records the failure. Automatic prune,
 off-host copy, in-place restore, real user data, and a disaster-recovery/RPO
 claim remain outside P1a.
+
+The trial now uses the same readonly H0, authorized H1-staging,
+H1-activation, and H2 boundary as docs/15. Backup unit materialization uses a
+collision-refusing file inside `/tmp/tiny-ipa-p1a`; it does not create a second
+unowned `/tmp` path. Failure during dependency staging cannot reach the backup
+root or units. Failure after activation follows the checked preserve-data
+withdrawal and retains every backup/restore artifact.

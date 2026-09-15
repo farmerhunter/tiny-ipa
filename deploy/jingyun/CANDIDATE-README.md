@@ -52,3 +52,9 @@ P1a includes no Nginx, DNS, TLS, firewall, frontend, public-route, or other-app
 change. Its candidate files remain review artifacts until #282 records the
 exact integrated release commit and a Human approves the frozen H0 through H2
 packet and its bounded withdrawal.
+
+The accepted phase boundary is readonly H0, then the first authorized writes in
+a fresh mode-0700 `/tmp/tiny-ipa-p1a` H1-staging root, then H1-activation and
+H2. Staging proves the exact target venv can install and import the frozen
+offline wheel set before any account, final app root, unit, database, pointer,
+or service mutation. A staging failure retains that root and stops.
