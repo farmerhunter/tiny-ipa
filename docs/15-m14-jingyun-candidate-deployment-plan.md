@@ -597,8 +597,12 @@ never prints raw unit output or a journal:
 set -u
 release_id=<APPROVED_RELEASE_ID>
 tool_revision=<APPROVED_TOOL_REVISION>
+tool_sha256=<APPROVED_TOOL_SHA256>
+unit_template_sha256=<APPROVED_UNIT_TEMPLATE_SHA256>
 [[ $release_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 148
 [[ $tool_revision =~ ^[0-9a-f]{40}$ ]] || exit 148
+[[ $tool_sha256 =~ ^[0-9a-f]{64}$ ]] || exit 148
+[[ $unit_template_sha256 =~ ^[0-9a-f]{64}$ ]] || exit 148
 r2_summary() {
   local raw rc
   raw=$(/usr/bin/timeout 5s systemctl show tiny-ipa-backup.service --no-pager \
@@ -648,10 +652,30 @@ r2_run() {
   "$@"; rc=$?
   r2_finish "$step" "$rc"
 }
+tool_source=/tmp/tiny-ipa-p1a/p1a-backup-$tool_revision.py
+unit_template_source=/tmp/tiny-ipa-p1a/tiny-ipa-backup-$tool_revision.service.candidate
+tool_dir=/opt/tiny-ipa/ops/$tool_revision
+tool_path=$tool_dir/p1a-backup.py
+unit_template_path=$tool_dir/tiny-ipa-backup.service.candidate
 unit_stage=/tmp/tiny-ipa-p1a/tiny-ipa-backup.service
+observed=$(/usr/bin/sha256sum "$tool_source"); rc=$?
+if test "$rc" -eq 0; then read -r digest name extra <<<"$observed"; test "$digest" = "$tool_sha256" && test "$name" = "$tool_source" && test -z "${extra:-}"; rc=$?; fi
+r2_finish tool-source-sha "$rc"
+observed=$(/usr/bin/sha256sum "$unit_template_source"); rc=$?
+if test "$rc" -eq 0; then read -r digest name extra <<<"$observed"; test "$digest" = "$unit_template_sha256" && test "$name" = "$unit_template_source" && test -z "${extra:-}"; rc=$?; fi
+r2_finish unit-template-source-sha "$rc"
+sudo -n test ! -e "$tool_dir"; rc=$?
+if test "$rc" -eq 0; then sudo -n test ! -L "$tool_dir"; rc=$?; fi
+r2_finish tool-dir-absent "$rc"
+r2_run install-tool-dir sudo -n install -d -o root -g root -m 0555 "$tool_dir"
+r2_run install-tool sudo -n install -o root -g root -m 0555 "$tool_source" "$tool_path"
+r2_run install-unit-template sudo -n install -o root -g root -m 0444 "$unit_template_source" "$unit_template_path"
+r2_run verify-tool-sha /usr/bin/sha256sum --status -c <(printf '%s  %s\n' "$tool_sha256" "$tool_path")
+r2_run verify-unit-template-sha /usr/bin/sha256sum --status -c <(printf '%s  %s\n' "$unit_template_sha256" "$unit_template_path")
+# P1A_TOOL_MATERIALIZATION_END
 test ! -e "$unit_stage" && test ! -L "$unit_stage"
 set +e
-(umask 077; set -o noclobber; /usr/bin/timeout 5s sed -e "s|<APPROVED_RELEASE_ID>|$release_id|g" -e "s|<APPROVED_TOOL_REVISION>|$tool_revision|g" /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate > "$unit_stage")
+(umask 077; set -o noclobber; /usr/bin/timeout 5s sed -e "s|<APPROVED_RELEASE_ID>|$release_id|g" -e "s|<APPROVED_TOOL_REVISION>|$tool_revision|g" "$unit_template_path" > "$unit_stage")
 rc=$?
 r2_finish unit-stage "$rc"
 r2_run install-service /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 "$unit_stage" /etc/systemd/system/tiny-ipa-backup.service
@@ -677,12 +701,14 @@ H2 adds only `/etc/systemd/system/tiny-ipa-backup.service`,
 directories, and the separate restore-candidate directory. `/tmp` staging is
 retained for evidence until a later cleanup authorization.
 
-The Human-reviewed recovery packet must install the exact `p1a-backup.py` bytes
-under `/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/` before H2. The version
-directory and script are `root:root` mode `0555`, and their absence is a
-precondition: the packet refuses a collision instead of overwriting an
-operational tool. There is no `ops/current` pointer. This leaves the immutable
-application release, its manifest, and `/opt/tiny-ipa/current` unchanged.
+The Human-reviewed recovery packet must stage and hash the exact
+`p1a-backup.py` and `tiny-ipa-backup.service.candidate` bytes from the same
+final tool revision before H2. The packet refuses an existing version
+directory, installs it and the script as `root:root` mode `0555`, installs the
+unit template as `root:root` mode `0444`, and verifies both installed hashes
+before materializing or starting a unit. There is no `ops/current` pointer.
+This leaves the immutable application release, its manifest, and
+`/opt/tiny-ipa/current` unchanged.
 
 Accept `status=complete` followed by `status=verified` with matching checksum,
 schema fingerprint, and table counts. The restore remains separate and never

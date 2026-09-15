@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
+import re
 import sqlite3
 import subprocess
 import sys
@@ -487,10 +489,73 @@ def test_h2_records_bounded_steps_and_filters_unit_failure_summary() -> None:
         '"r2_unit_summary": values',
         "--property=ExecMainStatus",
         "--property=InvocationID",
+        "tool-source-sha",
+        "unit-template-source-sha",
+        "tool-dir-absent",
+        "verify-tool-sha",
+        "verify-unit-template-sha",
     )
     for value in required:
         assert value in plan
     assert "journalctl" not in plan
+    assert "/opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate" not in plan
+    assert plan.index("tool-dir-absent") < plan.index("start-backup")
+    assert plan.index("verify-unit-template-sha") < plan.index("start-backup")
+
+
+@pytest.mark.parametrize("failure", ["missing", "hash-mismatch", "collision"])
+def test_h2_tool_materialization_failures_stop_before_unit_staging(
+    tmp_path: Path, failure: str,
+) -> None:
+    plan = DEPLOYMENT_PLAN.read_text()
+    block = plan.split("```sh\nset -u\nrelease_id=", 1)[1].split("\n```", 1)[0]
+    block = "set -u\nrelease_id=" + block
+    revision = "a" * 40
+    stage = tmp_path / "stage"
+    ops = tmp_path / "ops"
+    stage.mkdir()
+    tool = stage / f"p1a-backup-{revision}.py"
+    unit = stage / f"tiny-ipa-backup-{revision}.service.candidate"
+    if failure != "missing":
+        tool.write_text("tool\n")
+        unit.write_text("<APPROVED_TOOL_REVISION>\n")
+    tool_sha = hashlib.sha256(tool.read_bytes()).hexdigest() if tool.exists() else "0" * 64
+    unit_sha = hashlib.sha256(unit.read_bytes()).hexdigest() if unit.exists() else "0" * 64
+    if failure == "hash-mismatch":
+        tool_sha = "f" * 64
+    target = ops / revision
+    if failure == "collision":
+        target.mkdir(parents=True)
+        (target / "sentinel").write_text("preserve\n")
+    replacements = {
+        "<APPROVED_RELEASE_ID>": "release-1",
+        "<APPROVED_TOOL_REVISION>": revision,
+        "<APPROVED_TOOL_SHA256>": tool_sha,
+        "<APPROVED_UNIT_TEMPLATE_SHA256>": unit_sha,
+        "/tmp/tiny-ipa-p1a": str(stage),
+        "/opt/tiny-ipa/ops": str(ops),
+        "sudo -n install -d -o root -g root -m": "install -d -m",
+        "sudo -n install -o root -g root -m": "install -m",
+        "sudo -n test": "test",
+    }
+    for old, new in replacements.items():
+        block = block.replace(old, new)
+    block = re.sub(
+        r"r2_summary\(\) \{.*?\n\}\nr2_finish",
+        "r2_summary() { :; }\nr2_finish",
+        block,
+        flags=re.DOTALL,
+    )
+    block = block.split("# P1A_TOOL_MATERIALIZATION_END", 1)[0]
+    completed = subprocess.run(
+        ["/bin/bash"], input=block, text=True, capture_output=True, timeout=10,
+    )
+    assert completed.returncode != 0
+    if failure == "collision":
+        assert (target / "sentinel").read_text() == "preserve\n"
+        assert sorted(path.name for path in target.iterdir()) == ["sentinel"]
+    else:
+        assert not target.exists()
 
 
 def test_h2_unit_summary_executes_and_rejects_extra_fields() -> None:
