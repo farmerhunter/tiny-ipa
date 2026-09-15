@@ -580,23 +580,30 @@ readback checks.
 
 ### H2: backup, separate restore, and timer
 
-```sh
-sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id <UNIQUE_UTC_SNAPSHOT_ID> --release-id <APPROVED_RELEASE_ID> --max-bytes 104857600 --retention-limit 7
-sudo -n -u tiny-ipa /opt/tiny-ipa/current/deploy/jingyun/p1a-backup.py verify-restore --backup-file /var/backups/tiny-ipa/<UNIQUE_UTC_SNAPSHOT_ID>/tiny-ipa.sqlite.backup --backup-root /var/backups/tiny-ipa --restore-root /var/lib/tiny-ipa/restore-candidates --trial-id <UNIQUE_RESTORE_ID> --expected-sha256 <OBSERVED_BACKUP_SHA256>
-```
-
-After that restore verifies, materialize and start the bounded timer without
-enabling it. The backup oneshot owns a 30-second start limit and a 10-second
-stop limit; the outer 60-second `systemctl start` bound leaves time to capture
-its terminal result. Every R2 operation emits one fixed step identifier and
-numeric return code. A failed step emits the same filtered seven-field unit
-summary used by runtime acceptance before the packet enters withdrawal; it
-never prints raw unit output or a journal:
+The single H2 block installs and verifies the versioned operations tool before
+using it for direct backup and separate restore verification. Only after that
+restore verifies does it materialize and start the bounded unit and timer. The
+backup oneshot owns a 30-second start limit and a 10-second stop limit; the
+outer 60-second `systemctl start` bound leaves time to capture its terminal
+result. Every R2 operation emits one fixed step identifier and numeric return
+code. A failed step emits the same filtered seven-field unit summary used by
+runtime acceptance before the packet enters withdrawal; it never prints raw
+unit output or a journal:
 
 ```sh
 set -u
 release_id=<APPROVED_RELEASE_ID>
+tool_revision=<APPROVED_TOOL_REVISION>
+tool_sha256=<APPROVED_TOOL_SHA256>
+unit_template_sha256=<APPROVED_UNIT_TEMPLATE_SHA256>
+snapshot_id=<UNIQUE_UTC_SNAPSHOT_ID>
+restore_id=<UNIQUE_RESTORE_ID>
 [[ $release_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 148
+[[ $tool_revision =~ ^[0-9a-f]{40}$ ]] || exit 148
+[[ $tool_sha256 =~ ^[0-9a-f]{64}$ ]] || exit 148
+[[ $unit_template_sha256 =~ ^[0-9a-f]{64}$ ]] || exit 148
+[[ $snapshot_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 148
+[[ $restore_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || exit 148
 r2_summary() {
   local raw rc
   raw=$(/usr/bin/timeout 5s systemctl show tiny-ipa-backup.service --no-pager \
@@ -646,12 +653,81 @@ r2_run() {
   "$@"; rc=$?
   r2_finish "$step" "$rc"
 }
+tool_source=/tmp/tiny-ipa-p1a/p1a-backup-$tool_revision.py
+unit_template_source=/tmp/tiny-ipa-p1a/tiny-ipa-backup-$tool_revision.service.candidate
+tool_dir=/opt/tiny-ipa/ops/$tool_revision
+tool_path=$tool_dir/p1a-backup.py
+unit_template_path=$tool_dir/tiny-ipa-backup.service.candidate
 unit_stage=/tmp/tiny-ipa-p1a/tiny-ipa-backup.service
+test -f "$tool_source" && test ! -L "$tool_source"; rc=$?
+r2_finish tool-source-type "$rc"
+test -f "$unit_template_source" && test ! -L "$unit_template_source"; rc=$?
+r2_finish unit-template-source-type "$rc"
+observed=$(/usr/bin/sha256sum "$tool_source"); rc=$?
+if test "$rc" -eq 0; then read -r digest name extra <<<"$observed"; test "$digest" = "$tool_sha256" && test "$name" = "$tool_source" && test -z "${extra:-}"; rc=$?; fi
+r2_finish tool-source-sha "$rc"
+observed=$(/usr/bin/sha256sum "$unit_template_source"); rc=$?
+if test "$rc" -eq 0; then read -r digest name extra <<<"$observed"; test "$digest" = "$unit_template_sha256" && test "$name" = "$unit_template_source" && test -z "${extra:-}"; rc=$?; fi
+r2_finish unit-template-source-sha "$rc"
+ops_root=/opt/tiny-ipa/ops
+sudo -n test ! -L "$ops_root"; rc=$?
+r2_finish ops-root-not-symlink "$rc"
+sudo -n test -e "$ops_root"; rc=$?
+if test "$rc" -ne 0; then sudo -n install -d -o root -g root -m 0755 "$ops_root"; rc=$?; fi
+r2_finish ops-root-present "$rc"
+sudo -n /usr/bin/python3 -I -B - "$ops_root" <<'PY'
+import os
+import stat
+import sys
+
+value = os.lstat(sys.argv[1])
+if not stat.S_ISDIR(value.st_mode) or stat.S_IMODE(value.st_mode) != 0o755:
+    raise SystemExit("ops-root-type-mode")
+if (value.st_uid, value.st_gid) != (0, 0):
+    raise SystemExit("ops-root-owner")
+PY
+rc=$?
+r2_finish ops-root-metadata "$rc"
+sudo -n test ! -e "$tool_dir"; rc=$?
+if test "$rc" -eq 0; then sudo -n test ! -L "$tool_dir"; rc=$?; fi
+r2_finish tool-dir-absent "$rc"
+r2_run install-tool-dir sudo -n install -d -o root -g root -m 0755 "$tool_dir"
+r2_run install-tool sudo -n install -o root -g root -m 0555 "$tool_source" "$tool_path"
+r2_run install-unit-template sudo -n install -o root -g root -m 0444 "$unit_template_source" "$unit_template_path"
+r2_run seal-tool-dir sudo -n chmod 0555 "$tool_dir"
+r2_run verify-tool-sha /usr/bin/sha256sum --status -c <(printf '%s  %s\n' "$tool_sha256" "$tool_path")
+r2_run verify-unit-template-sha /usr/bin/sha256sum --status -c <(printf '%s  %s\n' "$unit_template_sha256" "$unit_template_path")
+sudo -n /usr/bin/python3 -I -B - "$tool_dir" "$tool_path" "$unit_template_path" <<'PY'
+import os
+import stat
+import sys
+
+expected = ((stat.S_IFDIR, 0o555), (stat.S_IFREG, 0o555), (stat.S_IFREG, 0o444))
+paths = sys.argv[1:]
+if len(paths) != len(expected):
+    raise SystemExit("tool-path-count")
+for path, (kind, mode) in zip(paths, expected):
+    value = os.lstat(path)
+    if stat.S_IFMT(value.st_mode) != kind or stat.S_IMODE(value.st_mode) != mode:
+        raise SystemExit("tool-path-type-mode")
+    if (value.st_uid, value.st_gid) != (0, 0):
+        raise SystemExit("tool-path-owner")
+PY
+rc=$?
+r2_finish tool-install-metadata "$rc"
+# P1A_TOOL_MATERIALIZATION_END
+backup_output=$(sudo -n -u tiny-ipa "$tool_path" backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id "$snapshot_id" --release-id "$release_id" --max-bytes 104857600 --retention-limit 7); rc=$?
+r2_finish direct-backup "$rc"
+backup_sha=$(printf '%s' "$backup_output" | /usr/bin/python3 -I -B -c 'import json, re, sys; value=json.load(sys.stdin); digest=value.get("sha256", "") if isinstance(value, dict) and value.get("status") == "complete" else ""; sys.exit(1) if not re.fullmatch(r"[0-9a-f]{64}", digest) else print(digest)'); rc=$?
+unset backup_output
+r2_finish direct-backup-report "$rc"
+r2_run direct-restore sudo -n -u tiny-ipa "$tool_path" verify-restore --backup-file "/var/backups/tiny-ipa/$snapshot_id/tiny-ipa.sqlite.backup" --backup-root /var/backups/tiny-ipa --restore-root /var/lib/tiny-ipa/restore-candidates --trial-id "$restore_id" --expected-sha256 "$backup_sha"
 test ! -e "$unit_stage" && test ! -L "$unit_stage"
 set +e
-(umask 077; set -o noclobber; /usr/bin/timeout 5s sed "s|<APPROVED_RELEASE_ID>|$release_id|g" /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate > "$unit_stage")
+(umask 077; set -o noclobber; /usr/bin/timeout 5s sed -e "s|<APPROVED_RELEASE_ID>|$release_id|g" -e "s|<APPROVED_TOOL_REVISION>|$tool_revision|g" "$unit_template_path" > "$unit_stage")
 rc=$?
 r2_finish unit-stage "$rc"
+# P1A_UNIT_MATERIALIZATION_END
 r2_run install-service /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 "$unit_stage" /etc/systemd/system/tiny-ipa-backup.service
 r2_run install-timer /usr/bin/timeout 20s sudo -n install -o root -g root -m 0644 /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.timer.candidate /etc/systemd/system/tiny-ipa-backup.timer
 r2_run verify-units /usr/bin/timeout 20s sudo -n systemd-analyze verify /etc/systemd/system/tiny-ipa-backup.service /etc/systemd/system/tiny-ipa-backup.timer
@@ -674,6 +750,15 @@ H2 adds only `/etc/systemd/system/tiny-ipa-backup.service`,
 `/etc/systemd/system/tiny-ipa-backup.timer`, complete/incomplete snapshot
 directories, and the separate restore-candidate directory. `/tmp` staging is
 retained for evidence until a later cleanup authorization.
+
+The Human-reviewed recovery packet must stage and hash the exact
+`p1a-backup.py` and `tiny-ipa-backup.service.candidate` bytes from the same
+final tool revision before H2. The packet refuses an existing version
+directory, installs it and the script as `root:root` mode `0555`, installs the
+unit template as `root:root` mode `0444`, and verifies both installed hashes
+before materializing or starting a unit. There is no `ops/current` pointer.
+This leaves the immutable application release, its manifest, and
+`/opt/tiny-ipa/current` unchanged.
 
 Accept `status=complete` followed by `status=verified` with matching checksum,
 schema fingerprint, and table counts. The restore remains separate and never

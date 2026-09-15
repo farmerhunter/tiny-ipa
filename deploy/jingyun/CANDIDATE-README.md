@@ -40,8 +40,10 @@ withdrawal are materialized in #282 before the host-action decision.
 Review these files with `backend/tests/test_m14_jingyun_candidate_artifacts.py`
 before any future Human-authorized transfer to a VPS.
 
-The P1a private-loopback packet adds `p1a-backup.py` plus the backup service and
-timer candidates. It fixes the trial service identity to non-login
+The P1a private-loopback packet installs `p1a-backup.py` under the versioned
+`/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/` root with the matching frozen
+backup unit template, then materializes the backup service and timer candidates.
+It fixes the trial service identity to non-login
 `tiny-ipa:tiny-ipa`, uses `/etc/tiny-ipa/tiny-ipa.env`, limits the API to
 `MemoryMax=512M` and `TasksMax=64`, caps each backup at 100 MiB, refuses an
 eighth successful snapshot, and schedules 03:20 UTC with `Persistent=false`.

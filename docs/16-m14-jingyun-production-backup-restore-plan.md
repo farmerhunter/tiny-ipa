@@ -156,6 +156,14 @@ it, the unit fails instead of creating it or treating the run as successful.
 This means an idle database without an SHM file is a known P1a availability
 limitation.
 
+The backup script is installed separately from the immutable application
+release at `/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py`. The
+revision is the full commit that supplied the reviewed tool bytes. Its
+versioned directory and script are `root:root` mode `0555`, installation
+refuses collisions, and no mutable `ops/current` pointer is created. The same
+directory contains a frozen `root:root` mode `0444` backup unit template from
+that revision; both files are hash-checked before unit materialization.
+
 The trial now uses the same readonly H0, authorized H1-staging,
 H1-activation, and H2 boundary as docs/15. Backup unit materialization uses a
 collision-refusing file inside `/tmp/tiny-ipa-p1a`; it does not create a second
