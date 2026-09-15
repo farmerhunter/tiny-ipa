@@ -366,17 +366,26 @@ release_id=<APPROVED_RELEASE_ID>
 commit=<APPROVED_GITHUB_SHA>
 build_root=$(mktemp -d)
 check_root=$(mktemp -d)
+bootstrap_pip_version=26.2.1
 git fetch origin "$commit"
 test "$(git rev-parse "$commit^{commit}")" = "$commit"
 git archive "$commit" | tar -x -C "$build_root"
 cd "$build_root/backend"
 uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file requirements.lock.txt
+mkdir -p bootstrap/wheelhouse
+curl --proto '=https' --tlsv1.2 --fail --location --output bootstrap/get-pip.py https://bootstrap.pypa.io/get-pip.py
+env -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_FIND_LINKS -u PIP_TRUSTED_HOST python3 -m pip download --no-deps --only-binary=:all: "pip==$bootstrap_pip_version" --dest bootstrap/wheelhouse
+bootstrap_wheel=$(printf '%s\n' bootstrap/wheelhouse/pip-*.whl)
+test -f "$bootstrap_wheel"
+bootstrap_wheel_sha=$(sha256sum "$bootstrap_wheel" | cut -d ' ' -f 1)
+printf 'pip==%s --hash=sha256:%s\n' "$bootstrap_pip_version" "$bootstrap_wheel_sha" > bootstrap/requirements.lock.txt
+printf 'source=https://bootstrap.pypa.io/get-pip.py\npip_version=%s\nretrieved_at=%s\n' "$bootstrap_pip_version" "$(date -u +%FT%TZ)" > bootstrap/PROVENANCE
 env -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_FIND_LINKS -u PIP_TRUSTED_HOST python3 -m pip download --require-hashes --requirement requirements.lock.txt --dest wheelhouse --only-binary=:all:
 env -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_FIND_LINKS -u PIP_TRUSTED_HOST PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONNOUSERSITE=1 python3 -m pip install --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt --target "$check_root"
 python3 -m compileall -q "$check_root"
 python3 -I -B -c 'import json, platform, sysconfig; print(json.dumps({"implementation":"cpython","python":platform.python_version(),"machine":platform.machine(),"soabi":sysconfig.get_config_var("SOABI"),"platform":sysconfig.get_platform(),"libc":"-".join(platform.libc_ver())}, sort_keys=True))' > TARGET-RUNTIME.json
 BUILDER_CHECK_ROOT="$check_root" python3 -I -B -c 'import os, sys; sys.path.insert(0, os.environ["BUILDER_CHECK_ROOT"]); import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("builder imports passed")'
-sha256sum TARGET-RUNTIME.json requirements.lock.txt wheelhouse/* > OFFLINE-MANIFEST.sha256
+sha256sum TARGET-RUNTIME.json requirements.lock.txt wheelhouse/* bootstrap/PROVENANCE bootstrap/get-pip.py bootstrap/requirements.lock.txt bootstrap/wheelhouse/* > OFFLINE-MANIFEST.sha256
 cd "$build_root"
 printf 'release_id=%s\ncommit=%s\ntag=\ncreated_at=%s\n' "$release_id" "$commit" "$(date -u +%FT%TZ)" > REVISION
 tar --create --gzip --file "../tiny-ipa-$release_id.tar.gz" .
@@ -389,9 +398,16 @@ The locally observed archive digest is materialized as
 `<APPROVED_ARTIFACT_SHA256>` before the remote H1 block continues.
 
 The release artifact contains the repository tree at `<APPROVED_GITHUB_SHA>`,
-the requirements file, wheelhouse, and manifest. H1 runs
+the application requirements and wheelhouse, the frozen official
+`get-pip.py`, one fixed pip wheel, its hash-locked bootstrap requirement and
+provenance, and the combined manifest. H1 runs
 `sha256sum -c OFFLINE-MANIFEST.sha256`, confirms wheel compatibility with the
-observed CPython/x86_64 target, and uses `--no-index` for the release venv. A
+observed CPython/x86_64 target, creates each venv with `--without-pip`, validates
+the bootstrap lock against the sole local pip wheel, and uses `--no-index` for
+both bootstrap and application installation. `get-pip.py` appends its own
+`pip` requirement, so the bootstrap command does not claim pip CLI
+`--require-hashes`; the already verified manifest plus the bootstrap lock and
+single-wheel allowlist enforce the byte identity instead. A
 source distribution, missing wheel, network fallback, apt, global Python
 update, Docker, or mutable host checkout stops the trial.
 
@@ -425,7 +441,38 @@ sudo -n install -d -o tiny-ipa -g tiny-ipa -m 0700 /var/lib/tiny-ipa/restore-can
 sudo -n tar --extract --gzip --file "$artifact" --directory "/opt/tiny-ipa/releases/$release_id" --no-same-owner
 cd "/opt/tiny-ipa/releases/$release_id/backend"
 sha256sum -c OFFLINE-MANIFEST.sha256
-sudo -n python3 -m venv .venv
+sudo -n python3 -m venv --without-pip .venv
+sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 10s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B - bootstrap/requirements.lock.txt bootstrap/wheelhouse <<'PY'
+# P1A_BOOTSTRAP_LOCK_PYTHON_BEGIN
+import hashlib
+import pathlib
+import re
+import sys
+
+lock = pathlib.Path(sys.argv[1])
+wheelhouse = pathlib.Path(sys.argv[2])
+match = re.fullmatch(r"pip==([0-9]+(?:\.[0-9]+)*) --hash=sha256:([0-9a-f]{64})\n", lock.read_text())
+if match is None:
+    raise SystemExit("invalid bootstrap lock")
+wheels = list(wheelhouse.iterdir())
+if len(wheels) != 1 or not wheels[0].is_file() or wheels[0].name != f"pip-{match[1]}-py3-none-any.whl":
+    raise SystemExit("invalid bootstrap wheel inventory")
+if hashlib.sha256(wheels[0].read_bytes()).hexdigest() != match[2]:
+    raise SystemExit("bootstrap wheel hash mismatch")
+# P1A_BOOTSTRAP_LOCK_PYTHON_END
+PY
+sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B bootstrap/get-pip.py --no-setuptools --no-wheel --no-index --no-cache-dir --only-binary=:all: --find-links bootstrap/wheelhouse pip==26.2.1
+sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 /usr/bin/timeout 10s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B - "/opt/tiny-ipa/releases/$release_id/backend/.venv" <<'PY'
+import pathlib
+import pip
+import sys
+
+root = pathlib.Path(sys.argv[1]).resolve()
+installed = pathlib.Path(pip.__file__).resolve()
+if pip.__version__ != "26.2.1" or root not in installed.parents:
+    raise SystemExit("unexpected pip version or location")
+print(f"pip={pip.__version__} location=release-venv")
+PY
 sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -m pip install --dry-run --ignore-installed --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
 sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 45s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -m pip install --require-hashes --only-binary=:all: --no-index --no-cache-dir --find-links wheelhouse --requirement requirements.lock.txt
 sudo -n /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 TMPDIR=/tmp/tiny-ipa-p1a/tmp /usr/bin/timeout 20s "/opt/tiny-ipa/releases/$release_id/backend/.venv/bin/python" -I -B -c 'import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("activation imports passed")'
@@ -712,7 +759,6 @@ import sqlite3
 import stat
 import sys
 import sysconfig
-import ensurepip
 import venv
 
 def fail(code, label):
@@ -807,8 +853,9 @@ for function, record_type in checks:
     observed_errno = ctypes.get_errno()
     require_absent(rc, observed_errno, bool(result))
 
-print("H0 runtime-profile, namespace, and libc lookups passed")
-print(f"ensurepip={ensurepip.version()} ssl={ssl.OPENSSL_VERSION.split()[0]} sqlite={sqlite3.sqlite_version}")
+venv.EnvBuilder(with_pip=False)
+print("H0 runtime-profile, namespace, venv, and libc lookups passed")
+print(f"venv=without-pip ssl={ssl.OPENSSL_VERSION.split()[0]} sqlite={sqlite3.sqlite_version}")
 # P1A_H0_PYTHON_END
 PY
 python_rc=$?
@@ -907,6 +954,7 @@ with tarfile.open(archive, "r:gz") as bundle:
 
 requirements = destination / "backend/requirements.lock.txt"
 wheelhouse = destination / "backend/wheelhouse"
+bootstrap = destination / "backend/bootstrap"
 text = requirements.read_text(encoding="utf-8")
 for line in text.splitlines():
     stripped = line.strip().lower()
@@ -920,24 +968,68 @@ for line in text.splitlines():
 files = list(wheelhouse.iterdir())
 if not files or any(not item.is_file() or item.suffix != ".whl" for item in files):
     raise SystemExit("wheelhouse must contain wheels only")
+bootstrap_files = {item.name for item in bootstrap.iterdir()}
+if bootstrap_files != {"PROVENANCE", "get-pip.py", "requirements.lock.txt", "wheelhouse"}:
+    raise SystemExit("invalid bootstrap inventory")
+bootstrap_wheels = list((bootstrap / "wheelhouse").iterdir())
+if len(bootstrap_wheels) != 1 or not bootstrap_wheels[0].is_file() or bootstrap_wheels[0].suffix != ".whl":
+    raise SystemExit("bootstrap wheelhouse must contain one wheel")
 # P1A_STAGE_ARCHIVE_PYTHON_END
 PY
-timeout 45s python3 -I -B -m venv "$stage/venv" || exit 87
+timeout 45s python3 -I -B -m venv --without-pip "$stage/venv" || exit 87
+/usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 TMPDIR="$stage/tmp" \
+  /usr/bin/timeout 10s "$stage/venv/bin/python" -I -B - \
+  "$stage/extracted/backend/bootstrap/requirements.lock.txt" \
+  "$stage/extracted/backend/bootstrap/wheelhouse" <<'PY' || exit 88
+import hashlib
+import pathlib
+import re
+import sys
+
+lock = pathlib.Path(sys.argv[1])
+wheelhouse = pathlib.Path(sys.argv[2])
+match = re.fullmatch(r"pip==([0-9]+(?:\.[0-9]+)*) --hash=sha256:([0-9a-f]{64})\n", lock.read_text())
+if match is None:
+    raise SystemExit("invalid bootstrap lock")
+wheels = list(wheelhouse.iterdir())
+if len(wheels) != 1 or not wheels[0].is_file() or wheels[0].name != f"pip-{match[1]}-py3-none-any.whl":
+    raise SystemExit("invalid bootstrap wheel inventory")
+if hashlib.sha256(wheels[0].read_bytes()).hexdigest() != match[2]:
+    raise SystemExit("bootstrap wheel hash mismatch")
+PY
+/usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+  PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR="$stage/tmp" \
+  /usr/bin/timeout 45s "$stage/venv/bin/python" -I -B \
+  "$stage/extracted/backend/bootstrap/get-pip.py" --no-setuptools --no-wheel \
+  --no-index --no-cache-dir --only-binary=:all: \
+  --find-links "$stage/extracted/backend/bootstrap/wheelhouse" pip==26.2.1 || exit 89
+/usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+  /usr/bin/timeout 10s "$stage/venv/bin/python" -I -B - "$stage/venv" <<'PY' || exit 90
+import pathlib
+import pip
+import sys
+
+root = pathlib.Path(sys.argv[1]).resolve()
+installed = pathlib.Path(pip.__file__).resolve()
+if pip.__version__ != "26.2.1" or root not in installed.parents:
+    raise SystemExit("unexpected pip version or location")
+print(f"pip={pip.__version__} location=staging-venv")
+PY
 /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 \
   PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR="$stage/tmp" \
   /usr/bin/timeout 45s "$stage/venv/bin/python" -I -B -m pip install --dry-run --ignore-installed \
   --require-hashes --only-binary=:all: --no-index --no-cache-dir \
   --find-links "$stage/extracted/backend/wheelhouse" \
-  --requirement "$stage/extracted/backend/requirements.lock.txt" || exit 88
+  --requirement "$stage/extracted/backend/requirements.lock.txt" || exit 91
 /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 \
   PIP_CONFIG_FILE=/dev/null PIP_DISABLE_PIP_VERSION_CHECK=1 TMPDIR="$stage/tmp" \
   /usr/bin/timeout 45s "$stage/venv/bin/python" -I -B -m pip install \
   --require-hashes --only-binary=:all: --no-index --no-cache-dir \
   --find-links "$stage/extracted/backend/wheelhouse" \
-  --requirement "$stage/extracted/backend/requirements.lock.txt" || exit 89
+  --requirement "$stage/extracted/backend/requirements.lock.txt" || exit 92
 /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 TMPDIR="$stage/tmp" \
   /usr/bin/timeout 20s "$stage/venv/bin/python" -I -B -c \
-  'import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("staging imports passed")' || exit 90
+  'import argon2, fastapi, pydantic_core, sqlite3, ssl, uvicorn; print("staging imports passed")' || exit 93
 # P1A_H1_STAGING_END
 ```
 

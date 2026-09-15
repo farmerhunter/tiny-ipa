@@ -447,6 +447,14 @@ def _run_archive_validator(
         members = {
             "backend/requirements.lock.txt": b"demo==1 --hash=sha256:abc\n",
             "backend/wheelhouse/demo-1-py3-none-any.whl": b"wheel",
+            "backend/bootstrap/PROVENANCE": b"source=https://bootstrap.pypa.io/get-pip.py\n",
+            "backend/bootstrap/get-pip.py": b"print('bootstrap')\n",
+            "backend/bootstrap/requirements.lock.txt": (
+                b"pip==26.2.1 --hash=sha256:"
+                + hashlib.sha256(b"pip-wheel").hexdigest().encode()
+                + b"\n"
+            ),
+            "backend/bootstrap/wheelhouse/pip-26.2.1-py3-none-any.whl": b"pip-wheel",
         }
         if unsafe == "traversal":
             members["../escape"] = b"escape"
@@ -454,6 +462,11 @@ def _run_archive_validator(
             members["backend/requirements.lock.txt"] = b"demo @ https://example.invalid/x.whl\n"
         elif unsafe == "sdist":
             members["backend/wheelhouse/demo-1.tar.gz"] = b"sdist"
+        elif unsafe == "bootstrap-extra":
+            members["backend/bootstrap/unreviewed.py"] = b"pass\n"
+        elif unsafe == "bootstrap-sdist":
+            members.pop("backend/bootstrap/wheelhouse/pip-26.2.1-py3-none-any.whl")
+            members["backend/bootstrap/wheelhouse/pip-26.2.1.tar.gz"] = b"sdist"
         for name, payload in members.items():
             info = tarfile.TarInfo(name)
             info.size = len(payload)
@@ -578,6 +591,9 @@ def test_m14_p1a_preflight_and_withdrawal_are_fail_closed() -> None:
         "if getent group tiny-ipa >/dev/null; then exit 21; fi",
         "permission failure are distinct results",
         "python3 -m venv --help >/dev/null",
+        "python3 -m venv --without-pip",
+        "bootstrap/get-pip.py --no-setuptools --no-wheel",
+        "pip==%s --hash=sha256:%s",
         "sysconfig.get_config_var",
         "test \"$status\" = 503",
         "sudo -n useradd --system --user-group",
@@ -591,6 +607,7 @@ def test_m14_p1a_preflight_and_withdrawal_are_fail_closed() -> None:
     for phrase in required:
         assert phrase in plan
     assert "absent or exactly explained" not in plan
+    assert "import ensurepip" not in plan
 
 
 def test_m14_p1a_h0_canonical_gate_accepts_only_checked_absence(tmp_path: Path) -> None:
@@ -725,9 +742,11 @@ def test_m14_p1a_installer_ignores_hostile_inherited_environment(
         "# P1A_H1_STAGING_BEGIN",
         "# P1A_H1_STAGING_END",
     )
-    assert staging.count("/usr/bin/env -i") == 3
+    assert staging.count("/usr/bin/env -i") == 6
     assert "env -u" not in staging
-    assert staging.count('"$stage/venv/bin/python" -I -B') == 3
+    assert staging.count('"$stage/venv/bin/python" -I -B') == 6
+    assert "venv --without-pip" in staging
+    assert "--no-index --no-cache-dir --only-binary=:all:" in staging
 
     wheelhouse = tmp_path / "wheelhouse"
     wheel, digest = _write_test_wheel(wheelhouse)
@@ -823,12 +842,63 @@ def test_m14_p1a_archive_validator_accepts_only_bounded_wheel_payload(
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("unsafe", ["traversal", "symlink", "url", "sdist"])
+@pytest.mark.parametrize(
+    "unsafe",
+    ["traversal", "symlink", "url", "sdist", "bootstrap-extra", "bootstrap-sdist"],
+)
 def test_m14_p1a_archive_validator_rejects_escape_and_unlocked_inputs(
     tmp_path: Path, unsafe: str,
 ) -> None:
     result = _run_archive_validator(tmp_path, unsafe=unsafe)
     assert result.returncode != 0
+
+
+def test_m14_p1a_bootstrap_lock_accepts_one_exact_hashed_wheel(
+    tmp_path: Path,
+) -> None:
+    wheelhouse = tmp_path / "wheelhouse"
+    wheelhouse.mkdir()
+    wheel = wheelhouse / "pip-26.2.1-py3-none-any.whl"
+    wheel.write_bytes(b"pip-wheel")
+    lock = tmp_path / "requirements.lock.txt"
+    lock.write_text(
+        "pip==26.2.1 --hash=sha256:"
+        f"{hashlib.sha256(wheel.read_bytes()).hexdigest()}\n",
+        encoding="utf-8",
+    )
+    validator = _marked(
+        _text(DEPLOYMENT_PLAN),
+        "# P1A_BOOTSTRAP_LOCK_PYTHON_BEGIN",
+        "# P1A_BOOTSTRAP_LOCK_PYTHON_END",
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-", str(lock), str(wheelhouse)],
+        input=validator,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+    wheel.write_bytes(b"corrupt")
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-", str(lock), str(wheelhouse)],
+        input=validator,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+
+
+def test_m14_p1a_bootstrap_is_offline_and_scoped_to_each_new_venv() -> None:
+    plan = _text(DEPLOYMENT_PLAN)
+    normalized = " ".join(plan.split())
+    assert plan.count("venv --without-pip") >= 2
+    assert plan.count("bootstrap/get-pip.py") >= 3
+    assert plan.count("--no-setuptools --no-wheel") >= 2
+    assert "package installation" in plan
+    assert "global Python update" in normalized
 
 
 def test_m14_p1a_runtime_probe_accepts_exact_anonymous_contract(
