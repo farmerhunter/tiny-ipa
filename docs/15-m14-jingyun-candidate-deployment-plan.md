@@ -1149,141 +1149,328 @@ staged, validated artifact.
 
 ### Canonical H1 runtime acceptance
 
-The runtime probe is `python3 -I -B` using `http.client` directly, with a
-3-second request timeout, 64 KiB body cap, no proxy/cookie/auth/redirect, and
-sanitized output. It asserts health 200/ok; version 200/ok with exact approved
-release and full commit, empty tag and `no-store`; auth/me 200 with exactly an
-anonymous result; and progress 401 with `AUTH_REQUIRED`. It never prints a
-failed body or raw header.
+The runtime acceptance is `python3 -I -B` with one monotonic 45-second deadline
+per before/after-restart phase. Every `systemctl`, `readlink`, and `ss` query is
+bounded to the smaller of three seconds or the remaining phase budget. An empty
+listener result may retry every 0.5 seconds while the same active unit and
+InvocationID remain stable. A nonempty result must contain only exact
+`127.0.0.1:18110` listeners before HTTP begins. HTTP uses `http.client`
+directly, the smaller of a three-second timeout or remaining budget, a 64 KiB
+body cap, no proxy/cookie/auth/redirect, and sanitized output. It asserts health
+200/ok; version 200/ok with exact approved release and full commit, empty tag and
+`no-store`; auth/me 200 with exactly an anonymous result; and progress 401 with
+`AUTH_REQUIRED`. It never prints a failed body or raw header.
 
 Before and after exactly one
 `timeout 45s sudo -n systemctl restart tiny-ipa-api.service`, the acceptance
-block must also compare a successfully read nonempty `InvocationID`,
-`ActiveState=active`, `MemoryMax=536870912`, and `TasksMax=64`; parse every
-successful `ss -ltnH 'sport = :18110'` row and require at least one row with all
-local endpoints exactly `127.0.0.1:18110`; parse `REVISION` as data and compare
-its release/commit to the approved literals; run only the health readiness loop
-for at most 30 seconds; and execute the HTTP assertions. The post-restart
-InvocationID must differ. Any producer error, wildcard listener, unchanged ID,
-wrong identity/status/error, malformed or oversized JSON, or timeout fails into
-withdrawal. Finally rerun the canonical P0 tuple checks.
+block must compare `ActiveState=active`, `MemoryMax=536870912`, `TasksMax=64`,
+and a checked 32-hex `InvocationID` on every listener attempt; parse `REVISION`
+as data and compare its release/commit to the approved literals; and execute the
+HTTP assertions within the same deadline. InvocationID cannot change during a
+phase, and the post-restart value must differ. Any producer error, inactive
+unit, wildcard/mixed/malformed listener, wrong identity/status/error, malformed
+or oversized JSON, or timeout fails into withdrawal. Before withdrawal, one
+five-second failure-only query prints a filtered JSON record containing only
+`ActiveState`, `SubState`, `Result`, `ExecMainCode`, `ExecMainStatus`,
+`NRestarts`, and `InvocationID`; malformed or failed summary production emits
+only a fixed sentinel. No environment, command line, journal, or arbitrary unit
+field is read. Finally rerun the canonical P0 tuple checks.
 
 ```bash
 # P1A_H1_ACCEPTANCE_BEGIN
 set -u
-hold() { printf 'HOLD %s\n' "$2" >&2; exit "$1"; }
+P1A_SUMMARY_EMITTED=0
+failure_summary() {
+  local raw summary_rc
+  summary_rc=0
+  raw=$(/usr/bin/timeout 5s /usr/bin/systemctl show tiny-ipa-api.service --no-pager \
+    --property=ActiveState --property=SubState --property=Result \
+    --property=ExecMainCode --property=ExecMainStatus --property=NRestarts \
+    --property=InvocationID 2>/dev/null) || summary_rc=$?
+  if test "$summary_rc" -ne 0; then
+    printf '%s\n' '{"failure_summary":"unavailable"}' >&2
+    return
+  fi
+  /usr/bin/python3 -I -B /dev/fd/3 3<<'PY' <<<"$raw" >&2
+# P1A_FAILURE_SUMMARY_PYTHON_BEGIN
+import json
+import re
+import sys
+
+expected = {
+    "ActiveState", "SubState", "Result", "ExecMainCode", "ExecMainStatus",
+    "NRestarts", "InvocationID",
+}
+values = {}
+valid = True
+for line in sys.stdin.read().splitlines():
+    if "=" not in line:
+        valid = False
+        continue
+    key, value = line.split("=", 1)
+    if key not in expected or key in values:
+        valid = False
+        continue
+    values[key] = value
+if set(values) != expected:
+    valid = False
+if values.get("ActiveState") not in {
+    "active", "inactive", "activating", "deactivating", "failed", "reloading",
+    "maintenance", "refreshing",
+}:
+    valid = False
+for key in ("SubState", "Result"):
+    if re.fullmatch(r"[a-z][a-z0-9-]{0,63}", values.get(key, "")) is None:
+        valid = False
+for key in ("ExecMainCode", "ExecMainStatus", "NRestarts"):
+    if re.fullmatch(r"-?[0-9]+", values.get(key, "")) is None:
+        valid = False
+if re.fullmatch(r"(?:|[0-9a-f]{32})", values.get("InvocationID", "")) is None:
+    valid = False
+if valid:
+    print(json.dumps({"failure_summary": values}, sort_keys=True, separators=(",", ":")))
+else:
+    print('{"failure_summary":"invalid"}')
+# P1A_FAILURE_SUMMARY_PYTHON_END
+PY
+}
+hold() {
+  local code=$1 label=$2
+  if test "$P1A_SUMMARY_EMITTED" -eq 0; then
+    P1A_SUMMARY_EMITTED=1
+    failure_summary
+  fi
+  printf 'HOLD %s\n' "$label" >&2
+  exit "$code"
+}
 capture() {
   local target=$1 label=$2 output rc
   shift 2
-  output=$("$@" 2>&1); rc=$?
+  output=$(/usr/bin/timeout 5s "$@" 2>&1); rc=$?
   test "$rc" -eq 0 || hold 100 "$label rc=$rc"
   printf -v "$target" '%s' "$output"
 }
 readonly approved_release=<APPROVED_RELEASE_ID>
 readonly approved_commit=<APPROVED_GITHUB_SHA>
 
-runtime_probe() {
-  timeout 30s python3 -I -B - "$approved_release" "$approved_commit" <<'PY'
+# P1A_RUNTIME_ACCEPT_SHELL_BEGIN
+runtime_accept() {
+  local phase=$1 prior_invocation=$2 output probe_rc
+  output=$(/usr/bin/timeout 45s /usr/bin/python3 -I -B - \
+    "$phase" "$approved_release" "$approved_commit" "$prior_invocation" <<'PY'
 # P1A_RUNTIME_PROBE_BEGIN
 import http.client
 import json
 import pathlib
+import re
+import subprocess
 import sys
 import time
 
-release, commit = sys.argv[1:]
-limit = 65536
+BODY_LIMIT = 65536
+COMMAND_LIMIT = 3.0
+PHASE_LIMIT = 45.0
+POLL_INTERVAL = 0.5
+UNIT_KEYS = {"ActiveState", "MemoryMax", "TasksMax", "InvocationID"}
 
-def request(path):
-    connection = http.client.HTTPConnection("127.0.0.1", 18110, timeout=3)
+
+class ReadinessError(RuntimeError):
+    pass
+
+
+def remaining(deadline, monotonic):
+    value = deadline - monotonic()
+    if value <= 0:
+        raise ReadinessError("readiness-timeout")
+    return value
+
+
+def command(label, argv, deadline, run, monotonic):
+    timeout = min(COMMAND_LIMIT, remaining(deadline, monotonic))
+    try:
+        result = run(
+            argv, check=False, capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ReadinessError("readiness-timeout") from exc
+    if result.returncode != 0:
+        raise ReadinessError(label + "-query")
+    if len(result.stdout) > BODY_LIMIT:
+        raise ReadinessError(label + "-output")
+    return result.stdout.strip()
+
+
+def parse_unit(raw):
+    values = {}
+    for line in raw.splitlines():
+        if "=" not in line:
+            raise ReadinessError("unit-shape")
+        key, value = line.split("=", 1)
+        if key not in UNIT_KEYS or key in values:
+            raise ReadinessError("unit-shape")
+        values[key] = value
+    if set(values) != UNIT_KEYS:
+        raise ReadinessError("unit-shape")
+    if values["ActiveState"] != "active":
+        raise ReadinessError("unit-inactive")
+    if values["MemoryMax"] != "536870912" or values["TasksMax"] != "64":
+        raise ReadinessError("unit-resources")
+    if re.fullmatch(r"[0-9a-f]{32}", values["InvocationID"]) is None:
+        raise ReadinessError("unit-invocation")
+    return values["InvocationID"]
+
+
+def request(path, deadline, connection_factory, monotonic):
+    timeout = min(3.0, remaining(deadline, monotonic))
+    connection = connection_factory("127.0.0.1", 18110, timeout=timeout)
     try:
         connection.request("GET", path, headers={"Accept": "application/json"})
         response = connection.getresponse()
-        body = response.read(limit + 1)
-        if len(body) > limit:
-            raise RuntimeError(f"{path} oversized")
+        body = response.read(BODY_LIMIT + 1)
+        if len(body) > BODY_LIMIT:
+            raise ReadinessError("http-oversized")
         try:
             payload = json.loads(body)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"{path} malformed JSON") from exc
+            raise ReadinessError("http-malformed") from exc
+        if not isinstance(payload, dict):
+            raise ReadinessError("http-shape")
         return response.status, response.getheader("Cache-Control", ""), payload
     finally:
         connection.close()
 
-deadline = time.monotonic() + 27
-while True:
-    try:
-        health = request("/api/health")
-        if health[0] == 200 and health[2].get("status") == "ok":
-            break
-    except (OSError, RuntimeError, http.client.HTTPException):
-        pass
-    if time.monotonic() >= deadline:
-        raise SystemExit("health readiness deadline")
-    time.sleep(0.5)
 
-version = request("/api/version")
-anonymous = request("/api/auth/me")
-protected = request("/api/progress")
-if not (
-    version[0] == 200
-    and version[2] == {
-        "status": "ok", "release_id": release, "commit": commit, "tag": None,
-    }
-    and "no-store" in version[1].lower()
+def readiness(
+    phase,
+    release,
+    commit,
+    prior_invocation,
+    *,
+    run=subprocess.run,
+    monotonic=time.monotonic,
+    sleep=time.sleep,
+    connection_factory=http.client.HTTPConnection,
+    revision_path=pathlib.Path("/opt/tiny-ipa/current/REVISION"),
 ):
-    raise SystemExit("version identity mismatch")
-if anonymous[0] != 200 or anonymous[2] != {"authenticated": False, "user": None}:
-    raise SystemExit("anonymous auth contract mismatch")
-if protected[0] != 401 or protected[2].get("detail", {}).get("error") != "AUTH_REQUIRED":
-    raise SystemExit("protected API did not fail closed")
+    deadline = monotonic() + PHASE_LIMIT
+    pointer = command(
+        "pointer", ["/usr/bin/readlink", "/opt/tiny-ipa/current"], deadline,
+        run, monotonic,
+    )
+    if pointer != f"/opt/tiny-ipa/releases/{release}":
+        raise ReadinessError("pointer")
+    revision = {}
+    try:
+        lines = revision_path.read_text().splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise ReadinessError("revision-read") from exc
+    for line in lines:
+        if not line or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if key in revision:
+            raise ReadinessError("revision-shape")
+        revision[key] = value
+    if revision.get("release_id") != release or revision.get("commit") != commit:
+        raise ReadinessError("revision-identity")
 
-revision = {}
-for line in pathlib.Path("/opt/tiny-ipa/current/REVISION").read_text().splitlines():
-    if not line or "=" not in line:
-        continue
-    key, value = line.split("=", 1)
-    if key in revision:
-        raise SystemExit("duplicate REVISION key")
-    revision[key] = value
-if revision.get("release_id") != release or revision.get("commit") != commit:
-    raise SystemExit("disk identity mismatch")
-print(json.dumps({"checks": "passed", "release_id": release, "commit": commit}))
+    phase_invocation = ""
+    while True:
+        unit_raw = command(
+            "unit",
+            [
+                "/usr/bin/systemctl", "show", "tiny-ipa-api.service", "--no-pager",
+                "--property=ActiveState", "--property=MemoryMax",
+                "--property=TasksMax", "--property=InvocationID",
+            ],
+            deadline, run, monotonic,
+        )
+        invocation = parse_unit(unit_raw)
+        if not phase_invocation:
+            phase_invocation = invocation
+            if prior_invocation and invocation == prior_invocation:
+                raise ReadinessError("unchanged-invocation")
+        elif invocation != phase_invocation:
+            raise ReadinessError("invocation-changed")
+
+        listeners = command(
+            "listener", ["/usr/bin/ss", "-ltnH", "sport = :18110"], deadline,
+            run, monotonic,
+        )
+        if listeners:
+            rows = [row.split() for row in listeners.splitlines()]
+            if any(len(row) < 5 for row in rows):
+                raise ReadinessError("listener-shape")
+            if any(row[3] != "127.0.0.1:18110" for row in rows):
+                raise ReadinessError("listener-not-loopback")
+            try:
+                health = request(
+                    "/api/health", deadline, connection_factory, monotonic,
+                )
+            except (OSError, http.client.HTTPException):
+                health = None
+            if health is not None:
+                if health[0] != 200 or health[2] != {"status": "ok"}:
+                    raise ReadinessError("health-contract")
+                version = request(
+                    "/api/version", deadline, connection_factory, monotonic,
+                )
+                anonymous = request(
+                    "/api/auth/me", deadline, connection_factory, monotonic,
+                )
+                protected = request(
+                    "/api/progress", deadline, connection_factory, monotonic,
+                )
+                if not (
+                    version[0] == 200
+                    and version[2] == {
+                        "status": "ok", "release_id": release,
+                        "commit": commit, "tag": None,
+                    }
+                    and "no-store" in version[1].lower()
+                ):
+                    raise ReadinessError("version-contract")
+                if anonymous[0] != 200 or anonymous[2] != {
+                    "authenticated": False, "user": None,
+                }:
+                    raise ReadinessError("anonymous-contract")
+                if (
+                    protected[0] != 401
+                    or protected[2].get("detail", {}).get("error") != "AUTH_REQUIRED"
+                ):
+                    raise ReadinessError("protected-contract")
+                return phase_invocation
+        if remaining(deadline, monotonic) <= POLL_INTERVAL:
+            raise ReadinessError("readiness-timeout")
+        sleep(POLL_INTERVAL)
+
+
+if __name__ == "__main__":
+    phase, release, commit, prior_invocation = sys.argv[1:]
+    try:
+        print(readiness(phase, release, commit, prior_invocation))
+    except ReadinessError as error:
+        print(str(error))
+        raise SystemExit(1) from None
 # P1A_RUNTIME_PROBE_END
 PY
+  )
+  probe_rc=$?
+  if test "$probe_rc" -eq 124; then
+    hold 109 "$phase-readiness-timeout"
+  fi
+  test "$probe_rc" -eq 0 || hold 109 "$phase-${output:-readiness-failed}"
+  [[ $output =~ ^[0-9a-f]{32}$ ]] || hold 104 "$phase-invocation-output"
+  P1A_INVOCATION=$output
 }
+# P1A_RUNTIME_ACCEPT_SHELL_END
 
-runtime_accept() {
-  local phase=$1 active pointer memory tasks listeners listener_rc row_count local_endpoint
-  capture pointer "$phase-pointer" readlink /opt/tiny-ipa/current
-  test "$pointer" = "/opt/tiny-ipa/releases/$approved_release" || hold 99 "$phase-pointer"
-  capture active "$phase-active" systemctl show tiny-ipa-api.service -p ActiveState --value
-  test "$active" = active || hold 101 "$phase-active"
-  capture memory "$phase-memory" systemctl show tiny-ipa-api.service -p MemoryMax --value
-  test "$memory" = 536870912 || hold 102 "$phase-memory"
-  capture tasks "$phase-tasks" systemctl show tiny-ipa-api.service -p TasksMax --value
-  test "$tasks" = 64 || hold 103 "$phase-tasks"
-  capture P1A_INVOCATION "$phase-invocation" systemctl show tiny-ipa-api.service -p InvocationID --value
-  test -n "$P1A_INVOCATION" || hold 104 "$phase-empty-invocation"
-  listeners=$(ss -ltnH 'sport = :18110' 2>&1); listener_rc=$?
-  test "$listener_rc" -eq 0 || hold 105 "$phase-ss-rc=$listener_rc"
-  test -n "$listeners" || hold 106 "$phase-no-listener"
-  row_count=0
-  while read -r state recvq sendq local_endpoint peer extra; do
-    test "$local_endpoint" = 127.0.0.1:18110 || hold 107 "$phase-wildcard-listener"
-    row_count=$((row_count + 1))
-  done <<<"$listeners"
-  test "$row_count" -gt 0 || hold 108 "$phase-no-parsed-listener"
-  runtime_probe; probe_rc=$?
-  test "$probe_rc" -eq 0 || hold 109 "$phase-probe-rc=$probe_rc"
-}
-
-runtime_accept before-restart
+runtime_accept before-restart ''
 before_invocation=$P1A_INVOCATION
-timeout 45s sudo -n systemctl restart tiny-ipa-api.service
+/usr/bin/timeout 45s sudo -n systemctl restart tiny-ipa-api.service
 restart_rc=$?
 test "$restart_rc" -eq 0 || hold 110 "restart-rc=$restart_rc"
-runtime_accept after-restart
+runtime_accept after-restart "$before_invocation"
 test "$P1A_INVOCATION" != "$before_invocation" || hold 111 unchanged-invocation
 
 readonly P1A_CURL=/usr/bin/curl

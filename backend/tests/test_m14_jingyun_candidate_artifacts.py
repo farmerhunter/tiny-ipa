@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import errno
 import hashlib
 import io
@@ -339,6 +340,10 @@ def _run_runtime_probe(
     overrides: dict[str, tuple[int, dict[str, str], bytes]] | None = None,
     *,
     bad_revision: bool = False,
+    listeners: list[str] | None = None,
+    unit_states: list[dict[str, str]] | None = None,
+    command_failure: str | None = None,
+    prior_invocation: str = "",
 ) -> subprocess.CompletedProcess[str]:
     release = "release-1"
     commit = "a" * 40
@@ -385,19 +390,86 @@ def _run_runtime_probe(
         "# P1A_RUNTIME_PROBE_BEGIN",
         "# P1A_RUNTIME_PROBE_END",
     )
-    probe = probe.replace(
-        '("127.0.0.1", 18110, timeout=3)',
-        f'("127.0.0.1", {server.server_port}, timeout=3)',
-    ).replace("/opt/tiny-ipa/current/REVISION", str(revision))
-    try:
-        return subprocess.run(
-            [sys.executable, "-I", "-B", "-", release, commit],
-            input=probe,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
+    namespace = {"__name__": "m14_readiness_test"}
+    exec(probe, namespace)
+
+    class Clock:
+        now = 0.0
+
+        def monotonic(self) -> float:
+            return self.now
+
+        def sleep(self, duration: float) -> None:
+            self.now += duration
+
+    clock = Clock()
+    listener_values = list(listeners or [
+        "LISTEN 0 128 127.0.0.1:18110 0.0.0.0:*"
+    ])
+    default_invocation = "b" * 32 if prior_invocation else "a" * 32
+    state_values = list(unit_states or [{
+        "ActiveState": "active",
+        "MemoryMax": "536870912",
+        "TasksMax": "64",
+        "InvocationID": default_invocation,
+    }])
+    calls: list[tuple[str, ...]] = []
+    command_timeouts: list[float] = []
+    http_timeouts: list[float] = []
+    listener_index = 0
+    state_index = 0
+
+    def fake_run(argv, **kwargs):
+        nonlocal listener_index, state_index
+        calls.append(tuple(argv))
+        command_timeouts.append(kwargs["timeout"])
+        name = Path(argv[0]).name
+        if name == command_failure:
+            return subprocess.CompletedProcess(argv, 1, "", "fixed failure")
+        if name == "readlink":
+            return subprocess.CompletedProcess(
+                argv, 0, "/opt/tiny-ipa/releases/release-1\n", ""
+            )
+        if name == "systemctl":
+            state = state_values[min(state_index, len(state_values) - 1)]
+            state_index += 1
+            output = "".join(f"{key}={value}\n" for key, value in state.items())
+            return subprocess.CompletedProcess(argv, 0, output, "")
+        if name == "ss":
+            output = listener_values[min(listener_index, len(listener_values) - 1)]
+            listener_index += 1
+            return subprocess.CompletedProcess(argv, 0, output, "")
+        raise AssertionError(argv)
+
+    def connection_factory(host: str, port: int, timeout: float):
+        assert host == "127.0.0.1"
+        assert port == 18110
+        http_timeouts.append(timeout)
+        return __import__("http.client").client.HTTPConnection(
+            host, server.server_port, timeout=timeout
         )
+
+    try:
+        try:
+            output = namespace["readiness"](
+                "after-restart" if prior_invocation else "before-restart",
+                release,
+                commit,
+                prior_invocation,
+                run=fake_run,
+                monotonic=clock.monotonic,
+                sleep=clock.sleep,
+                connection_factory=connection_factory,
+                revision_path=revision,
+            )
+            result = subprocess.CompletedProcess([], 0, output + "\n", "")
+        except namespace["ReadinessError"] as error:
+            result = subprocess.CompletedProcess([], 1, "", str(error))
+        result.m14_calls = calls
+        result.m14_elapsed = clock.now
+        result.m14_command_timeouts = command_timeouts
+        result.m14_http_timeouts = http_timeouts
+        return result
     finally:
         server.shutdown()
         thread.join(timeout=2)
@@ -415,10 +487,31 @@ def _run_acceptance(tmp_path: Path, **overrides: str) -> subprocess.CompletedPro
     fake = tmp_path / "accept-bin"
     fake.mkdir()
     restart_state = tmp_path / "restarted"
+    runtime_shell = _marked(
+        script,
+        "# P1A_RUNTIME_ACCEPT_SHELL_BEGIN",
+        "# P1A_RUNTIME_ACCEPT_SHELL_END",
+    )
+    fake_runtime_shell = """runtime_accept() {
+  local phase=$1 prior_invocation=$2
+  test "${FAKE_PROBE_RC:-0}" -eq 0 || hold 109 "$phase-fixed-probe-failure"
+  if test "$phase" = before-restart; then
+    P1A_INVOCATION=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  elif test "${FAKE_UNCHANGED:-0}" = 1; then
+    P1A_INVOCATION=$prior_invocation
+  else
+    P1A_INVOCATION=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  fi
+}"""
+    script = script.replace(runtime_shell, fake_runtime_shell)
     _fake_command(
         fake,
         "systemctl",
         "case \"$*\" in\n"
+        "  *--property=SubState*)\n"
+        "    printf '%s\\n' 'ActiveState=failed' 'SubState=failed' "
+        "'Result=exit-code' 'ExecMainCode=1' 'ExecMainStatus=1' "
+        "'NRestarts=2' 'InvocationID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ;;\n"
         "  *ActiveState*) printf 'active\\n' ;;\n"
         "  *MemoryMax*) printf '536870912\\n' ;;\n"
         "  *TasksMax*) printf '64\\n' ;;\n"
@@ -448,7 +541,7 @@ def _run_acceptance(tmp_path: Path, **overrides: str) -> subprocess.CompletedPro
         "  test \"${FAKE_RESTART_RC:-0}\" -eq 0 || exit \"$FAKE_RESTART_RC\"\n"
         "  : > \"$FAKE_RESTART_STATE\"\n  exit 0\n"
         "fi\n"
-        "exit \"${FAKE_PROBE_RC:-0}\"",
+        "exec \"$@\"",
     )
     _fake_command(
         fake,
@@ -459,6 +552,10 @@ def _run_acceptance(tmp_path: Path, **overrides: str) -> subprocess.CompletedPro
         "readonly P1A_CURL=/usr/bin/curl",
         f"readonly P1A_CURL={shlex.quote(str(fake / 'curl'))}",
     )
+    script = script.replace(
+        "/usr/bin/systemctl", shlex.quote(str(fake / "systemctl"))
+    )
+    script = script.replace("/usr/bin/timeout", str(fake / "timeout"))
     environment = os.environ.copy()
     environment.update(overrides)
     environment.update(
@@ -1159,12 +1256,7 @@ def test_m14_p1a_runtime_probe_accepts_exact_anonymous_contract(
 ) -> None:
     result = _run_runtime_probe(tmp_path)
     assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
-    assert report == {
-        "checks": "passed",
-        "commit": "a" * 40,
-        "release_id": "release-1",
-    }
+    assert result.stdout.strip() == "a" * 32
 
 
 @pytest.mark.parametrize(
@@ -1210,12 +1302,120 @@ def test_m14_p1a_acceptance_observes_restart_and_loopback_only(tmp_path: Path) -
     assert result.returncode == 0, result.stderr
 
 
+def test_m14_p1a_readiness_waits_for_listener_within_one_deadline(
+    tmp_path: Path,
+) -> None:
+    result = _run_runtime_probe(
+        tmp_path,
+        listeners=["", "LISTEN 0 128 127.0.0.1:18110 0.0.0.0:*"],
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.m14_elapsed == 0.5
+    assert sum(Path(call[0]).name == "ss" for call in result.m14_calls) == 2
+    assert all(0 < value <= 3 for value in result.m14_command_timeouts)
+    assert all(0 < value <= 3 for value in result.m14_http_timeouts)
+
+
+def test_m14_p1a_readiness_empty_listener_times_out_with_bounded_calls(
+    tmp_path: Path,
+) -> None:
+    result = _run_runtime_probe(tmp_path, listeners=[""])
+    assert result.returncode != 0
+    assert result.stderr == "readiness-timeout"
+    assert result.m14_elapsed <= 45
+    assert sum(Path(call[0]).name == "ss" for call in result.m14_calls) <= 90
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "reason"),
+    [
+        ({"command_failure": "ss"}, "listener-query"),
+        ({"listeners": ["LISTEN malformed"]}, "listener-shape"),
+        (
+            {
+                "listeners": [
+                    "LISTEN 0 128 127.0.0.1:18110 0.0.0.0:*\n"
+                    "LISTEN 0 128 0.0.0.0:18110 0.0.0.0:*"
+                ]
+            },
+            "listener-not-loopback",
+        ),
+        (
+            {
+                "unit_states": [{
+                    "ActiveState": "failed",
+                    "MemoryMax": "536870912",
+                    "TasksMax": "64",
+                    "InvocationID": "a" * 32,
+                }]
+            },
+            "unit-inactive",
+        ),
+        (
+            {
+                "listeners": ["", ""],
+                "unit_states": [
+                    {
+                        "ActiveState": "active",
+                        "MemoryMax": "536870912",
+                        "TasksMax": "64",
+                        "InvocationID": "a" * 32,
+                    },
+                    {
+                        "ActiveState": "active",
+                        "MemoryMax": "536870912",
+                        "TasksMax": "64",
+                        "InvocationID": "b" * 32,
+                    },
+                ],
+            },
+            "invocation-changed",
+        ),
+        ({"prior_invocation": "b" * 32}, "unchanged-invocation"),
+    ],
+)
+def test_m14_p1a_readiness_fails_closed_on_producer_and_identity_errors(
+    tmp_path: Path, kwargs: dict[str, object], reason: str,
+) -> None:
+    result = _run_runtime_probe(tmp_path, **kwargs)
+    assert result.returncode != 0
+    assert result.stderr == reason
+
+
+def test_m14_p1a_failure_summary_filters_shape_and_values() -> None:
+    parser = _marked(
+        _text(DEPLOYMENT_PLAN),
+        "# P1A_FAILURE_SUMMARY_PYTHON_BEGIN",
+        "# P1A_FAILURE_SUMMARY_PYTHON_END",
+    )
+    valid = "\n".join([
+        "ActiveState=failed",
+        "SubState=failed",
+        "Result=exit-code",
+        "ExecMainCode=1",
+        "ExecMainStatus=1",
+        "NRestarts=2",
+        f"InvocationID={'a' * 32}",
+    ])
+    wrapper = parser.replace("sys.stdin.read()", "SUMMARY_INPUT")
+    values = {"SUMMARY_INPUT": valid}
+    stdout = io.StringIO()
+    with contextlib.redirect_stdout(stdout):
+        exec(wrapper, values)
+    report = json.loads(stdout.getvalue())
+    assert report["failure_summary"]["Result"] == "exit-code"
+
+    unsafe = valid + "\nEnvironment=SECRET_VALUE"
+    stdout = io.StringIO()
+    with contextlib.redirect_stdout(stdout):
+        exec(wrapper, {"SUMMARY_INPUT": unsafe})
+    assert stdout.getvalue().strip() == '{"failure_summary":"invalid"}'
+    assert "SECRET_VALUE" not in stdout.getvalue()
+
+
 @pytest.mark.parametrize(
     "environment",
     [
-        {"FAKE_SS_RC": "1"},
-        {"FAKE_POINTER": "/opt/tiny-ipa/releases/wrong"},
-        {"FAKE_LISTENERS": "LISTEN 0 128 0.0.0.0:18110 0.0.0.0:*"},
         {"FAKE_RESTART_RC": "1"},
         {"FAKE_RESTART_RC": "124"},
         {"FAKE_UNCHANGED": "1"},
@@ -1228,6 +1428,19 @@ def test_m14_p1a_acceptance_rejects_listener_restart_and_probe_failures(
 ) -> None:
     result = _run_acceptance(tmp_path, **environment)
     assert result.returncode != 0
+
+
+def test_m14_p1a_acceptance_failure_emits_only_filtered_unit_summary(
+    tmp_path: Path,
+) -> None:
+    result = _run_acceptance(tmp_path, FAKE_RESTART_RC="1")
+    summary = json.loads(result.stderr.splitlines()[0])["failure_summary"]
+    assert set(summary) == {
+        "ActiveState", "SubState", "Result", "ExecMainCode", "ExecMainStatus",
+        "NRestarts", "InvocationID",
+    }
+    assert "Environment" not in result.stderr
+    assert "ExecStart" not in result.stderr
 
 
 def test_m14_p1a_withdrawal_reports_checked_port_closed(tmp_path: Path) -> None:
