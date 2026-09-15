@@ -10,7 +10,9 @@ import os
 import re
 import shutil
 import sqlite3
+import stat
 import sys
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -62,6 +64,45 @@ def _safe_id(value: str, label: str) -> str:
     if not SAFE_ID.fullmatch(value):
         raise OperationError(f"{label} is not a safe identifier")
     return value
+
+
+@contextmanager
+def _validated_wal_shm(path: str, source: Path):
+    candidate = _path_without_symlinks(Path(path), "WAL coordination file")
+    expected = Path(f"{source}-shm")
+    if candidate != expected:
+        raise OperationError("WAL coordination file must match the source database")
+    try:
+        candidate_stat = candidate.lstat()
+    except FileNotFoundError as exc:
+        raise OperationError("WAL coordination file must already exist") from exc
+    if not stat.S_ISREG(candidate_stat.st_mode):
+        raise OperationError("WAL coordination file must be a regular file")
+    source_stat = source.stat()
+    if (candidate_stat.st_uid, candidate_stat.st_gid) != (
+        source_stat.st_uid,
+        source_stat.st_gid,
+    ):
+        raise OperationError("WAL coordination file owner must match the source database")
+    try:
+        descriptor = os.open(candidate, os.O_RDWR | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise OperationError("WAL coordination file must be writable") from exc
+    try:
+        opened_stat = os.fstat(descriptor)
+        if (opened_stat.st_dev, opened_stat.st_ino) != (
+            candidate_stat.st_dev,
+            candidate_stat.st_ino,
+        ):
+            raise OperationError("WAL coordination file changed during validation")
+        if not stat.S_ISREG(opened_stat.st_mode) or (
+            opened_stat.st_uid,
+            opened_stat.st_gid,
+        ) != (source_stat.st_uid, source_stat.st_gid):
+            raise OperationError("WAL coordination file changed during validation")
+        yield
+    finally:
+        os.close(descriptor)
 
 
 def _quoted_identifier(value: str) -> str:
@@ -251,6 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
     backup.add_argument("--release-id", required=True)
     backup.add_argument("--max-bytes", required=True, type=int)
     backup.add_argument("--retention-limit", required=True, type=int)
+    backup.add_argument("--writable-wal-shm")
     restore = commands.add_parser("verify-restore")
     restore.add_argument("--backup-file", required=True)
     restore.add_argument("--backup-root", required=True)
@@ -267,12 +309,20 @@ def main(argv: Iterable[str] | None = None) -> int:
             snapshot_id = args.snapshot_id
             if snapshot_id == "utc-now":
                 snapshot_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            report = create_backup(
-                source=args.source, state_root=args.state_root,
-                destination_root=args.destination_root, snapshot_id=snapshot_id,
-                release_id=args.release_id, max_bytes=args.max_bytes,
-                retention_limit=args.retention_limit,
-            )
+            coordination = nullcontext()
+            if args.writable_wal_shm is not None:
+                state = _existing_directory(args.state_root, "state root")
+                source = _child_file(
+                    args.source, state, "source database", must_exist=True
+                )
+                coordination = _validated_wal_shm(args.writable_wal_shm, source)
+            with coordination:
+                report = create_backup(
+                    source=args.source, state_root=args.state_root,
+                    destination_root=args.destination_root, snapshot_id=snapshot_id,
+                    release_id=args.release_id, max_bytes=args.max_bytes,
+                    retention_limit=args.retention_limit,
+                )
         else:
             report = verify_restore(
                 backup_file=args.backup_file, backup_root=args.backup_root,
