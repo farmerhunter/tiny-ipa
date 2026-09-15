@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -494,6 +496,10 @@ def test_h2_records_bounded_steps_and_filters_unit_failure_summary() -> None:
         "tool-dir-absent",
         "verify-tool-sha",
         "verify-unit-template-sha",
+        "ops-root-metadata",
+        "tool-install-metadata",
+        "direct-backup",
+        "direct-restore",
     )
     for value in required:
         assert value in plan
@@ -501,10 +507,14 @@ def test_h2_records_bounded_steps_and_filters_unit_failure_summary() -> None:
     assert "/opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-backup.service.candidate" not in plan
     assert plan.index("tool-dir-absent") < plan.index("start-backup")
     assert plan.index("verify-unit-template-sha") < plan.index("start-backup")
+    assert plan.index("install-tool") < plan.index("direct-backup")
+    assert plan.index("direct-restore") < plan.index("start-backup")
 
 
-@pytest.mark.parametrize("failure", ["missing", "hash-mismatch", "collision"])
-def test_h2_tool_materialization_failures_stop_before_unit_staging(
+@pytest.mark.parametrize(
+    "failure", ["missing", "hash-mismatch", "collision", "success"]
+)
+def test_h2_tool_materialization_fixture(
     tmp_path: Path, failure: str,
 ) -> None:
     plan = DEPLOYMENT_PLAN.read_text()
@@ -532,10 +542,16 @@ def test_h2_tool_materialization_failures_stop_before_unit_staging(
         "<APPROVED_TOOL_REVISION>": revision,
         "<APPROVED_TOOL_SHA256>": tool_sha,
         "<APPROVED_UNIT_TEMPLATE_SHA256>": unit_sha,
+        "<UNIQUE_UTC_SNAPSHOT_ID>": "snapshot-1",
+        "<UNIQUE_RESTORE_ID>": "restore-1",
         "/tmp/tiny-ipa-p1a": str(stage),
         "/opt/tiny-ipa/ops": str(ops),
+        "/usr/bin/sha256sum": shutil.which("sha256sum") or "sha256sum",
+        "(0, 0)": f"({os.getuid()}, {os.getgid()})",
         "sudo -n install -d -o root -g root -m": "install -d -m",
         "sudo -n install -o root -g root -m": "install -m",
+        "sudo -n chmod": "chmod",
+        "sudo -n /usr/bin/python3": "/usr/bin/python3",
         "sudo -n test": "test",
     }
     for old, new in replacements.items():
@@ -550,11 +566,26 @@ def test_h2_tool_materialization_failures_stop_before_unit_staging(
     completed = subprocess.run(
         ["/bin/bash"], input=block, text=True, capture_output=True, timeout=10,
     )
-    assert completed.returncode != 0
-    if failure == "collision":
+    if failure == "success":
+        assert completed.returncode == 0, completed.stderr
+        assert (target / "p1a-backup.py").read_text() == "tool\n"
+        assert (target / "tiny-ipa-backup.service.candidate").read_text() == (
+            "<APPROVED_TOOL_REVISION>\n"
+        )
+        assert target.stat().st_mode & 0o777 == 0o555
+        assert (target / "p1a-backup.py").stat().st_mode & 0o777 == 0o555
+        assert (
+            target / "tiny-ipa-backup.service.candidate"
+        ).stat().st_mode & 0o777 == 0o444
+    elif failure == "collision":
+        assert completed.returncode != 0
+        assert '"r2_step":"tool-dir-absent","rc":1' in completed.stdout
         assert (target / "sentinel").read_text() == "preserve\n"
         assert sorted(path.name for path in target.iterdir()) == ["sentinel"]
     else:
+        assert completed.returncode != 0
+        expected_step = "tool-source-type" if failure == "missing" else "tool-source-sha"
+        assert f'"r2_step":"{expected_step}","rc":1' in completed.stdout
         assert not target.exists()
 
 
