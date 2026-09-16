@@ -1339,6 +1339,9 @@ class TestLevelAwareToday:
         assert all(item["word_id"].startswith("mid_") for item in data["items"])
 
         conn = get_connection(seeded_db_entry_mid)
+        sessions = conn.execute(
+            "SELECT id, status FROM daily_sessions ORDER BY group_index",
+        ).fetchall()
         old_status = conn.execute(
             "SELECT status FROM daily_sessions WHERE id = ?",
             (first["session_id"],),
@@ -1346,6 +1349,39 @@ class TestLevelAwareToday:
         conn.close()
 
         assert old_status["status"] == "abandoned"
+        assert [row["status"] for row in sessions] == ["abandoned", "in_progress"]
+
+    def test_abandon_failure_preserves_current_group(
+        self, entry_mid_client, seeded_db_entry_mid, monkeypatch
+    ):
+        entry_mid_client.put("/api/settings", json={
+            "learner_level": "entry",
+            "daily_word_count": 2,
+        })
+        first = entry_mid_client.post("/api/practice/next-normal").json()
+        original_items = [item["session_item_id"] for item in first["items"]]
+        entry_mid_client.put("/api/settings", json={"learner_level": "mid"})
+        monkeypatch.setenv("TINY_IPA_REQUIRE_PACKAGED_AUDIO", "true")
+
+        resp = entry_mid_client.post("/api/practice/abandon-current-and-next")
+        assert resp.status_code == 200
+        assert resp.json()["error"] == "CONTENT_NOT_READY"
+
+        conn = get_connection(seeded_db_entry_mid)
+        sessions = conn.execute(
+            "SELECT id, status FROM daily_sessions ORDER BY group_index"
+        ).fetchall()
+        items = conn.execute(
+            "SELECT id, status FROM session_items WHERE session_id = ? ORDER BY order_index",
+            (first["session_id"],),
+        ).fetchall()
+        conn.close()
+
+        assert [dict(row) for row in sessions] == [
+            {"id": first["session_id"], "status": "in_progress"}
+        ]
+        assert [row["id"] for row in items] == original_items
+        assert all(row["status"] == "pending" for row in items)
 
 
 # ---------------------------------------------------------------------------
