@@ -1,0 +1,18 @@
+# CANDIDATE - DO NOT APPLY.
+# HTTP-only first-certificate bootstrap for ipa.jingyun.bj.cn.
+# Installation, nginx -t and reload require the frozen #282 Human gate.
+
+server {
+    listen 80;
+    server_name ipa.jingyun.bj.cn;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/lib/tiny-ipa/acme-webroot;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 404;
+    }
+}

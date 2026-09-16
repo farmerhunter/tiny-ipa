@@ -26,6 +26,14 @@ the existing ACME owner and scheduler before those paths are treated as real.
 The candidate prefers the existing supported manager; Certbot webroot is only
 the reviewed fallback when no manager exists.
 
+`p1b-readonly-discovery.sh` is the fail-closed discovery artifact. The
+no-existing-certificate fallback first activates only
+`ipa.jingyun.bj.cn.acme-bootstrap.nginx.candidate`, validates it with
+`nginx -t`, and performs bounded reload 1 so HTTP-01 can succeed. After Certbot
+`certonly --webroot` creates the bound certificate paths, the operator replaces
+only that Tiny IPA binding with `ipa.jingyun.bj.cn.nginx.candidate`, validates
+again, and performs bounded reload 2. Both reloads remain Human-gated in #282.
+
 Other full-public bindings that remain unresolved after P1a:
 
 - `<HUMAN_PROVISIONED_TINY_IPA_SESSION_SECRET>`

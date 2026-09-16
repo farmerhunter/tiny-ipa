@@ -13,6 +13,8 @@ DEPLOY = ROOT / "deploy" / "jingyun"
 MANIFEST = DEPLOY / "p1b-content-audio.manifest.json"
 VERIFIER = DEPLOY / "verify-p1b-assets.py"
 NGINX = DEPLOY / "ipa.jingyun.bj.cn.nginx.candidate"
+ACME_BOOTSTRAP = DEPLOY / "ipa.jingyun.bj.cn.acme-bootstrap.nginx.candidate"
+DISCOVERY = DEPLOY / "p1b-readonly-discovery.sh"
 README = DEPLOY / "CANDIDATE-README.md"
 ROADMAP = ROOT / "docs" / "06-epic-roadmap.md"
 DEPLOYMENT_PLAN = ROOT / "docs" / "15-m14-jingyun-candidate-deployment-plan.md"
@@ -32,7 +34,8 @@ def _ready_manifest(tmp_path: Path) -> tuple[Path, Path]:
         relative = Path("us") / f"{word_id}.mp3"
         path = audio_root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(b"ID3" + word_id.encode("ascii"))
+        frame = bytes.fromhex("fffb9064") + bytes(413)
+        path.write_bytes(frame * 2)
         assets.append({
             "word_id": word_id,
             "path": relative.as_posix(),
@@ -65,6 +68,53 @@ def _run(manifest: Path, audio_root: Path) -> subprocess.CompletedProcess[str]:
         ],
         capture_output=True,
         text=True,
+    )
+
+
+def _fake_discovery_command(directory: Path, name: str, body: str) -> Path:
+    path = directory / name
+    path.write_text("#!/bin/bash\n" + body + "\n", encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
+def _run_discovery(tmp_path: Path, **environment: str) -> subprocess.CompletedProcess[str]:
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    commands = {
+        "timeout": 'shift\nexec "$@"',
+        "whoami": "printf 'ubuntu\\n'",
+        "hostname": "printf 'VM-0-7-ubuntu\\n'",
+        "uname": "printf 'x86_64\\n'",
+        "ss": 'printf \'%s\' "${FAKE_SS_OUTPUT:-}"\nexit "${FAKE_SS_RC:-0}"',
+        "systemctl": (
+            "printf 'LoadState=loaded\\nActiveState=inactive\\n"
+            "SubState=dead\\nUnitFileState=disabled\\n'"
+        ),
+        "sudo": 'shift\nexec "$@"',
+        "df": (
+            "printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\n"
+            "/dev/fake 1000 1 999 1%% /\\n'"
+        ),
+        "python3": (
+            "body=$(/bin/cat)\n"
+            "if [[ $body == *getaddrinfo* ]]; then\n"
+            "  printf '{\"dns_ipv4\":[\"203.0.113.10\"]}\\n'\n"
+            "else\n"
+            "  test \"${FAKE_METADATA_RC:-0}\" -eq 0 || exit \"$FAKE_METADATA_RC\"\n"
+            "  printf '{\"path_metadata\":[]}\\n'\n"
+            "fi"
+        ),
+    }
+    paths = {name: _fake_discovery_command(fake, name, body) for name, body in commands.items()}
+    script = DISCOVERY.read_text(encoding="utf-8")
+    for name, path in paths.items():
+        script = script.replace(f"/usr/bin/{name}", str(path))
+    script_path = tmp_path / "discovery.sh"
+    script_path.write_text(script, encoding="utf-8")
+    env = {"PATH": f"{fake}:/bin", **environment}
+    return subprocess.run(
+        ["/bin/bash", str(script_path)], capture_output=True, text=True, env=env
     )
 
 
@@ -110,7 +160,9 @@ def test_p1b_asset_verifier_accepts_complete_licensed_mp3_set(tmp_path: Path) ->
     assert payload["audio_bytes"] > 0
 
 
-@pytest.mark.parametrize("failure", ["checksum", "symlink", "license", "payload"])
+@pytest.mark.parametrize(
+    "failure", ["checksum", "symlink", "root_symlink", "license", "payload", "id3_only"]
+)
 def test_p1b_asset_verifier_fails_closed(tmp_path: Path, failure: str) -> None:
     manifest, audio_root = _ready_manifest(tmp_path)
     value = json.loads(manifest.read_text(encoding="utf-8"))
@@ -123,10 +175,18 @@ def test_p1b_asset_verifier_fails_closed(tmp_path: Path, failure: str) -> None:
         target.write_bytes(path.read_bytes())
         path.unlink()
         path.symlink_to(target)
+    elif failure == "root_symlink":
+        target = tmp_path / "real-audio"
+        audio_root.rename(target)
+        audio_root.symlink_to(target, target_is_directory=True)
     elif failure == "license":
         first["license"] = ""
-    else:
+    elif failure == "payload":
         path.write_bytes(b"not-mp3")
+        first["bytes"] = path.stat().st_size
+        first["sha256"] = _sha256(path)
+    else:
+        path.write_bytes(b"ID3")
         first["bytes"] = path.stat().st_size
         first["sha256"] = _sha256(path)
     manifest.write_text(json.dumps(value), encoding="utf-8")
@@ -151,13 +211,64 @@ def test_p1b_nginx_candidate_is_scoped_and_requires_test_before_reload() -> None
     assert "limit_req zone=tiny_ipa_login burst=5 nodelay;" in nginx
     assert "proxy_pass http://127.0.0.1:18110/api/auth/login;" in nginx
     assert "alias /var/lib/tiny-ipa/audio/;" in nginx
-    assert "disable_symlinks if_not_owner from=/var/lib/tiny-ipa/audio;" in nginx
+    assert "disable_symlinks on from=/var/lib/tiny-ipa/audio;" in nginx
     assert "default_server" not in nginx
     assert "xuetuzhiban" not in nginx.lower()
 
     readme = README.read_text(encoding="utf-8")
     assert "Host discovery, certificate issuance, installation, nginx -t, reload" in nginx
     assert "blocked_missing_approved_audio" in readme
+
+
+def test_p1b_acme_bootstrap_allows_first_certificate_without_tls_dependency() -> None:
+    bootstrap = ACME_BOOTSTRAP.read_text(encoding="utf-8")
+    assert bootstrap.count("listen 80;") == 1
+    assert "listen 443" not in bootstrap
+    assert "ssl_certificate" not in bootstrap
+    assert "location ^~ /.well-known/acme-challenge/" in bootstrap
+    assert "root /var/lib/tiny-ipa/acme-webroot;" in bootstrap
+    assert "location /" in bootstrap
+    assert "return 404;" in bootstrap
+    assert "return 308" not in bootstrap
+    assert "default_server" not in bootstrap
+    assert "xuetuzhiban" not in bootstrap.lower()
+
+
+def test_p1b_readonly_discovery_reports_success_only_after_all_queries(tmp_path: Path) -> None:
+    result = _run_discovery(tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "p1b-readonly-discovery-passed" in result.stdout
+    assert '"dns_ipv4":["203.0.113.10"]' in result.stdout
+
+
+@pytest.mark.parametrize(
+    "environment", [{"FAKE_SS_RC": "9"}, {"FAKE_METADATA_RC": "8"}]
+)
+def test_p1b_readonly_discovery_query_failure_never_reports_success(
+    tmp_path: Path, environment: dict[str, str]
+) -> None:
+    result = _run_discovery(tmp_path, **environment)
+    assert result.returncode != 0
+    assert "p1b-readonly-discovery-passed" not in result.stdout
+
+
+def test_p1b_readonly_discovery_contains_no_mutation_commands() -> None:
+    discovery = DISCOVERY.read_text(encoding="utf-8")
+    for forbidden in (
+        "systemctl start",
+        "systemctl stop",
+        "systemctl restart",
+        "systemctl enable",
+        "systemctl disable",
+        "nginx -t",
+        "certbot certonly",
+        " install ",
+        " rm ",
+        " mv ",
+        " cp ",
+        "> /",
+    ):
+        assert forbidden not in discovery
 
 
 def test_p1b_bootstrap_and_roadmap_record_current_contract() -> None:

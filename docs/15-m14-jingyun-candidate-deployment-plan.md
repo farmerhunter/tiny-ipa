@@ -1692,33 +1692,20 @@ journals or process command lines.
 
 ```bash
 # P1B_READONLY_DISCOVERY_BEGIN
-set -u
-hold() { printf 'HOLD %s\n' "$2" >&2; exit "$1"; }
-identity=$(whoami) || hold 160 identity-command
-host=$(hostname) || hold 161 host-command
-machine=$(uname -m) || hold 162 machine-command
-test "$identity" = ubuntu || hold 163 identity
-test "$host" = VM-0-7-ubuntu || hold 164 host
-test "$machine" = x86_64 || hold 165 machine
-printf 'identity=%s host=%s machine=%s\n' "$identity" "$host" "$machine"
-
-getent ahostsv4 ipa.jingyun.bj.cn | awk '{print $1}' | sort -u
-ss -ltnH '( sport = :80 or sport = :443 or sport = :18110 )'
-for unit in nginx.service certbot.timer snap.certbot.renew.timer tiny-ipa-api.service tiny-ipa-backup.service tiny-ipa-backup.timer; do
-  systemctl show "$unit" --no-pager --property=LoadState --property=ActiveState --property=SubState --property=UnitFileState || hold 166 "unit-$unit"
-done
-command -v certbot || true
-certbot --version 2>/dev/null || true
-for path in /etc/nginx/sites-enabled/ipa.jingyun.bj.cn /etc/letsencrypt/live/ipa.jingyun.bj.cn /var/lib/tiny-ipa/acme-webroot /var/www/tiny-ipa/current /var/lib/tiny-ipa/audio; do
-  if sudo -n test -e "$path" || sudo -n test -L "$path"; then
-    sudo -n stat -c '%n|%F|%U|%G|%a' -- "$path" || hold 167 "stat-$path"
-  else
-    printf '%s|absent\n' "$path"
-  fi
-done
-df -Pk / /var/lib /var/backups
+ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no \
+  -o ConnectTimeout=10 -o ConnectionAttempts=1 -o ClearAllForwardings=yes \
+  -o ForwardAgent=no -o ForwardX11=no -o ControlMaster=no -o ControlPath=none \
+  jingyun 'env -i PATH=/usr/bin:/bin /bin/bash --noprofile --norc -s' \
+  < deploy/jingyun/p1b-readonly-discovery.sh
 # P1B_READONLY_DISCOVERY_END
 ```
+
+The frozen operator packet binds the SHA-256 of
+`deploy/jingyun/p1b-readonly-discovery.sh`. Every producer has a five-second
+timeout and any DNS producer, listener, unit, privileged metadata, capacity or
+tool-version query failure returns HOLD. DNS no-answer is represented as an
+explicit empty JSON list only when the resolver itself returns `gaierror`;
+permission or command failures cannot be reported as an absent path.
 
 A separate coordinator-side public probe records the authoritative DNS answer,
 TCP 80/443 reachability and certificate hostname/issuer/time metadata without
@@ -1747,7 +1734,10 @@ The repository candidate assumes Certbot `certonly --webroot` paths only when
 discovery proves no other supported ACME owner. It never stops Nginx for a
 standalone challenge, installs a second proxy, changes the default site, edits
 global HSTS/cookie policy, or touches XueTuZhiBan routes/upstreams/certificates.
-The actual candidate must pass `nginx -t` before a single bounded reload.
+For the no-existing-certificate fallback, the HTTP-only bootstrap candidate is
+validated and reloaded first. The final HTTPS candidate is validated and
+reloaded only after certificate issuance. These are two separately reviewed,
+bounded Nginx reloads; neither may alter a shared/default server.
 
 ### Conditional apply and acceptance order
 
@@ -1759,24 +1749,31 @@ One later Human decision may cover this already frozen sequence:
 2. Verify content/audio bytes offline. Import the bound public Core 100 into the
    existing trial DB, then use private stdin to create exactly one trial owner.
    Never print the password, cookie, private rows or password/session hashes.
-3. Materialize only the Tiny IPA ACME webroot, certificate binding, frontend
-   release, audio files and server block. Issue/renew through the accepted ACME
-   owner; require candidate-content equality and `nginx -t` before reload.
-4. Check HTTPS `/`, `/api/health`, `/api/version` and one known `/audio/` MP3;
+3. Materialize only the Tiny IPA ACME webroot, frontend release and audio files.
+   When discovery proves no existing certificate or supported ACME owner,
+   collision-refuse the Tiny IPA binding, install the HTTP-only bootstrap
+   candidate, require candidate-content equality and `nginx -t`, then perform
+   bounded reload 1. Prove the challenge path and issue with reviewed Certbot
+   `certonly --webroot`; never stop Nginx for a standalone challenge.
+4. After certificate paths exist, replace only the active Tiny IPA bootstrap
+   binding with the final HTTPS candidate. Require candidate-content equality
+   and `nginx -t`, then perform bounded reload 2. Existing supported ACME
+   owners use their separately frozen equivalent sequence rather than Certbot.
+5. Check HTTPS `/`, `/api/health`, `/api/version` and one known `/audio/` MP3;
    verify exact origin, Secure/HttpOnly/SameSite=Lax/Path cookie behavior and
    anonymous/wrong-password/foreign-Origin/logout rejection without recording
    secret headers.
-5. Complete one real-phone login, Settings, non-empty Today practice, approved
+6. Complete one real-phone login, Settings, non-empty Today practice, approved
    MP3 playback, Progress, refresh/reopen and logout walkthrough. Restart only
    `tiny-ipa-api.service`, log in again and prove saved state persists.
-6. Run online backup for the new non-empty state and restore to a separate
+7. Run online backup for the new non-empty state and restore to a separate
    candidate. Verify content, owner, settings, attempts, progress and session
    semantics by counts/owned relationships and representative app reads, never
    by publishing private values or switching the active DB.
-7. Observe one natural timer occurrence separately from manual runs. If it has
+8. Observe one natural timer occurrence separately from manual runs. If it has
    not elapsed, record `pending`; if the known missing-SHM condition appears,
    stop and return the minimal backup defect for review.
-8. Repeat protected XueTuZhiBan checks. Record timer enabled/persistent state,
+9. Repeat protected XueTuZhiBan checks. Record timer enabled/persistent state,
    retention capacity, next maintenance check, notification owner and off-host
    decision exactly as observed.
 
@@ -1789,7 +1786,7 @@ a separate Human choice authorizes persistence. It keeps the seven-snapshot,
 Any failed ingress or phone phase stops further work. The frozen withdrawal
 removes only the newly enabled Tiny IPA server binding from the active Nginx
 set, restores its recorded prior Tiny IPA pointer/config when applicable, runs
-`nginx -t`, performs at most one authorized reload, and proves the protected
+`nginx -t`, performs one bounded authorized withdrawal reload, and proves the protected
 route matrix. It stops only Tiny IPA units started by this packet when needed.
 It preserves the certificate, frontend/audio releases, trial DB, owner, backup,
 restore candidate, logs and failed artifacts for diagnosis. No account, data,

@@ -23,21 +23,25 @@ ROOT = Path(__file__).resolve().parents[2]
 CANDIDATE_DIR = ROOT / "deploy" / "jingyun"
 SYSTEMD = CANDIDATE_DIR / "tiny-ipa-api.service.candidate"
 NGINX = CANDIDATE_DIR / "ipa.jingyun.bj.cn.nginx.candidate"
+ACME_BOOTSTRAP = CANDIDATE_DIR / "ipa.jingyun.bj.cn.acme-bootstrap.nginx.candidate"
 ENV_EXAMPLE = CANDIDATE_DIR / "tiny-ipa.production.env.example"
 REVISION = CANDIDATE_DIR / "REVISION.candidate"
 DEPLOYMENT_PLAN = ROOT / "docs" / "15-m14-jingyun-candidate-deployment-plan.md"
 BACKUP_PLAN = ROOT / "docs" / "16-m14-jingyun-production-backup-restore-plan.md"
 P1B_MANIFEST = CANDIDATE_DIR / "p1b-content-audio.manifest.json"
 P1B_ASSET_VERIFIER = CANDIDATE_DIR / "verify-p1b-assets.py"
+P1B_DISCOVERY = CANDIDATE_DIR / "p1b-readonly-discovery.sh"
 
 REQUIRED_FILES = (
     CANDIDATE_DIR / "CANDIDATE-README.md",
     SYSTEMD,
     NGINX,
+    ACME_BOOTSTRAP,
     ENV_EXAMPLE,
     REVISION,
     P1B_MANIFEST,
     P1B_ASSET_VERIFIER,
+    P1B_DISCOVERY,
     DEPLOYMENT_PLAN,
     BACKUP_PLAN,
 )
