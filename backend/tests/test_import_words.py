@@ -186,6 +186,41 @@ class TestWordStore:
         upsert_word(self.conn, data)
         assert count_words(self.conn) == 1  # no duplicate
 
+    def test_upsert_preserves_referencing_session_items(self):
+        data = {
+            "word_id": "cat",
+            "word": "cat",
+            "level": "beginner",
+            "ipa_us": "/kæt/",
+            "phoneme_tags_us": ["/k/", "/æ/", "/t/"],
+            "audio_us": "/audio/us/cat.mp3",
+            "content_status": "core_selected",
+        }
+        upsert_word(self.conn, data)
+        self.conn.execute(
+            """
+            INSERT INTO daily_sessions (
+                id, user_id, session_date, primary_accent, status, created_at
+            ) VALUES ('pending', 'owner', '2026-09-16', 'US', 'in_progress', '2026-09-16T00:00:00Z')
+            """
+        )
+        self.conn.execute(
+            """
+            INSERT INTO session_items (
+                id, session_id, word_id, order_index,
+                target_phonemes, question_type, status
+            ) VALUES ('pending_item_001', 'pending', 'cat', 0, '[]', 'choose_ipa', 'pending')
+            """
+        )
+
+        upsert_word(self.conn, {**data, "audio_us": None})
+
+        item = self.conn.execute(
+            "SELECT word_id, status FROM session_items WHERE id = 'pending_item_001'"
+        ).fetchone()
+        assert dict(item) == {"word_id": "cat", "status": "pending"}
+        assert get_word_by_id(self.conn, "cat").audio_us is None
+
     def test_upsert_preserves_accent_fields(self):
         """ipa_uk and phoneme_tags_uk must survive a round-trip."""
         data = {

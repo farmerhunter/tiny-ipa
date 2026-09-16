@@ -69,7 +69,9 @@ The frontend build must use `VITE_API_BASE=/api`. The backend must read
 `TINY_IPA_DB_PATH=/var/lib/tiny-ipa/tiny-ipa.sqlite` and
 `TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio`. The deployed origin must be
 exactly `https://ipa.jingyun.bj.cn`, with `TINY_IPA_COOKIE_SECURE=true` and
-`TINY_IPA_COOKIE_SAMESITE=lax`.
+`TINY_IPA_COOKIE_SAMESITE=lax`. The controlled P1b trial also fixes
+`TINY_IPA_REQUIRE_PACKAGED_AUDIO=true` so normal practice only selects audio
+that the manifest binds and the host deploys.
 
 ## Release Identity and Version Readback
 
@@ -542,7 +544,7 @@ except Exception:
 print(json.dumps({"auth_sessions": sessions, "integrity": integrity, "mode": "600", "status": "initialized", "tables": len(tables), "users": users}, sort_keys=True))
 # P1A_INIT_DB_PYTHON_END
 PY
-sudo -n sh -c 'umask 0027; secret=$(openssl rand -hex 32) || exit 30; { printf "%s\n" "TINY_IPA_ENV=production" "TINY_IPA_DB_PATH=/var/lib/tiny-ipa/tiny-ipa.sqlite" "TINY_IPA_SESSION_SECRET=$secret" "TINY_IPA_ALLOWED_ORIGINS=https://ipa.jingyun.bj.cn" "TINY_IPA_COOKIE_SECURE=true" "TINY_IPA_COOKIE_SAMESITE=lax" "TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio" "TINY_IPA_RELEASE_ID=<APPROVED_RELEASE_ID>" "TINY_IPA_RELEASE_COMMIT=<APPROVED_GITHUB_SHA>" "TINY_IPA_RELEASE_TAG="; } > /etc/tiny-ipa/tiny-ipa.env; chown root:tiny-ipa /etc/tiny-ipa/tiny-ipa.env; chmod 0640 /etc/tiny-ipa/tiny-ipa.env'
+sudo -n sh -c 'umask 0027; secret=$(openssl rand -hex 32) || exit 30; { printf "%s\n" "TINY_IPA_ENV=production" "TINY_IPA_DB_PATH=/var/lib/tiny-ipa/tiny-ipa.sqlite" "TINY_IPA_SESSION_SECRET=$secret" "TINY_IPA_ALLOWED_ORIGINS=https://ipa.jingyun.bj.cn" "TINY_IPA_COOKIE_SECURE=true" "TINY_IPA_COOKIE_SAMESITE=lax" "TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio" "TINY_IPA_REQUIRE_PACKAGED_AUDIO=true" "TINY_IPA_RELEASE_ID=<APPROVED_RELEASE_ID>" "TINY_IPA_RELEASE_COMMIT=<APPROVED_GITHUB_SHA>" "TINY_IPA_RELEASE_TAG="; } > /etc/tiny-ipa/tiny-ipa.env; chown root:tiny-ipa /etc/tiny-ipa/tiny-ipa.env; chmod 0640 /etc/tiny-ipa/tiny-ipa.env'
 sudo -n chmod -R a-w "/opt/tiny-ipa/releases/$release_id"
 sudo -n ln -s "/opt/tiny-ipa/releases/$release_id" /opt/tiny-ipa/current
 sudo -n install -o root -g root -m 0644 /opt/tiny-ipa/current/deploy/jingyun/tiny-ipa-api.service.candidate /etc/systemd/system/tiny-ipa-api.service
@@ -1688,6 +1690,12 @@ declared source/use permission; it does not prove codec validity, the spoken
 word, browser playback or legal approval. Those user-visible properties remain
 part of the HTTPS phone walkthrough. Browser TTS and paid generation cannot
 satisfy this gate.
+
+The manifest is also the controlled-trial runtime availability allowlist. Only
+its ten word ids may keep a non-null `audio_us` in Core 100; every unbound word
+must use `null`. Normal practice scheduling requires a packaged audio URL for
+the selected accent, so a Today group cannot advertise an undeployed file or
+silently substitute browser TTS for the accepted MP3 evidence.
 
 ### Bounded read-only discovery
 

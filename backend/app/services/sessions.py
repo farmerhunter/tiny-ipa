@@ -273,7 +273,6 @@ def build_abandon_current_and_next_response(
             "detail": "Settings not initialised. Run import_words.py first.",
         }
 
-    mark_session_abandoned(conn, existing.id, _now_iso())
     response = _create_normal_group_response(
         conn,
         user_id=user_id,
@@ -283,18 +282,21 @@ def build_abandon_current_and_next_response(
         origin="normal_abandon_next",
         source_scope="normal_next",
     )
-    if "error" not in response:
-        response["abandoned_group_id"] = existing.id
-        response["detail"] = (
-            f"Ended {learner_level_label(existing.learner_level)} Group "
-            f"{existing.group_index} and started "
-            f"{learner_level_label(response.get('learner_level'))} Group "
-            f"{response.get('group_index')}."
-        )
-        response["action_label"] = (
-            f"Start {learner_level_label(response.get('learner_level'))} "
-            f"Group {response.get('group_index')}"
-        )
+    if "error" in response:
+        return response
+
+    mark_session_abandoned(conn, existing.id, _now_iso())
+    response["abandoned_group_id"] = existing.id
+    response["detail"] = (
+        f"Ended {learner_level_label(existing.learner_level)} Group "
+        f"{existing.group_index} and started "
+        f"{learner_level_label(response.get('learner_level'))} Group "
+        f"{response.get('group_index')}."
+    )
+    response["action_label"] = (
+        f"Start {learner_level_label(response.get('learner_level'))} "
+        f"Group {response.get('group_index')}"
+    )
     return response
 
 

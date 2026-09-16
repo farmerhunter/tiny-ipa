@@ -1624,6 +1624,7 @@ def test_m14_jingyun_env_example_is_non_secret_and_matches_runtime_contract() ->
         "TINY_IPA_COOKIE_SECURE=true",
         "TINY_IPA_COOKIE_SAMESITE=lax",
         "TINY_IPA_AUDIO_DIR=/var/lib/tiny-ipa/audio",
+        "TINY_IPA_REQUIRE_PACKAGED_AUDIO=true",
         "TINY_IPA_RELEASE_ID=<INTENDED_GIT_COMMIT_OR_TAG_RELEASE_ID>",
         "TINY_IPA_RELEASE_COMMIT=<INTENDED_GITHUB_COMMIT_SHA>",
         "TINY_IPA_RELEASE_TAG=<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>",
