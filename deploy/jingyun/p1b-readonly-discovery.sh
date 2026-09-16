@@ -20,15 +20,22 @@ test "$machine" = x86_64 || hold 163 machine
 printf 'identity=%s host=%s machine=%s\n' "$identity" "$host" "$machine"
 
 dns_output=$(/usr/bin/timeout 5s /usr/bin/python3 -I -B - <<'PY'
+# P1B_DNS_PYTHON_BEGIN
 import json
 import socket
 try:
     rows = socket.getaddrinfo("ipa.jingyun.bj.cn", None, family=socket.AF_INET)
-except socket.gaierror:
+except socket.gaierror as error:
+    no_answer = {socket.EAI_NONAME}
+    if hasattr(socket, "EAI_NODATA"):
+        no_answer.add(socket.EAI_NODATA)
+    if error.errno not in no_answer:
+        raise
     print(json.dumps({"dns_ipv4": []}, separators=(",", ":")))
 else:
     values = sorted({row[4][0] for row in rows})
     print(json.dumps({"dns_ipv4": values}, separators=(",", ":")))
+# P1B_DNS_PYTHON_END
 PY
 ); rc=$?
 test "$rc" -eq 0 || hold 164 "dns-query-rc=$rc"

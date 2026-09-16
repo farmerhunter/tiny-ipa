@@ -34,8 +34,7 @@ def _ready_manifest(tmp_path: Path) -> tuple[Path, Path]:
         relative = Path("us") / f"{word_id}.mp3"
         path = audio_root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        frame = bytes.fromhex("fffb9064") + bytes(413)
-        path.write_bytes(frame * 2)
+        path.write_bytes(f"package fixture for {word_id}".encode())
         assets.append({
             "word_id": word_id,
             "path": relative.as_posix(),
@@ -54,7 +53,9 @@ def _ready_manifest(tmp_path: Path) -> tuple[Path, Path]:
     return manifest, audio_root
 
 
-def _run(manifest: Path, audio_root: Path) -> subprocess.CompletedProcess[str]:
+def _run(
+    manifest: Path, audio_root: Path, repo_root: Path = ROOT
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             sys.executable,
@@ -62,7 +63,7 @@ def _run(manifest: Path, audio_root: Path) -> subprocess.CompletedProcess[str]:
             "--manifest",
             str(manifest),
             "--repo-root",
-            str(ROOT),
+            str(repo_root),
             "--audio-root",
             str(audio_root),
         ],
@@ -149,19 +150,19 @@ def test_p1b_manifest_binds_current_content_and_required_audio_urls() -> None:
         assert by_id[word_id]["audio_us"] == f"/audio/us/{word_id}.mp3"
 
 
-def test_p1b_asset_verifier_accepts_complete_licensed_mp3_set(tmp_path: Path) -> None:
+def test_p1b_asset_verifier_accepts_complete_licensed_asset_package(tmp_path: Path) -> None:
     manifest, audio_root = _ready_manifest(tmp_path)
     result = _run(manifest, audio_root)
     assert result.returncode == 0, result.stdout
     payload = json.loads(result.stdout)
-    assert payload["status"] == "verified"
+    assert payload["status"] == "manifest_integrity_verified"
     assert payload["word_count"] == 100
     assert payload["audio_count"] == 10
     assert payload["audio_bytes"] > 0
 
 
 @pytest.mark.parametrize(
-    "failure", ["checksum", "symlink", "root_symlink", "license", "payload", "id3_only"]
+    "failure", ["checksum", "symlink", "root_symlink", "license"]
 )
 def test_p1b_asset_verifier_fails_closed(tmp_path: Path, failure: str) -> None:
     manifest, audio_root = _ready_manifest(tmp_path)
@@ -181,19 +182,42 @@ def test_p1b_asset_verifier_fails_closed(tmp_path: Path, failure: str) -> None:
         audio_root.symlink_to(target, target_is_directory=True)
     elif failure == "license":
         first["license"] = ""
-    elif failure == "payload":
-        path.write_bytes(b"not-mp3")
-        first["bytes"] = path.stat().st_size
-        first["sha256"] = _sha256(path)
-    else:
-        path.write_bytes(b"ID3")
-        first["bytes"] = path.stat().st_size
-        first["sha256"] = _sha256(path)
     manifest.write_text(json.dumps(value), encoding="utf-8")
 
     result = _run(manifest, audio_root)
     assert result.returncode == 2
     assert json.loads(result.stdout)["status"] == "blocked"
+
+
+@pytest.mark.parametrize("root_kind", ["audio", "repo"])
+def test_p1b_asset_verifier_rejects_declared_root_with_symlink_ancestor(
+    tmp_path: Path, root_kind: str
+) -> None:
+    manifest, audio_root = _ready_manifest(tmp_path)
+    if root_kind == "audio":
+        target_parent = tmp_path / "audio-target"
+        target_parent.mkdir()
+        audio_root.rename(target_parent / "audio")
+        link_parent = tmp_path / "audio-link"
+        link_parent.symlink_to(target_parent, target_is_directory=True)
+        audio_root = link_parent / "audio"
+        repo_root = ROOT
+    else:
+        target_parent = tmp_path / "repo-target"
+        repo_root = target_parent / "repo"
+        value = json.loads(manifest.read_text(encoding="utf-8"))
+        for key in ("path", "phonemes_path"):
+            relative = Path(value["content"][key])
+            destination = repo_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes((ROOT / relative).read_bytes())
+        link_parent = tmp_path / "repo-link"
+        link_parent.symlink_to(target_parent, target_is_directory=True)
+        repo_root = link_parent / "repo"
+
+    result = _run(manifest, audio_root, repo_root)
+    assert result.returncode == 2
+    assert json.loads(result.stdout)["reason"] == "asset root has a symlink component"
 
 
 def test_p1b_nginx_candidate_is_scoped_and_requires_test_before_reload() -> None:
@@ -269,6 +293,47 @@ def test_p1b_readonly_discovery_contains_no_mutation_commands() -> None:
         "> /",
     ):
         assert forbidden not in discovery
+
+
+@pytest.mark.parametrize("error_name", ["EAI_AGAIN", "EAI_FAIL"])
+def test_p1b_dns_producer_propagates_resolver_operational_failures(error_name: str) -> None:
+    discovery = DISCOVERY.read_text(encoding="utf-8")
+    producer = discovery.split("# P1B_DNS_PYTHON_BEGIN", 1)[1].split(
+        "# P1B_DNS_PYTHON_END", 1
+    )[0]
+    injection = (
+        "import socket\n"
+        "def injected_failure(*args, **kwargs):\n"
+        f"    raise socket.gaierror(socket.{error_name}, 'injected')\n"
+        "socket.getaddrinfo = injected_failure\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", injection + producer],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert '"dns_ipv4":[]' not in result.stdout
+
+
+def test_p1b_dns_producer_represents_only_name_absence_as_empty() -> None:
+    discovery = DISCOVERY.read_text(encoding="utf-8")
+    producer = discovery.split("# P1B_DNS_PYTHON_BEGIN", 1)[1].split(
+        "# P1B_DNS_PYTHON_END", 1
+    )[0]
+    injection = (
+        "import socket\n"
+        "def injected_failure(*args, **kwargs):\n"
+        "    raise socket.gaierror(socket.EAI_NONAME, 'injected')\n"
+        "socket.getaddrinfo = injected_failure\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", injection + producer],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert json.loads(result.stdout) == {"dns_ipv4": []}
 
 
 def test_p1b_bootstrap_and_roadmap_record_current_contract() -> None:

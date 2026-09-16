@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import stat
 from pathlib import Path, PurePosixPath
 
@@ -26,12 +27,16 @@ def _regular_under(root: Path, relative: str) -> Path:
     value = PurePosixPath(relative)
     if value.is_absolute() or not value.parts or ".." in value.parts:
         raise VerificationError("unsafe relative path")
-    root_metadata = root.lstat()
-    if stat.S_ISLNK(root_metadata.st_mode):
-        raise VerificationError("asset root is a symlink")
+    declared_root = Path(os.path.abspath(root))
+    current_root = Path(declared_root.anchor)
+    for part in declared_root.parts[1:]:
+        current_root /= part
+        if stat.S_ISLNK(current_root.lstat().st_mode):
+            raise VerificationError("asset root has a symlink component")
+    root_metadata = declared_root.lstat()
     if not stat.S_ISDIR(root_metadata.st_mode):
         raise VerificationError("asset root is not a directory")
-    root = root.resolve(strict=True)
+    root = declared_root.resolve(strict=True)
     current = root
     for part in value.parts:
         current = current / part
@@ -44,55 +49,6 @@ def _regular_under(root: Path, relative: str) -> Path:
     if not stat.S_ISREG(resolved.stat().st_mode):
         raise VerificationError("asset is not a regular file")
     return resolved
-
-
-def _mpeg_layer_iii_frame_length(header: bytes) -> int | None:
-    if len(header) != 4:
-        return None
-    value = int.from_bytes(header, "big")
-    if value >> 21 != 0x7FF:
-        return None
-    version = (value >> 19) & 0x3
-    layer = (value >> 17) & 0x3
-    bitrate_index = (value >> 12) & 0xF
-    sample_rate_index = (value >> 10) & 0x3
-    padding = (value >> 9) & 0x1
-    if version == 1 or layer != 1 or bitrate_index in (0, 15) or sample_rate_index == 3:
-        return None
-    bitrates = (
-        (0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320),
-        (0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160),
-    )
-    sample_rates = {
-        3: (44100, 48000, 32000),
-        2: (22050, 24000, 16000),
-        0: (11025, 12000, 8000),
-    }
-    bitrate = bitrates[0 if version == 3 else 1][bitrate_index]
-    sample_rate = sample_rates[version][sample_rate_index]
-    coefficient = 144000 if version == 3 else 72000
-    return coefficient * bitrate // sample_rate + padding
-
-
-def _verify_mp3(path: Path) -> None:
-    maximum = 10 * 1024 * 1024
-    size = path.stat().st_size
-    if size > maximum:
-        raise VerificationError("audio exceeds size limit")
-    payload = path.read_bytes()
-    offset = 0
-    if payload.startswith(b"ID3"):
-        if len(payload) < 10 or payload[3] == 0xFF or any(byte & 0x80 for byte in payload[6:10]):
-            raise VerificationError("invalid ID3 header")
-        tag_size = sum(byte << shift for byte, shift in zip(payload[6:10], (21, 14, 7, 0)))
-        offset = 10 + tag_size + (10 if payload[5] & 0x10 else 0)
-    first_length = _mpeg_layer_iii_frame_length(payload[offset:offset + 4])
-    if first_length is None or offset + first_length > len(payload):
-        raise VerificationError("audio lacks a complete MPEG Layer III frame")
-    second_offset = offset + first_length
-    second_length = _mpeg_layer_iii_frame_length(payload[second_offset:second_offset + 4])
-    if second_length is None or second_offset + second_length > len(payload):
-        raise VerificationError("audio lacks two consecutive MPEG Layer III frames")
 
 
 def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, object]:
@@ -153,9 +109,8 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
             raise VerificationError("content audio URL mismatch")
         path = _regular_under(audio_root, asset["path"])
         size = path.stat().st_size
-        if size <= 0 or size != asset["bytes"]:
+        if size <= 0 or size > 10 * 1024 * 1024 or size != asset["bytes"]:
             raise VerificationError("audio size mismatch")
-        _verify_mp3(path)
         if _sha256(path) != asset["sha256"]:
             raise VerificationError("audio checksum mismatch")
         seen.add(word_id)
@@ -164,7 +119,7 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
         raise VerificationError("audio coverage incomplete")
 
     return {
-        "status": "verified",
+        "status": "manifest_integrity_verified",
         "word_count": len(words),
         "audio_count": len(assets),
         "audio_bytes": total_bytes,

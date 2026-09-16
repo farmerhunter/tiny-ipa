@@ -1679,8 +1679,12 @@ The checked-in `p1b-content-audio.manifest.json` is a hard gate. Its current
 `blocked_missing_approved_audio` state is intentional because the repository
 contains no approved MP3 bytes or license. Before host apply, a Reviewer must
 accept a `ready` manifest with one source, license, size and SHA-256 entry for
-each required trial word. `verify-p1b-assets.py` must return `status=verified`
-against the frozen repo and audio roots. Browser TTS and paid generation cannot
+each required trial word. `verify-p1b-assets.py` must return
+`status=manifest_integrity_verified` against the frozen repo and audio roots.
+This proves package paths, containment, non-empty bounded size, checksums and
+declared source/use permission; it does not prove codec validity, the spoken
+word, browser playback or legal approval. Those user-visible properties remain
+part of the HTTPS phone walkthrough. Browser TTS and paid generation cannot
 satisfy this gate.
 
 ### Bounded read-only discovery
