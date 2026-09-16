@@ -23,17 +23,25 @@ ROOT = Path(__file__).resolve().parents[2]
 CANDIDATE_DIR = ROOT / "deploy" / "jingyun"
 SYSTEMD = CANDIDATE_DIR / "tiny-ipa-api.service.candidate"
 NGINX = CANDIDATE_DIR / "ipa.jingyun.bj.cn.nginx.candidate"
+ACME_BOOTSTRAP = CANDIDATE_DIR / "ipa.jingyun.bj.cn.acme-bootstrap.nginx.candidate"
 ENV_EXAMPLE = CANDIDATE_DIR / "tiny-ipa.production.env.example"
 REVISION = CANDIDATE_DIR / "REVISION.candidate"
 DEPLOYMENT_PLAN = ROOT / "docs" / "15-m14-jingyun-candidate-deployment-plan.md"
 BACKUP_PLAN = ROOT / "docs" / "16-m14-jingyun-production-backup-restore-plan.md"
+P1B_MANIFEST = CANDIDATE_DIR / "p1b-content-audio.manifest.json"
+P1B_ASSET_VERIFIER = CANDIDATE_DIR / "verify-p1b-assets.py"
+P1B_DISCOVERY = CANDIDATE_DIR / "p1b-readonly-discovery.sh"
 
 REQUIRED_FILES = (
     CANDIDATE_DIR / "CANDIDATE-README.md",
     SYSTEMD,
     NGINX,
+    ACME_BOOTSTRAP,
     ENV_EXAMPLE,
     REVISION,
+    P1B_MANIFEST,
+    P1B_ASSET_VERIFIER,
+    P1B_DISCOVERY,
     DEPLOYMENT_PLAN,
     BACKUP_PLAN,
 )
@@ -54,8 +62,6 @@ HUMAN_PLACEHOLDERS = (
     "<HUMAN_APPROVED_TINY_IPA_SERVICE_USER>",
     "<HUMAN_APPROVED_TINY_IPA_SERVICE_GROUP>",
     "<HUMAN_OWNED_TINY_IPA_ENV_FILE>",
-    "<HUMAN_PROVIDED_TLS_CERTIFICATE_PATH_FOR_IPA_JINGYUN>",
-    "<HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>",
     "<HUMAN_PROVISIONED_TINY_IPA_SESSION_SECRET>",
     "<HUMAN_APPROVED_BACKUP_OWNER>",
     "<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>",
@@ -718,7 +724,7 @@ def test_m14_jingyun_candidate_files_exist_and_keep_human_gates() -> None:
     for boundary in (
         "does not authorize SSH",
         "does not authorize applying any artifact",
-        "TLS certificate ownership remains unresolved",
+        "Host discovery must still confirm the existing ACME owner",
         "backup owner and retention policy",
         "rollback owner",
         "Xue Tu Zhi Ban baseline",
@@ -1488,8 +1494,11 @@ def test_m14_jingyun_nginx_candidate_owns_only_subdomain_and_expected_routes() -
     assert "server_name ipa.jingyun.bj.cn;" in nginx
     assert "server_name jingyun.bj.cn" not in nginx
     assert "root /var/www/tiny-ipa/current;" in nginx
-    assert "ssl_certificate <HUMAN_PROVIDED_TLS_CERTIFICATE_PATH_FOR_IPA_JINGYUN>;" in nginx
-    assert "ssl_certificate_key <HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>;" in nginx
+    assert "ssl_certificate /etc/letsencrypt/live/ipa.jingyun.bj.cn/fullchain.pem;" in nginx
+    assert "ssl_certificate_key /etc/letsencrypt/live/ipa.jingyun.bj.cn/privkey.pem;" in nginx
+    assert "location ^~ /.well-known/acme-challenge/" in nginx
+    assert "root /var/lib/tiny-ipa/acme-webroot;" in nginx
+    assert "return 308 https://ipa.jingyun.bj.cn$request_uri;" in nginx
     assert "location = /api/health" in nginx
     assert "proxy_pass http://127.0.0.1:18110/api/health;" in nginx
     assert "location = /api/version" in nginx
@@ -1497,10 +1506,12 @@ def test_m14_jingyun_nginx_candidate_owns_only_subdomain_and_expected_routes() -
     assert 'add_header Cache-Control "no-store" always;' in nginx
     assert "location /api/" in nginx
     assert "proxy_pass http://127.0.0.1:18110/api/;" in nginx
+    assert "location = /api/auth/login" in nginx
+    assert "limit_req zone=tiny_ipa_login burst=5 nodelay;" in nginx
     assert "location ^~ /audio/" in nginx
     assert "alias /var/lib/tiny-ipa/audio/;" in nginx
     assert "try_files $uri $uri/ /index.html;" in nginx
-    assert "listen 80" not in nginx
+    assert "listen 80;" in nginx
     assert "default_server" not in nginx
 
     for forbidden in FORBIDDEN_CONFIG_REFERENCES:

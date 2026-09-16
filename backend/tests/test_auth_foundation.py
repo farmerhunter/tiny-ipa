@@ -228,6 +228,75 @@ class TestSessionStorage:
 
 
 class TestBootstrapCli:
+    def test_owner_bootstrap_accepts_private_stdin_password(self, tmp_path: Path):
+        db_path = tmp_path / "owner.sqlite"
+        script = Path(__file__).resolve().parents[1] / "scripts" / "bootstrap_auth.py"
+        secret = "owner password from private stdin"
+        command = [
+            sys.executable,
+            str(script),
+            "--db-url",
+            str(db_path),
+            "owner",
+            "--username",
+            "owner",
+            "--password-stdin",
+        ]
+
+        result = subprocess.run(
+            command,
+            input=f"{secret}\n",
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        assert secret not in " ".join(command)
+        assert secret not in result.stdout
+        assert secret not in result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["created"] is True
+        assert payload["username"] == "owner"
+        assert payload["is_owner"] is True
+        assert isinstance(payload["user_id"], str) and payload["user_id"]
+
+        conn = get_connection(str(db_path))
+        try:
+            row = conn.execute(
+                "SELECT password_hash FROM users WHERE username = 'owner'"
+            ).fetchone()
+        finally:
+            conn.close()
+        assert row is not None
+        assert verify_password(secret, row["password_hash"])
+
+    @pytest.mark.parametrize("password_input", ["", "first\nsecond\n", "nul\x00value\n"])
+    def test_password_stdin_rejects_ambiguous_input_without_creating_db(
+        self, tmp_path: Path, password_input: str,
+    ):
+        db_path = tmp_path / "rejected.sqlite"
+        script = Path(__file__).resolve().parents[1] / "scripts" / "bootstrap_auth.py"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(script),
+                "--db-url",
+                str(db_path),
+                "owner",
+                "--username",
+                "owner",
+                "--password-stdin",
+            ],
+            input=password_input,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 2
+        assert not db_path.exists()
+        assert "password stdin" in json.loads(result.stderr)["detail"]
+
     def test_local_dev_bootstrap_cli_smoke(self, tmp_path: Path):
         db_path = tmp_path / "cli.sqlite"
         script = Path(__file__).resolve().parents[1] / "scripts" / "bootstrap_auth.py"

@@ -75,8 +75,12 @@ create the first owner explicitly:
 
 ```bash
 cd backend
-python scripts/bootstrap_auth.py --db-url ./tiny_ipa.sqlite owner \
-  --username owner --password 'change-me-long-password'
+read -r -s -p 'Tiny IPA owner password: ' TINY_IPA_BOOTSTRAP_PASSWORD
+printf '\n'
+printf '%s\n' "$TINY_IPA_BOOTSTRAP_PASSWORD" | \
+  python scripts/bootstrap_auth.py --db-url ./tiny_ipa.sqlite owner \
+    --username owner --password-stdin
+unset TINY_IPA_BOOTSTRAP_PASSWORD
 ```
 
 For local development, use the guarded dev-user path:
@@ -90,6 +94,9 @@ python scripts/bootstrap_auth.py --db-url /tmp/tiny_ipa_dev.sqlite dev-user \
 
 The local-dev command refuses production/deployed environments and does not
 enable an auth bypass. It only creates a normal user record for local testing.
+`--password-stdin` is the required production operator path because it keeps
+the password out of process arguments. It accepts exactly one non-empty line,
+never echoes the value, and still preserves the single-owner refusal.
 
 `Ready + needs:implementer` may represent an Implementer queue, not only work that can start immediately. Implementers should read all ready issues in the queue, sort them by the `Depends on` line in each `Execution Contract`, and execute only the issues whose dependencies are satisfied.
 

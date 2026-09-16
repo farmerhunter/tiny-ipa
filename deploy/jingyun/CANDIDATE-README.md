@@ -20,10 +20,22 @@ directory creation, environment-file writes, secret generation, database
 creation or mutation, systemd/Nginx/firewall/DNS/TLS changes, service reloads,
 backup, restore, rollback, or deployment.
 
-Full-public P1b placeholders that remain unresolved at the P1a gate:
+P1b uses the repository candidate certificate paths under
+`/etc/letsencrypt/live/ipa.jingyun.bj.cn/`. Host discovery must still confirm
+the existing ACME owner and scheduler before those paths are treated as real.
+The candidate prefers the existing supported manager; Certbot webroot is only
+the reviewed fallback when no manager exists.
 
-- `<HUMAN_PROVIDED_TLS_CERTIFICATE_PATH_FOR_IPA_JINGYUN>`
-- `<HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>`
+`p1b-readonly-discovery.sh` is the fail-closed discovery artifact. The
+no-existing-certificate fallback first activates only
+`ipa.jingyun.bj.cn.acme-bootstrap.nginx.candidate`, validates it with
+`nginx -t`, and performs bounded reload 1 so HTTP-01 can succeed. After Certbot
+`certonly --webroot` creates the bound certificate paths, the operator replaces
+only that Tiny IPA binding with `ipa.jingyun.bj.cn.nginx.candidate`, validates
+again, and performs bounded reload 2. Both reloads remain Human-gated in #282.
+
+Other full-public bindings that remain unresolved after P1a:
+
 - `<HUMAN_PROVISIONED_TINY_IPA_SESSION_SECRET>`
 - `<HUMAN_APPROVED_BACKUP_OWNER>`
 - `<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>`
@@ -32,6 +44,16 @@ Full-public P1b placeholders that remain unresolved at the P1a gate:
 - `<INTENDED_GITHUB_COMMIT_SHA>`
 - `<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>`
 - `<UTC_RELEASE_ARTIFACT_TIMESTAMP>`
+
+`p1b-content-audio.manifest.json` binds the accepted Core 100 and phoneme
+inputs and now has status `ready`. The ten approved trial MP3s are checked in
+under `audio/us/`; `audio/ATTRIBUTION.md` records their public author, source,
+license and conversion disclosure. The operator copies that file beside `us/`
+to `/var/lib/tiny-ipa/audio/ATTRIBUTION.md`, where Nginx exposes the public
+credits at `/audio/ATTRIBUTION.md`. The manifest binds the credits checksum and
+each deployed audio byte size and SHA-256. `verify-p1b-assets.py` proves package integrity,
+not pronunciation or playback. Those remain part of the HTTPS phone
+walkthrough. Browser TTS and paid generation are not accepted substitutes.
 
 P1a instead fixes `tiny-ipa:tiny-ipa` and `/etc/tiny-ipa/tiny-ipa.env`; its
 exact accepted release ID, commit, artifact digest, trial operator, and bounded

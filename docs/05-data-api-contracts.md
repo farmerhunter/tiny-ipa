@@ -280,8 +280,12 @@ behavior:
 
 ```bash
 cd backend
-python scripts/bootstrap_auth.py --db-url /path/to/tiny_ipa.sqlite owner \
-  --username owner --password 'change-me-long-password'
+read -r -s -p 'Tiny IPA owner password: ' TINY_IPA_BOOTSTRAP_PASSWORD
+printf '\n'
+printf '%s\n' "$TINY_IPA_BOOTSTRAP_PASSWORD" | \
+  python scripts/bootstrap_auth.py --db-url /path/to/tiny_ipa.sqlite owner \
+    --username owner --password-stdin
+unset TINY_IPA_BOOTSTRAP_PASSWORD
 
 python scripts/bootstrap_auth.py --db-url /tmp/tiny_ipa_dev.sqlite dev-user \
   --enable-local-dev --environment development \
@@ -291,7 +295,8 @@ python scripts/bootstrap_auth.py --db-url /tmp/tiny_ipa_dev.sqlite dev-user \
 Owner bootstrap creates the first owner and fails closed if an owner already
 exists. Local dev bootstrap is explicit, creates a normal user instead of an
 auth bypass, and refuses `production`, `prod`, `deployed`, or `deploy`
-environments. Password hashes use Argon2 via `argon2-cffi`; auth session rows
+environments. Production operators use `--password-stdin` so the secret is not
+present in process arguments or durable receipts. Password hashes use Argon2 via `argon2-cffi`; auth session rows
 store a hash of the opaque session token, not the raw token.
 
 Same-origin SPA/API deployment is the default. If a split origin is introduced,

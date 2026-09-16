@@ -29,6 +29,21 @@ def _db_path(raw: str) -> str:
     return raw
 
 
+def _password(args: argparse.Namespace) -> str:
+    if args.password is not None:
+        return args.password
+    value = sys.stdin.read(4097)
+    if len(value) > 4096:
+        raise AuthBootstrapError("password stdin exceeds 4096 characters")
+    if value.endswith("\n"):
+        value = value[:-1]
+        if value.endswith("\r"):
+            value = value[:-1]
+    if not value or "\n" in value or "\r" in value or "\x00" in value:
+        raise AuthBootstrapError("password stdin must contain exactly one non-empty line")
+    return value
+
+
 def bootstrap_auth(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Bootstrap Tiny IPA auth users.")
     parser.add_argument(
@@ -40,11 +55,15 @@ def bootstrap_auth(argv: Optional[List[str]] = None) -> int:
 
     owner = subparsers.add_parser("owner", help="Create the first owner user.")
     owner.add_argument("--username", required=True)
-    owner.add_argument("--password", required=True)
+    owner_password = owner.add_mutually_exclusive_group(required=True)
+    owner_password.add_argument("--password")
+    owner_password.add_argument("--password-stdin", action="store_true")
 
     dev = subparsers.add_parser("dev-user", help="Create an explicit local dev user.")
     dev.add_argument("--username", default=DEFAULT_LOCAL_DEV_USERNAME)
-    dev.add_argument("--password", required=True)
+    dev_password = dev.add_mutually_exclusive_group(required=True)
+    dev_password.add_argument("--password")
+    dev_password.add_argument("--password-stdin", action="store_true")
     dev.add_argument(
         "--enable-local-dev",
         action="store_true",
@@ -59,18 +78,19 @@ def bootstrap_auth(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        password = _password(args)
         with get_db(_db_path(args.db_url)) as conn:
             if args.command == "owner":
                 result = bootstrap_owner(
                     conn,
                     username=args.username,
-                    password=args.password,
+                    password=password,
                 )
             else:
                 result = bootstrap_local_dev_user(
                     conn,
                     username=args.username,
-                    password=args.password,
+                    password=password,
                     enabled=args.enable_local_dev,
                     environment=args.environment,
                 )
