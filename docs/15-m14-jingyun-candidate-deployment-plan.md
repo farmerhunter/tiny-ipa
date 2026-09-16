@@ -1675,11 +1675,11 @@ licensed audio, a non-empty learner state, natural timer execution or phone use
 already works. Issue #304 owns the repository package; issue #282 owns every
 real-host decision and receipt.
 
-The checked-in `p1b-content-audio.manifest.json` is a hard gate. Its current
-`blocked_missing_approved_audio` state is intentional because the repository
-contains no approved MP3 bytes or license. Before host apply, a Reviewer must
-accept a `ready` manifest with one source, license, size and SHA-256 entry for
-each required trial word. `verify-p1b-assets.py` must return
+The checked-in `p1b-content-audio.manifest.json` is a hard gate. It now binds a
+Human-approved `ready` package with one source, license, size and SHA-256 entry
+for each required trial word; public credits and conversion disclosure live in
+`audio/ATTRIBUTION.md`. Before host apply, a Reviewer must accept the exact
+manifest and asset bytes. `verify-p1b-assets.py` must return
 `status=manifest_integrity_verified` against the frozen repo and audio roots.
 This proves package paths, containment, non-empty bounded size, checksums and
 declared source/use permission; it does not prove codec validity, the spoken

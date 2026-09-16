@@ -46,11 +46,12 @@ Other full-public bindings that remain unresolved after P1a:
 - `<UTC_RELEASE_ARTIFACT_TIMESTAMP>`
 
 `p1b-content-audio.manifest.json` binds the accepted Core 100 and phoneme
-inputs. It deliberately has status `blocked_missing_approved_audio`: this
-repository contains no MP3 payload, source or license. A Reviewer must replace
-that state with a non-empty checksum list for the ten required trial words
-before any P1b apply packet can pass. Browser TTS and paid generation are not
-accepted substitutes.
+inputs and now has status `ready`. The ten approved trial MP3s are checked in
+under `audio/us/`; `audio/ATTRIBUTION.md` records their public author, source,
+license and conversion disclosure, while the manifest binds the deployed byte
+size and SHA-256 for each word. `verify-p1b-assets.py` proves package integrity,
+not pronunciation or playback. Those remain part of the HTTPS phone
+walkthrough. Browser TTS and paid generation are not accepted substitutes.
 
 P1a instead fixes `tiny-ipa:tiny-ipa` and `/etc/tiny-ipa/tiny-ipa.env`; its
 exact accepted release ID, commit, artifact digest, trial operator, and bounded

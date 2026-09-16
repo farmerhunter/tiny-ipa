@@ -20,6 +20,7 @@ ROADMAP = ROOT / "docs" / "06-epic-roadmap.md"
 DEPLOYMENT_PLAN = ROOT / "docs" / "15-m14-jingyun-candidate-deployment-plan.md"
 BACKUP_PLAN = ROOT / "docs" / "16-m14-jingyun-production-backup-restore-plan.md"
 BOOTSTRAP = ROOT / "backend" / "scripts" / "bootstrap_auth.py"
+ATTRIBUTION = ROOT / "audio" / "ATTRIBUTION.md"
 
 
 def _sha256(path: Path) -> str:
@@ -119,23 +120,33 @@ def _run_discovery(tmp_path: Path, **environment: str) -> subprocess.CompletedPr
     )
 
 
-def test_p1b_checked_in_manifest_truthfully_blocks_missing_audio(tmp_path: Path) -> None:
+def test_p1b_checked_in_manifest_binds_approved_audio_package() -> None:
     value = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    assert value["status"] == "blocked_missing_approved_audio"
-    assert value["audio"]["assets"] == []
-    assert value["audio"]["source"] is None
-    assert value["audio"]["license"] is None
-    assert set(value["blocking_reasons"]) == {
-        "approved_audio_assets_missing",
-        "audio_source_and_license_missing",
+    assert value["status"] == "ready"
+    assert value["blocking_reasons"] == []
+    assert len(value["audio"]["assets"]) == 10
+    assert "Wikimedia Commons" in value["audio"]["source"]
+    assert "CC BY-SA 3.0" in value["audio"]["license"]
+
+    result = _run(MANIFEST, ROOT / "audio")
+    assert result.returncode == 0, result.stdout
+    assert json.loads(result.stdout) == {
+        "status": "manifest_integrity_verified",
+        "word_count": 100,
+        "audio_count": 10,
+        "audio_bytes": 129751,
+        "content_sha256": value["content"]["sha256"],
+        "phonemes_sha256": value["content"]["phonemes_sha256"],
     }
 
-    result = _run(MANIFEST, tmp_path)
-    assert result.returncode == 2
-    assert json.loads(result.stdout) == {
-        "status": "blocked",
-        "reason": "manifest status is blocked_missing_approved_audio",
-    }
+    credits = ATTRIBUTION.read_text(encoding="utf-8")
+    for asset in value["audio"]["assets"]:
+        assert f"`{Path(asset['path']).name}`" in credits
+        assert asset["source"].split(";", 1)[0] in credits
+    assert "CC BY-SA 3.0" in credits
+    assert "CC0 1.0" in credits
+    assert "Public Domain" in credits
+    assert "transcoded from Ogg or WAV to MP3" in credits
 
 
 def test_p1b_manifest_binds_current_content_and_required_audio_urls() -> None:
@@ -241,7 +252,8 @@ def test_p1b_nginx_candidate_is_scoped_and_requires_test_before_reload() -> None
 
     readme = README.read_text(encoding="utf-8")
     assert "Host discovery, certificate issuance, installation, nginx -t, reload" in nginx
-    assert "blocked_missing_approved_audio" in readme
+    assert "status `ready`" in readme
+    assert "audio/ATTRIBUTION.md" in readme
 
 
 def test_p1b_acme_bootstrap_allows_first_certificate_without_tls_dependency() -> None:
