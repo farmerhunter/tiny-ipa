@@ -66,6 +66,8 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
     content = value.get("content")
     if not isinstance(content, dict):
         raise VerificationError("content binding missing")
+    if content.get("import_content_level") != "auto":
+        raise VerificationError("content import level mismatch")
     content_path = _regular_under(repo_root, content.get("path", ""))
     phonemes_path = _regular_under(repo_root, content.get("phonemes_path", ""))
     if _sha256(content_path) != content.get("sha256"):

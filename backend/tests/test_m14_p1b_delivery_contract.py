@@ -160,6 +160,7 @@ def test_p1b_checked_in_manifest_binds_approved_audio_package() -> None:
 def test_p1b_manifest_binds_current_content_and_required_audio_urls() -> None:
     value = json.loads(MANIFEST.read_text(encoding="utf-8"))
     content = value["content"]
+    assert content["import_content_level"] == "auto"
     assert _sha256(ROOT / content["path"]) == content["sha256"]
     assert _sha256(ROOT / content["phonemes_path"]) == content["phonemes_sha256"]
     words = json.loads((ROOT / content["path"]).read_text(encoding="utf-8"))["words"]
