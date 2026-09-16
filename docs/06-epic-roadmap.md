@@ -548,10 +548,11 @@ Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 Roadmap status:
 
 ```text
-Blocked while child work proceeds. Epic #27 has moved after M11 Localization,
-M12 Minimal Auth, and M13 Practice Modes. It has been decomposed into M14 child
-issues. #276 is the only released child issue; #277-#282 remain blocked until
-the deployment target/runtime config contract is accepted.
+Blocked at the Human-gated real-host readiness step. #276 through #281 are
+accepted on the M14 integration branch. #282 completed the local/disposable
+readiness review and the Human-authorized read-only inventory for
+`jingyun.bj.cn`; the host is shared with the higher-priority Xue Tu Zhi Ban
+application, so no staged deployment is released yet.
 
 No real VPS, DNS, secret, deployment config, or private SQLite mutation is
 authorized without an explicit Human gate.
@@ -560,13 +561,13 @@ authorized without an explicit Human gate.
 Child issues:
 
 ```text
-#276 [P0] Deployment target and runtime config contract - released to Implementer
-#277 [P1] Production auth, origin, CORS, and secret hardening - blocked
-#278 [P1] VPS install and systemd runbook - blocked
-#279 [P2] Frontend build and reverse-proxy routing contract - blocked
-#280 [P2] SQLite backup and restore dry-run verification - blocked
-#281 [P3] Deployment smoke and rollback checklist - blocked
-#282 [P4] VPS deployment readiness review and human deployment gate - blocked
+#276 [P0] Deployment target and runtime config contract - Done
+#277 [P1] Production auth, origin, CORS, and secret hardening - Done
+#278 [P1] VPS install and systemd runbook - Done
+#279 [P2] Frontend build and reverse-proxy routing contract - Done
+#280 [P2] SQLite backup and restore dry-run verification - Done
+#281 [P3] Deployment smoke and rollback checklist - Done
+#282 [P4] VPS deployment readiness review and human deployment gate - active / blocked
 ```
 
 Dependency graph:
@@ -603,6 +604,129 @@ do not implement auth, localization, account management, or data migration here
 do not mutate real SQLite data, secrets, DNS, VPS runtime, or deployment config
 without explicit Human approval
 ```
+
+### Deployment Target and Runtime Config Contract
+
+#276 is a planning and evidence gate. It defines the deployment contract for a
+personal VPS, but it does not authorize SSH execution, production secret writes,
+DNS/TLS changes, service starts, systemd/Nginx mutation, private SQLite access,
+or deployment rollout.
+
+Deployment target assumptions:
+
+```text
+target type: personal VPS or equivalent single-host Linux server
+provider binding: none; business logic must not depend on a VPS provider
+runtime shape: Nginx/reverse proxy -> frontend static files + backend API
+backend persistence: SQLite file outside the source checkout
+audio/static assets: served as static files, preferably by the reverse proxy
+operator model: one trusted owner/operator; real host actions remain Human-gated
+```
+
+Human input checklist before later M14 implementation:
+
+| Topic | Required answer before action |
+| --- | --- |
+| Domain | production hostname and whether a staging hostname exists |
+| TLS | certificate source and renewal owner |
+| VPS access | SSH host/user, whether read-only inventory is allowed, and whether sudo is allowed |
+| Install preference | system package manager, Python/Node versions, checkout directory, service user |
+| Data policy | production DB path, backup destination, retention, and restore test expectations |
+| Secrets | who generates/stores `TINY_IPA_SESSION_SECRET`; repo must not generate/write it in #276 |
+| Rollback | acceptable downtime, release rollback method, and DB rollback boundary |
+| Logs | log directory, retention expectation, and whether logs may contain user identifiers |
+
+Runtime config variables for follow-up issues:
+
+| Variable | Local dev behavior | Production requirement |
+| --- | --- | --- |
+| `TINY_IPA_ENV` | defaults to `development` | must be explicitly `production` |
+| `TINY_IPA_DB_PATH` | may point to a local/temp SQLite file | required absolute path outside repo checkout |
+| `TINY_IPA_SESSION_SECRET` | may use documented local-only value | required high-entropy secret from Human/operator channel |
+| `TINY_IPA_COOKIE_SECURE` | may be `false` on `localhost` | must be `true` |
+| `TINY_IPA_COOKIE_SAMESITE` | `lax` unless tests require otherwise | `lax` or stricter, documented with auth tests |
+| `TINY_IPA_ALLOWED_ORIGINS` | may include localhost dev origins | required exact HTTPS origin list; no wildcard with cookies |
+| `VITE_API_BASE` | defaults to same-origin `/api`; local harnesses may override it | deployed build must use `/api` through the reverse proxy unless a later contract explicitly changes the API path |
+| `TINY_IPA_AUDIO_DIR` | may use repo `audio/` | canonical readable audio directory; must match the reverse-proxy `/audio/` alias target |
+| `TINY_IPA_STATIC_ROOT` | optional during Vite dev | required frontend build directory for static serving |
+| `TINY_IPA_BACKEND_HOST` | localhost is allowed | loopback or private interface behind reverse proxy |
+| `TINY_IPA_BACKEND_PORT` | any free local port | fixed documented service port |
+| `TINY_IPA_LOG_DIR` | may be stdout/temp logs | required writable app log directory or journald-only decision |
+| `TINY_IPA_HEALTH_PATH` | `/api/health` | `/api/health`, unauthenticated, no private data |
+
+Production config must fail closed:
+
+```text
+production without TINY_IPA_SESSION_SECRET -> refuse startup
+production with TINY_IPA_COOKIE_SECURE=false -> refuse startup
+production with wildcard credentialed CORS -> refuse startup
+production with relative or repo-local DB path -> refuse startup
+production with local-dev auth bootstrap/bypass enabled -> refuse startup
+production with missing explicit allowed origins -> refuse startup
+```
+
+Local development remains intentionally easier:
+
+```text
+localhost origins are allowed
+local SQLite paths are allowed
+secure cookies may be disabled on localhost
+dev-user bootstrap may create a normal local user only when explicitly requested
+local dev must not require Nginx, systemd, DNS, TLS, or VPS-only paths
+```
+
+Safe repo automation versus Human-gated host action:
+
+| Category | Allowed in repo automation | Human-gated on real VPS |
+| --- | --- | --- |
+| Config | schema/lint/dry-run checks for required env vars | writing production env files or secrets |
+| Backend | local temp-DB health/import/auth smoke tests | starting/stopping production service |
+| Frontend | local build and static path checks | editing deployed web root |
+| Reverse proxy | template/checklist docs | mutating Nginx/Caddy config or reloading proxy |
+| TLS/DNS | checklist and validation commands | changing DNS records or certificates |
+| Backup | temp-fixture backup/restore dry-run | reading/copying private production SQLite |
+| Host inventory | documented optional read-only probe plan | SSH execution without explicit approval |
+
+Optional VPS inventory plan, only after separate Human authorization:
+
+| Probe | Classification | Purpose |
+| --- | --- | --- |
+| `uname -a` | read-only | kernel/architecture note |
+| `cat /etc/os-release` | read-only | OS/version support note |
+| `nproc` / `free -h` / `df -h` | read-only | CPU/RAM/disk sizing |
+| `command -v python3 node pnpm nginx systemctl sqlite3` | read-only | runtime availability |
+| `python3 --version` / `node --version` / `pnpm --version` | read-only | version evidence |
+| `systemctl --version` | read-only | systemd availability |
+| `ss -tulpn` | read-only; may require elevated visibility | port occupancy evidence |
+| `id` / `groups` / `pwd` | read-only | permission and working-directory evidence |
+| `find /opt /srv -maxdepth 2 -type d -name '*tiny*'` | read-only if authorized | candidate app directory discovery |
+| `ls -la <approved-app-dir>` | read-only if path approved | checkout/static/data path inventory |
+
+Forbidden in #276 and still Human-gated later:
+
+```text
+ssh to the VPS without explicit Human authorization
+package installation or runtime upgrade
+sudo mutation commands
+systemctl start/stop/restart/enable/disable
+nginx/caddy config writes or reloads
+DNS or TLS certificate changes
+production secret generation or file writes
+private SQLite read, copy, migration, restore, or mutation
+long-running service start
+firewall mutation
+```
+
+Deployment verification matrix for child issues:
+
+| Issue | Verification evidence expected |
+| --- | --- |
+| #277 auth/origin/CORS/secret hardening | production env fail-closed tests, cookie flag tests, exact-origin CORS tests, local-dev non-regression |
+| #278 VPS install/systemd runbook | read-only inventory record, install plan, service unit template review, no live mutation without Human gate |
+| #279 frontend/reverse proxy routing | frontend build output check, API base path check, `/api/health` route, `/audio/` static route, fallback behavior |
+| #280 SQLite backup/restore dry-run | temp DB backup/restore round trip, owner/user data preserved, source content restorable, no private DB mutation |
+| #281 smoke/rollback checklist | local or authorized staging smoke: login, settings, Today, Progress, audio, health, restart, rollback note |
+| #282 readiness/human deployment gate | all child evidence linked, unresolved risks listed, explicit Human deployment decision contract |
 
 ## M15：Account Management and Admin UX
 

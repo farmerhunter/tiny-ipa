@@ -1,0 +1,34 @@
+# CANDIDATE - DO NOT APPLY.
+# Repository-only systemd unit candidate for Tiny IPA on ipa.jingyun.bj.cn.
+# This file must not be copied to /etc/systemd/system/ without a later
+# Human-authorized host action.
+
+[Unit]
+Description=Tiny IPA backend API
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=tiny-ipa
+Group=tiny-ipa
+WorkingDirectory=/opt/tiny-ipa/current/backend
+EnvironmentFile=/etc/tiny-ipa/tiny-ipa.env
+ExecStart=/opt/tiny-ipa/current/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 18110
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/tiny-ipa
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

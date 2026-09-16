@@ -1,0 +1,20 @@
+# CANDIDATE - DO NOT APPLY.
+[Unit]
+Description=Tiny IPA bounded P1a SQLite backup
+ConditionPathIsReadWrite=/var/backups/tiny-ipa
+
+[Service]
+Type=oneshot
+User=tiny-ipa
+Group=tiny-ipa
+UMask=0077
+TimeoutStartSec=30s
+TimeoutStopSec=10s
+ExecStart=/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py backup --source /var/lib/tiny-ipa/tiny-ipa.sqlite --state-root /var/lib/tiny-ipa --destination-root /var/backups/tiny-ipa --snapshot-id utc-now --release-id <APPROVED_RELEASE_ID> --max-bytes 104857600 --retention-limit 7 --writable-wal-shm /var/lib/tiny-ipa/tiny-ipa.sqlite-shm
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/tiny-ipa
+ReadOnlyPaths=/var/lib/tiny-ipa
+ReadWritePaths=/var/lib/tiny-ipa/tiny-ipa.sqlite-shm

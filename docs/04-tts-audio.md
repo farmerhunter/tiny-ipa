@@ -68,24 +68,28 @@ frontend Audio playback
 
 运行时不请求 TTS 服务。用户点击播放时，只下载或播放已经生成好的 mp3。
 
-推荐 VPS 目录：
+部署目录形状由后续 Human-gated VPS run 决定；此处只保留 placeholder：
 
 ```text
-/opt/tiny-ipa/
+<app-root>/
   backend/
-  frontend/dist/
-  data/tiny_ipa.sqlite
+<frontend-dist-dir>/
+<data-dir>/tiny_ipa.sqlite
   content/
-  audio/
+<audio-dir>/
     us/
     uk/
 ```
 
-Nginx：
+`TINY_IPA_AUDIO_DIR` 是音频目录的唯一 runtime variable。FastAPI 的本地
+`/audio/` fallback 与后续 reverse proxy 都必须使用同一个 `<audio-dir>`。
+`TINY_IPA_AUDIO_ROOT` 没有兼容 alias，不应写入部署环境文件。
+
+Nginx template（仅供后续 Human 审阅，不授权写入或 reload）：
 
 ```nginx
-location /audio/ {
-    alias /opt/tiny-ipa/audio/;
+location ^~ /audio/ {
+    alias <audio-dir>/;
     add_header Cache-Control "public, max-age=31536000";
 }
 ```

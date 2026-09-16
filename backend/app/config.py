@@ -10,6 +10,9 @@ from pathlib import Path
 
 
 CONTENT_VERSION = os.getenv("TINY_IPA_CONTENT_VERSION", "development")
+RELEASE_ID = os.getenv("TINY_IPA_RELEASE_ID", "development")
+RELEASE_COMMIT = os.getenv("TINY_IPA_RELEASE_COMMIT", "development")
+RELEASE_TAG = os.getenv("TINY_IPA_RELEASE_TAG", "")
 DB_PATH = os.getenv(
     "TINY_IPA_DB_PATH",
     str(Path(__file__).resolve().parent.parent / "tiny_ipa.sqlite"),

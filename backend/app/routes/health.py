@@ -1,8 +1,8 @@
 """Health-check endpoint."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
-from app.config import CONTENT_VERSION, DB_READY
+from app import config
 
 router = APIRouter()
 
@@ -11,6 +11,17 @@ router = APIRouter()
 def health():
     return {
         "status": "ok",
-        "content_version": CONTENT_VERSION,
-        "db_ready": DB_READY,
+        "content_version": config.CONTENT_VERSION,
+        "db_ready": config.DB_READY,
+    }
+
+
+@router.get("/version")
+def version(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "status": "ok",
+        "release_id": config.RELEASE_ID,
+        "commit": config.RELEASE_COMMIT,
+        "tag": config.RELEASE_TAG or None,
     }
