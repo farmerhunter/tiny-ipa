@@ -34,6 +34,23 @@ no-existing-certificate fallback first activates only
 only that Tiny IPA binding with `ipa.jingyun.bj.cn.nginx.candidate`, validates
 again, and performs bounded reload 2. Both reloads remain Human-gated in #282.
 
+The final candidate owns the first IPv4 443 default only to reject the TLS
+handshake with `ssl_reject_handshake on`; it does not serve Tiny IPA for an
+unknown or absent SNI name and does not add an IPv6 listener. The observed host
+Nginx 1.24.0 supports that directive. The named Tiny IPA server remains a
+separate exact-host binding.
+
+`p1b-certbot-deploy-hook.sh` is the only proposed issuance/renewal deploy hook.
+Certbot invokes it after a successful first issuance and successful renewals;
+it returns without reloading for any lineage other than
+`/etc/letsencrypt/live/ipa.jingyun.bj.cn`. For the Tiny
+IPA lineage it additionally requires the reviewed active-site symlink, then
+requires the exact final-site SHA-256 and runs bounded `nginx -t` before the
+shared reload. The hash check makes the first issuance a no-reload event while
+the HTTP bootstrap is active. It is passed to the single certificate issuance
+with `--deploy-hook`; no global renewal hook, cron entry, or second timer is
+proposed.
+
 Other full-public bindings that remain unresolved after P1a:
 
 - `<HUMAN_PROVISIONED_TINY_IPA_SESSION_SECRET>`

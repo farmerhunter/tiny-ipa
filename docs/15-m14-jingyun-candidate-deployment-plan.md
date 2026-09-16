@@ -1713,6 +1713,97 @@ tool-version query failure returns HOLD. DNS no-answer is represented as an
 explicit empty JSON list only when the resolver itself returns `gaierror`;
 permission or command failures cannot be reported as an absent path.
 
+### Frozen P1b host and package snapshot
+
+The 2026-09-16 bounded host read found Ubuntu Nginx 1.24.0, Snap 2.75.2 and no
+installed snaps or ACME client. Nginx 1.24.0 supports
+`ssl_reject_handshake`, so the reviewed final candidate adds one IPv4
+`listen 443 ssl default_server` rejection server followed by the exact
+`ipa.jingyun.bj.cn` TLS server. It adds no IPv6 443 listener and does not alter
+the existing IPv4/IPv6 default HTTP server.
+
+The same-day Snap Store snapshot binds these amd64 `latest/stable` artifacts:
+
+- Certbot 5.8.0, revision 5893, snap ID
+  `wy7i66qPx4neXr6m9rTh7Y40h8EhtZFh`, 75,173,888 bytes, SHA3-384
+  `9f1b58aea2d76a787f636f3d17ecd88e568714cc8ffda659dcc2a71b7791554fd7a7f2e6de1678438d00c3d209f4960b`;
+- core24 20260824, revision 2124, snap ID
+  `dwTAh7MZZ01zyriOZErqd1JynQLiOGvM`, 70,033,408 bytes, SHA3-384
+  `9f84f391c5ace85b755a7530a330f7b52aff891178cdfdf10bc4f673f261ea9454629ddd933991cbedaf7963e689789c`.
+
+Certbot's v5.8.0 build declares classic confinement, `base: core24`, and one
+Snap-managed `renew` oneshot with timer `00:00~24:00/2`. The host currently
+reports no installed snaps and `snap refresh --time` reports the default
+`00:00~24:00/4` timer, an expired 2024 hold value, and no next refresh. The
+install gate must therefore stop unless the store metadata still matches both
+frozen revisions. It then installs exactly core24 revision 2124 followed by
+Certbot revision 5893; no global `snap refresh`, apt operation, OS upgrade or
+additional snap is permitted. After installation it must read back the two
+versions/revisions, tracking channel, publisher, installed dependency set,
+`snap.certbot.renew.timer` and service state, and Snap refresh next-run state.
+Unexpected dependencies, a disabled/missing renewal timer, or no scheduled Snap
+refresh is HOLD for classification rather than permission to repair global
+Snap policy.
+
+The certificate request requires `<HUMAN_APPROVED_ACME_EMAIL>`, acceptance of
+the then-current Let's Encrypt Subscriber Agreement (v1.8 was current in the
+2026-09-16 repository snapshot), `<HUMAN_APPROVED_EXECUTION_WINDOW>`, and
+`<HUMAN_APPROVED_MAINTAINER>`. The command is non-interactive, requests only
+`ipa.jingyun.bj.cn`, uses the reviewed webroot, fixes the cert name to that
+hostname and passes the reviewed versioned
+`p1b-certbot-deploy-hook.sh` with `--deploy-hook`. That hook returns without a
+reload for every other lineage. For this lineage it additionally requires the
+reviewed active-site symlink and exact final-site SHA-256 before bounded
+`nginx -t` and a shared reload. The bootstrap site's different hash means the
+initial issuance does not reload Nginx; only the separately authorized final
+activation does. No file is added to the global renewal-hook directories and no
+second scheduler is created.
+
+The exact installation and issuance command block remains CANDIDATE - DO NOT
+APPLY until #282 records the final artifact hashes, private trial owner input,
+window/maintainer values and Human approval:
+
+```bash
+# P1B_SNAP_INSTALL_GATE_BEGIN
+set -euo pipefail
+core_info=$(/usr/bin/timeout 20s /usr/bin/snap info core24)
+certbot_info=$(/usr/bin/timeout 20s /usr/bin/snap info certbot)
+core_revision=$(printf '%s\n' "$core_info" | sed -n 's/^  latest\/stable:.*(\([0-9][0-9]*\)).*$/\1/p')
+certbot_revision=$(printf '%s\n' "$certbot_info" | sed -n 's/^  latest\/stable:.*(\([0-9][0-9]*\)).*$/\1/p')
+test "$core_revision" = 2124
+test "$certbot_revision" = 5893
+sudo -n /usr/bin/timeout 120s /usr/bin/snap install core24 --revision=2124
+sudo -n /usr/bin/timeout 120s /usr/bin/snap install certbot --classic --revision=5893
+snap_inventory=$(/usr/bin/timeout 5s /usr/bin/snap list --all)
+installed=$(printf '%s\n' "$snap_inventory" | /usr/bin/awk 'NR > 1 {print $1 ":" $3}' | /usr/bin/sort)
+test "$installed" = 'certbot:5893
+core24:2124'
+timer_load=$(/usr/bin/timeout 5s /usr/bin/systemctl show snap.certbot.renew.timer -p LoadState --value)
+timer_active=$(/usr/bin/timeout 5s /usr/bin/systemctl show snap.certbot.renew.timer -p ActiveState --value)
+timer_sub=$(/usr/bin/timeout 5s /usr/bin/systemctl show snap.certbot.renew.timer -p SubState --value)
+timer_unit_file=$(/usr/bin/timeout 5s /usr/bin/systemctl show snap.certbot.renew.timer -p UnitFileState --value)
+service_load=$(/usr/bin/timeout 5s /usr/bin/systemctl show snap.certbot.renew.service -p LoadState --value)
+test "$timer_load" = loaded
+test "$timer_active" = active
+test "$timer_sub" = waiting
+test "$timer_unit_file" = enabled
+test "$service_load" = loaded
+refresh_state=$(/usr/bin/timeout 5s /usr/bin/snap refresh --time)
+printf '%s\n' "$refresh_state"
+printf '%s\n' "$refresh_state" | /usr/bin/grep -Eq '^next: .+'
+if printf '%s\n' "$refresh_state" | /usr/bin/grep -Eq '^next: n/a$'; then
+  exit 1
+fi
+
+sudo -n /usr/bin/timeout 180s /snap/bin/certbot certonly \
+  --non-interactive --agree-tos --no-eff-email \
+  --email '<HUMAN_APPROVED_ACME_EMAIL>' \
+  --cert-name ipa.jingyun.bj.cn -d ipa.jingyun.bj.cn \
+  --webroot -w /var/lib/tiny-ipa/acme-webroot \
+  --deploy-hook '/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1b-certbot-deploy-hook.sh'
+# P1B_SNAP_INSTALL_GATE_END
+```
+
 A separate coordinator-side public probe records the authoritative DNS answer,
 TCP 80/443 reachability and certificate hostname/issuer/time metadata without
 sending credentials, following redirects or recording response bodies. A
@@ -1743,7 +1834,9 @@ global HSTS/cookie policy, or touches XueTuZhiBan routes/upstreams/certificates.
 For the no-existing-certificate fallback, the HTTP-only bootstrap candidate is
 validated and reloaded first. The final HTTPS candidate is validated and
 reloaded only after certificate issuance. These are two separately reviewed,
-bounded Nginx reloads; neither may alter a shared/default server.
+bounded Nginx reloads. The bootstrap does not alter a shared/default server;
+the final candidate adds the reviewed IPv4 443 handshake-rejection default and
+the exact-host Tiny IPA server while leaving default HTTP and IPv6 unchanged.
 
 ### Conditional apply and acceptance order
 

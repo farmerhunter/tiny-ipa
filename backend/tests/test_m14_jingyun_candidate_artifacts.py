@@ -31,6 +31,7 @@ BACKUP_PLAN = ROOT / "docs" / "16-m14-jingyun-production-backup-restore-plan.md"
 P1B_MANIFEST = CANDIDATE_DIR / "p1b-content-audio.manifest.json"
 P1B_ASSET_VERIFIER = CANDIDATE_DIR / "verify-p1b-assets.py"
 P1B_DISCOVERY = CANDIDATE_DIR / "p1b-readonly-discovery.sh"
+P1B_CERTBOT_DEPLOY_HOOK = CANDIDATE_DIR / "p1b-certbot-deploy-hook.sh"
 
 REQUIRED_FILES = (
     CANDIDATE_DIR / "CANDIDATE-README.md",
@@ -42,6 +43,7 @@ REQUIRED_FILES = (
     P1B_MANIFEST,
     P1B_ASSET_VERIFIER,
     P1B_DISCOVERY,
+    P1B_CERTBOT_DEPLOY_HOOK,
     DEPLOYMENT_PLAN,
     BACKUP_PLAN,
 )
@@ -703,7 +705,7 @@ def _assert_bundle_text(combined: str) -> None:
 
     assert "CANDIDATE - DO NOT APPLY" in combined, "candidate safety marker missing"
     assert "TINY_IPA_AUDIO_ROOT" not in combined, "unsupported audio variable present"
-    assert "default_server" not in combined, "unsafe default Nginx ownership present"
+    assert "listen 80 default_server" not in combined, "unsafe default HTTP ownership present"
 
     for pattern in FORBIDDEN_SECRET_PATTERNS:
         assert pattern not in combined, f"secret-like material present: {pattern}"
@@ -1512,10 +1514,103 @@ def test_m14_jingyun_nginx_candidate_owns_only_subdomain_and_expected_routes() -
     assert "alias /var/lib/tiny-ipa/audio/;" in nginx
     assert "try_files $uri $uri/ /index.html;" in nginx
     assert "listen 80;" in nginx
-    assert "default_server" not in nginx
+    assert nginx.count("listen 443 ssl default_server;") == 1
+    assert nginx.count("ssl_reject_handshake on;") == 1
+    assert "listen 80 default_server" not in nginx
 
     for forbidden in FORBIDDEN_CONFIG_REFERENCES:
         assert forbidden not in nginx
+
+
+def test_m14_p1b_certbot_hook_is_lineage_scoped_and_fail_closed() -> None:
+    hook = _text(P1B_CERTBOT_DEPLOY_HOOK)
+
+    assert "expected_lineage=/etc/letsencrypt/live/ipa.jingyun.bj.cn" in hook
+    assert 'if test "${RENEWED_LINEAGE:-}" != "$expected_lineage"' in hook
+    assert "test -L \"$active_site\"" in hook
+    assert 'test "$(/usr/bin/readlink -f -- "$active_site")" = "$expected_site"' in hook
+    expected_hash = hashlib.sha256(NGINX.read_bytes()).hexdigest()
+    bootstrap_hash = hashlib.sha256(ACME_BOOTSTRAP.read_bytes()).hexdigest()
+    assert f"expected_site_sha256={expected_hash}" in hook
+    assert f"bootstrap_site_sha256={bootstrap_hash}" in hook
+    assert "/usr/bin/sha256sum -- \"$expected_site\"" in hook
+    assert 'if test "$actual_site_sha256" = "$bootstrap_site_sha256"' in hook
+    assert 'test "$actual_site_sha256" = "$expected_site_sha256"' in hook
+    assert "/usr/bin/timeout 15s /usr/sbin/nginx -t" in hook
+    assert "/usr/bin/timeout 20s /usr/bin/systemctl reload nginx.service" in hook
+    assert "renew --force-renewal" not in hook
+
+
+def test_m14_p1b_certbot_hook_executes_only_for_final_exact_site(tmp_path: Path) -> None:
+    expected_site = tmp_path / "ipa.jingyun.bj.cn"
+    active_site = tmp_path / "enabled"
+    active_site.symlink_to(expected_site)
+    hook_log = tmp_path / "reload.log"
+    fake_timeout = tmp_path / "timeout"
+    fake_nginx = tmp_path / "nginx"
+    fake_systemctl = tmp_path / "systemctl"
+    _fake_command(fake_timeout.parent, fake_timeout.name, 'shift\n"$@"')
+    _fake_command(fake_nginx.parent, fake_nginx.name, 'exit "${FAKE_NGINX_RC:-0}"')
+    _fake_command(
+        fake_systemctl.parent,
+        fake_systemctl.name,
+        'printf "%s\\n" "$*" >> "$HOOK_LOG"',
+    )
+    script = _text(P1B_CERTBOT_DEPLOY_HOOK)
+    script = script.replace(
+        "expected_lineage=/etc/letsencrypt/live/ipa.jingyun.bj.cn",
+        f"expected_lineage={tmp_path}/lineage",
+    )
+    script = script.replace(
+        "active_site=/etc/nginx/sites-enabled/ipa.jingyun.bj.cn",
+        f"active_site={active_site}",
+    )
+    script = script.replace(
+        "expected_site=/etc/nginx/sites-available/ipa.jingyun.bj.cn",
+        f"expected_site={expected_site}",
+    )
+    script = script.replace("/usr/bin/timeout", str(fake_timeout))
+    script = script.replace("/usr/sbin/nginx", str(fake_nginx))
+    script = script.replace("/usr/bin/systemctl", str(fake_systemctl))
+    script = script.replace("/usr/bin/sha256sum", "/usr/bin/shasum -a 256")
+    staged_hook = tmp_path / "hook.sh"
+    staged_hook.write_text(script, encoding="utf-8")
+
+    def run(lineage: str, site_bytes: bytes, nginx_rc: str = "0") -> subprocess.CompletedProcess[str]:
+        expected_site.write_bytes(site_bytes)
+        hook_log.unlink(missing_ok=True)
+        return subprocess.run(
+            ["/bin/sh", str(staged_hook)],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={
+                **os.environ,
+                "RENEWED_LINEAGE": lineage,
+                "HOOK_LOG": str(hook_log),
+                "FAKE_NGINX_RC": nginx_rc,
+            },
+        )
+
+    result = run(str(tmp_path / "other-lineage"), NGINX.read_bytes())
+    assert result.returncode == 0
+    assert not hook_log.exists()
+
+    result = run(str(tmp_path / "lineage"), ACME_BOOTSTRAP.read_bytes())
+    assert result.returncode == 0
+    assert not hook_log.exists()
+
+    result = run(str(tmp_path / "lineage"), NGINX.read_bytes())
+    assert result.returncode == 0
+    assert hook_log.read_text(encoding="utf-8").strip() == "reload nginx.service"
+
+    result = run(str(tmp_path / "lineage"), b"drift\n")
+    assert result.returncode != 0
+    assert not hook_log.exists()
+
+    result = run(str(tmp_path / "lineage"), NGINX.read_bytes(), nginx_rc="1")
+    assert result.returncode != 0
+    assert not hook_log.exists()
 
 
 def test_m14_jingyun_env_example_is_non_secret_and_matches_runtime_contract() -> None:

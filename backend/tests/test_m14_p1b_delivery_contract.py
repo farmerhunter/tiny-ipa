@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -159,6 +160,7 @@ def test_p1b_checked_in_manifest_binds_approved_audio_package() -> None:
 def test_p1b_manifest_binds_current_content_and_required_audio_urls() -> None:
     value = json.loads(MANIFEST.read_text(encoding="utf-8"))
     content = value["content"]
+    assert content["import_content_level"] == "auto"
     assert _sha256(ROOT / content["path"]) == content["sha256"]
     assert _sha256(ROOT / content["phonemes_path"]) == content["phonemes_sha256"]
     words = json.loads((ROOT / content["path"]).read_text(encoding="utf-8"))["words"]
@@ -254,7 +256,10 @@ def test_p1b_nginx_candidate_is_scoped_and_requires_test_before_reload() -> None
     assert "proxy_pass http://127.0.0.1:18110/api/auth/login;" in nginx
     assert "alias /var/lib/tiny-ipa/audio/;" in nginx
     assert "disable_symlinks on from=/var/lib/tiny-ipa/audio;" in nginx
-    assert "default_server" not in nginx
+    assert nginx.count("listen 443 ssl default_server;") == 1
+    assert nginx.count("ssl_reject_handshake on;") == 1
+    assert "listen 80 default_server" not in nginx
+    assert "listen [::]:443" not in nginx
     assert "xuetuzhiban" not in nginx.lower()
 
     readme = README.read_text(encoding="utf-8")
@@ -276,6 +281,91 @@ def test_p1b_acme_bootstrap_allows_first_certificate_without_tls_dependency() ->
     assert "return 308" not in bootstrap
     assert "default_server" not in bootstrap
     assert "xuetuzhiban" not in bootstrap.lower()
+
+
+@pytest.mark.parametrize(
+    ("environment", "expected_success"),
+    [
+        ({}, True),
+        ({"FAKE_INFO_FAIL": "core24"}, False),
+        ({"FAKE_TIMER_UNIT_FILE": "disabled"}, False),
+        ({"FAKE_REFRESH_NEXT": "n/a"}, False),
+    ],
+)
+def test_p1b_snap_install_gate_stops_before_issuance(
+    tmp_path: Path, environment: dict[str, str], expected_success: bool
+) -> None:
+    plan = DEPLOYMENT_PLAN.read_text(encoding="utf-8")
+    script = plan.split("# P1B_SNAP_INSTALL_GATE_BEGIN", 1)[1].split(
+        "# P1B_SNAP_INSTALL_GATE_END", 1
+    )[0]
+    fake_timeout = _fake_discovery_command(tmp_path, "timeout", 'shift\nexec "$@"')
+    fake_snap = _fake_discovery_command(
+        tmp_path,
+        "snap",
+        """
+case "$1" in
+  info)
+    if test "$2" = core24; then
+      printf '  latest/stable: 20260824 2026-09-10 (2124) 70MB -\\n'
+    else
+      printf '  latest/stable: 5.8.0 2026-09-01 (5893) 75MB classic\\n'
+    fi
+    test "${FAKE_INFO_FAIL:-}" != "$2"
+    ;;
+  install) exit 0 ;;
+  list)
+    printf 'Name Version Rev Tracking Publisher Notes\\n'
+    printf 'core24 20260824 2124 latest/stable canonical** base\\n'
+    printf 'certbot 5.8.0 5893 latest/stable certbot-eff** classic\\n'
+    ;;
+  refresh)
+    printf 'timer: 00:00~24:00/4\\nnext: %s\\n' "${FAKE_REFRESH_NEXT:-tomorrow}"
+    ;;
+  *) exit 90 ;;
+esac
+""",
+    )
+    fake_systemctl = _fake_discovery_command(
+        tmp_path,
+        "systemctl",
+        """
+property=
+while test "$#" -gt 0; do
+  if test "$1" = -p; then property=$2; shift 2; else shift; fi
+done
+case "$property" in
+  LoadState) printf 'loaded\\n' ;;
+  ActiveState) printf 'active\\n' ;;
+  SubState) printf 'waiting\\n' ;;
+  UnitFileState) printf '%s\\n' "${FAKE_TIMER_UNIT_FILE:-enabled}" ;;
+  *) exit 91 ;;
+esac
+""",
+    )
+    issuance = tmp_path / "issuance"
+    fake_certbot = _fake_discovery_command(
+        tmp_path,
+        "certbot",
+        'printf issued > "$FAKE_ISSUANCE_SENTINEL"',
+    )
+    script = script.replace("sudo -n ", "")
+    script = script.replace("/usr/bin/timeout", str(fake_timeout))
+    script = script.replace("/usr/bin/snap", str(fake_snap))
+    script = script.replace("/usr/bin/systemctl", str(fake_systemctl))
+    script = script.replace("/snap/bin/certbot", str(fake_certbot))
+    script = script.replace("<HUMAN_APPROVED_ACME_EMAIL>", "owner@example.test")
+    script = script.replace("<APPROVED_TOOL_REVISION>", "test-revision")
+    result = subprocess.run(
+        ["/bin/bash", "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**os.environ, **environment, "FAKE_ISSUANCE_SENTINEL": str(issuance)},
+    )
+
+    assert (result.returncode == 0) is expected_success, result.stderr
+    assert issuance.exists() is expected_success
 
 
 def test_p1b_readonly_discovery_reports_success_only_after_all_queries(tmp_path: Path) -> None:
