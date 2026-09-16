@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence, Set
@@ -51,7 +52,9 @@ def select_daily_words(
 ) -> List[Word]:
     """Select ``daily_word_count`` usable words for today's practice.
 
-    Usable = accent IPA is present and content_status is not 'disabled'.
+    Usable = accent IPA is present and content_status is not ``disabled``.
+    When ``TINY_IPA_REQUIRE_PACKAGED_AUDIO=true``, the selected accent must
+    also have a packaged audio URL.
 
     Args:
         conn: Database connection.
@@ -72,13 +75,23 @@ def select_daily_words(
 
     accent = accent.upper()
     ipa_field = "ipa_us" if accent.upper() == "US" else "ipa_uk"
+    audio_field = "audio_us" if accent.upper() == "US" else "audio_uk"
     tag_field = "phoneme_tags_us" if accent.upper() == "US" else "phoneme_tags_uk"
     word_level = _LEARNER_LEVEL_TO_WORD_LEVEL.get(learner_level, "beginner")
+    audio_policy = os.getenv("TINY_IPA_REQUIRE_PACKAGED_AUDIO", "false").strip().lower()
+    if audio_policy not in {"true", "false"}:
+        raise ValueError("TINY_IPA_REQUIRE_PACKAGED_AUDIO must be true or false")
+    audio_predicate = (
+        f"AND {audio_field} IS NOT NULL AND {audio_field} != ''"
+        if audio_policy == "true"
+        else ""
+    )
     rows = conn.execute(
         f"""
         SELECT id, {tag_field} AS phoneme_tags
         FROM words
         WHERE {ipa_field} IS NOT NULL AND {ipa_field} != ''
+          {audio_predicate}
           AND content_status != 'disabled'
           AND level = ?
         """,

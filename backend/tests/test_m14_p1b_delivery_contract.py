@@ -166,8 +166,10 @@ def test_p1b_manifest_binds_current_content_and_required_audio_urls() -> None:
     words = json.loads((ROOT / content["path"]).read_text(encoding="utf-8"))["words"]
     by_id = {word["word_id"]: word for word in words}
     assert len(words) == content["word_count"] == 100
-    for word_id in value["audio"]["required_word_ids"]:
-        assert by_id[word_id]["audio_us"] == f"/audio/us/{word_id}.mp3"
+    required = set(value["audio"]["required_word_ids"])
+    for word_id, word in by_id.items():
+        expected = f"/audio/us/{word_id}.mp3" if word_id in required else None
+        assert word["audio_us"] == expected
 
 
 def test_p1b_asset_verifier_accepts_complete_licensed_asset_package(tmp_path: Path) -> None:
@@ -179,6 +181,34 @@ def test_p1b_asset_verifier_accepts_complete_licensed_asset_package(tmp_path: Pa
     assert payload["word_count"] == 100
     assert payload["audio_count"] == 10
     assert payload["audio_bytes"] > 0
+
+
+def test_p1b_asset_verifier_rejects_unbound_non_null_audio_url(tmp_path: Path) -> None:
+    manifest, audio_root = _ready_manifest(tmp_path)
+    repo_root = tmp_path / "repo"
+    content_root = repo_root / "content"
+    content_root.mkdir(parents=True)
+    content_path = content_root / "core_100_words.json"
+    phonemes_path = content_root / "phonemes.json"
+    content = json.loads((ROOT / "content/core_100_words.json").read_text(encoding="utf-8"))
+    unbound = next(
+        word for word in content["words"]
+        if word["word_id"] not in json.loads(manifest.read_text())["audio"]["required_word_ids"]
+    )
+    unbound["audio_us"] = f"/audio/us/{unbound['word_id']}.mp3"
+    content_path.write_text(json.dumps(content), encoding="utf-8")
+    phonemes_path.write_bytes((ROOT / "content/phonemes.json").read_bytes())
+    value = json.loads(manifest.read_text(encoding="utf-8"))
+    value["content"]["sha256"] = _sha256(content_path)
+    manifest.write_text(json.dumps(value), encoding="utf-8")
+
+    result = _run(manifest, audio_root, repo_root)
+
+    assert result.returncode == 2
+    assert json.loads(result.stdout) == {
+        "reason": "content audio availability exceeds manifest",
+        "status": "blocked",
+    }
 
 
 @pytest.mark.parametrize(

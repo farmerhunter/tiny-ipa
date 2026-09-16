@@ -295,7 +295,7 @@ def upsert_word(conn: sqlite3.Connection, word_data: dict) -> str:
 
     conn.execute(
         """
-        INSERT OR REPLACE INTO words (
+        INSERT INTO words (
             id, word, level, ipa_us, ipa_uk,
             phoneme_tags_us, phoneme_tags_uk,
             meaning_zh, audio_us, audio_uk,
@@ -306,6 +306,19 @@ def upsert_word(conn: sqlite3.Connection, word_data: dict) -> str:
             :meaning_zh, :audio_us, :audio_uk,
             :difficulty_tags, :minimal_pair_group, :content_status
         )
+        ON CONFLICT(id) DO UPDATE SET
+            word = excluded.word,
+            level = excluded.level,
+            ipa_us = excluded.ipa_us,
+            ipa_uk = excluded.ipa_uk,
+            phoneme_tags_us = excluded.phoneme_tags_us,
+            phoneme_tags_uk = excluded.phoneme_tags_uk,
+            meaning_zh = excluded.meaning_zh,
+            audio_us = excluded.audio_us,
+            audio_uk = excluded.audio_uk,
+            difficulty_tags = excluded.difficulty_tags,
+            minimal_pair_group = excluded.minimal_pair_group,
+            content_status = excluded.content_status
         """,
         values,
     )

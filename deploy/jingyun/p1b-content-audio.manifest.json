@@ -8,7 +8,7 @@
   },
   "content": {
     "path": "content/core_100_words.json",
-    "sha256": "c5a7a41803d7f6836290d922ce7d9b5ebfa7bdaee9629dee4d7cae34fdb55d07",
+    "sha256": "bb276f0c8b76ebe350bc70fc981d337434967abf606716e8f99d001b307541b8",
     "phonemes_path": "content/phonemes.json",
     "phonemes_sha256": "612ea118bbfafaf0b8addd156376e8658b67d0a553f1c1b454ba29cc20340779",
     "word_count": 100,

@@ -43,13 +43,15 @@ def _insert_word(
     status: str = "core_selected",
     ipa: Optional[str] = None,
     level: str = "beginner",
+    audio_us: Optional[str] = "auto",
+    audio_uk: Optional[str] = "auto",
 ) -> None:
     conn.execute(
         """
         INSERT INTO words (
             id, word, level, ipa_us, ipa_uk, phoneme_tags_us, phoneme_tags_uk,
-            content_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            audio_us, audio_uk, content_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             word_id,
@@ -59,6 +61,8 @@ def _insert_word(
             ipa or f"/{word_id}/",
             _json(tags),
             _json(tags),
+            f"/audio/us/{word_id}.mp3" if audio_us == "auto" else audio_us,
+            f"/audio/uk/{word_id}.mp3" if audio_uk == "auto" else audio_uk,
             status,
         ),
     )
@@ -140,6 +144,37 @@ def test_disabled_words_are_never_selected(conn):
     selected = select_daily_words(conn, daily_word_count=2, seed=7)
 
     assert _ids(selected) == ["active"]
+
+
+def test_words_without_packaged_audio_are_never_selected(conn, monkeypatch):
+    monkeypatch.setenv("TINY_IPA_REQUIRE_PACKAGED_AUDIO", "true")
+    _insert_word(conn, "missing_audio", ["/weak/"], audio_us=None)
+    _insert_word(conn, "packaged", ["/other/"])
+    _insert_stat(conn, "/weak/", attempts=8, correct=0, mastery="weak")
+
+    selected = select_daily_words(conn, daily_word_count=2, seed=7)
+
+    assert _ids(selected) == ["packaged"]
+
+
+def test_audio_availability_is_accent_specific(conn, monkeypatch):
+    monkeypatch.setenv("TINY_IPA_REQUIRE_PACKAGED_AUDIO", "true")
+    _insert_word(conn, "us_only", ["/u/"], audio_uk=None)
+    _insert_word(conn, "uk_only", ["/k/"], audio_us=None)
+
+    us = select_daily_words(conn, daily_word_count=2, seed=7, accent="US")
+    uk = select_daily_words(conn, daily_word_count=2, seed=7, accent="UK")
+
+    assert _ids(us) == ["us_only"]
+    assert _ids(uk) == ["uk_only"]
+
+
+def test_invalid_packaged_audio_policy_fails_closed(conn, monkeypatch):
+    _insert_word(conn, "packaged", ["/p/"])
+    monkeypatch.setenv("TINY_IPA_REQUIRE_PACKAGED_AUDIO", "sometimes")
+
+    with pytest.raises(ValueError, match="must be true or false"):
+        select_daily_words(conn, daily_word_count=1, seed=7)
 
 
 def test_learner_level_filters_entry_and_mid_pools(conn):

@@ -72,6 +72,12 @@ each deployed audio byte size and SHA-256. `verify-p1b-assets.py` proves package
 not pronunciation or playback. Those remain part of the HTTPS phone
 walkthrough. Browser TTS and paid generation are not accepted substitutes.
 
+The manifest is also the runtime availability allowlist for the controlled
+trial. Only those ten Core 100 rows keep a non-null `audio_us`; every other Core
+100 row uses `null`. Normal practice scheduling requires packaged audio for the
+selected accent, so the P1b trial cannot emit a URL outside the deployed
+manifest.
+
 P1a instead fixes `tiny-ipa:tiny-ipa` and `/etc/tiny-ipa/tiny-ipa.env`; its
 exact accepted release ID, commit, artifact digest, trial operator, and bounded
 withdrawal are materialized in #282 before the host-action decision.

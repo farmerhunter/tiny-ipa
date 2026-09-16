@@ -79,6 +79,8 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
     if not isinstance(words, list) or len(words) != content.get("word_count"):
         raise VerificationError("content word count mismatch")
     words_by_id = {item.get("word_id"): item for item in words if isinstance(item, dict)}
+    if len(words_by_id) != len(words):
+        raise VerificationError("content word ids are missing or duplicated")
 
     audio = value.get("audio")
     if not isinstance(audio, dict) or audio.get("host_root") != "/var/lib/tiny-ipa/audio":
@@ -89,6 +91,12 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
         raise VerificationError("required word ids invalid")
     if not isinstance(assets, list) or len(assets) != len(required):
         raise VerificationError("audio coverage incomplete")
+
+    required_set = set(required)
+    for word_id, word in words_by_id.items():
+        expected_audio = f"/audio/us/{word_id}.mp3" if word_id in required_set else None
+        if word.get("audio_us") != expected_audio:
+            raise VerificationError("content audio availability exceeds manifest")
 
     credits = audio.get("credits")
     if not isinstance(credits, dict) or set(credits) != {"path", "public_url", "sha256"}:
@@ -126,7 +134,7 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
             raise VerificationError("audio checksum mismatch")
         seen.add(word_id)
         total_bytes += size
-    if seen != set(required):
+    if seen != required_set:
         raise VerificationError("audio coverage incomplete")
 
     return {
