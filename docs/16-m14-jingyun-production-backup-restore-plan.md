@@ -153,8 +153,14 @@ grant write access to the database, WAL, restore directory, or state root. If
 the SHM file is absent, is not writable, has an unexpected type, or does not
 have the same owner and group as the database when the backup entrypoint opens
 it, the unit fails instead of creating it or treating the run as successful.
-This means an idle database without an SHM file is a known P1a availability
-limitation.
+The controlled Jingyun runtime sets `TINY_IPA_KEEP_WAL_ANCHOR=true`: application
+startup opens the existing database in WAL mode, completes one read, and keeps
+that otherwise idle connection until process shutdown without holding a
+transaction. This lets SQLite own the SHM lifecycle while the backup unit keeps
+the source and state root read-only and grants write access only to the exact
+existing SHM file. Missing or invalid SHM remains a backup failure; operators
+must not create it with `touch`, manufacture it through HTTP traffic, or widen
+the state root's write boundary.
 
 The backup script is installed separately from the immutable application
 release at `/opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py`. The
