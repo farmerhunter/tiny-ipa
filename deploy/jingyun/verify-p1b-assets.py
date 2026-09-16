@@ -88,6 +88,15 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
     if not isinstance(assets, list) or len(assets) != len(required):
         raise VerificationError("audio coverage incomplete")
 
+    credits = audio.get("credits")
+    if not isinstance(credits, dict) or set(credits) != {"path", "public_url", "sha256"}:
+        raise VerificationError("audio credits binding missing")
+    if credits["path"] != "ATTRIBUTION.md" or credits["public_url"] != "/audio/ATTRIBUTION.md":
+        raise VerificationError("audio credits path mismatch")
+    credits_path = _regular_under(audio_root, credits["path"])
+    if _sha256(credits_path) != credits["sha256"]:
+        raise VerificationError("audio credits checksum mismatch")
+
     seen: set[str] = set()
     total_bytes = 0
     for asset in assets:
@@ -123,6 +132,7 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
         "word_count": len(words),
         "audio_count": len(assets),
         "audio_bytes": total_bytes,
+        "credits_sha256": credits["sha256"],
         "content_sha256": content["sha256"],
         "phonemes_sha256": content["phonemes_sha256"],
     }

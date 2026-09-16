@@ -48,8 +48,10 @@ Other full-public bindings that remain unresolved after P1a:
 `p1b-content-audio.manifest.json` binds the accepted Core 100 and phoneme
 inputs and now has status `ready`. The ten approved trial MP3s are checked in
 under `audio/us/`; `audio/ATTRIBUTION.md` records their public author, source,
-license and conversion disclosure, while the manifest binds the deployed byte
-size and SHA-256 for each word. `verify-p1b-assets.py` proves package integrity,
+license and conversion disclosure. The operator copies that file beside `us/`
+to `/var/lib/tiny-ipa/audio/ATTRIBUTION.md`, where Nginx exposes the public
+credits at `/audio/ATTRIBUTION.md`. The manifest binds the credits checksum and
+each deployed audio byte size and SHA-256. `verify-p1b-assets.py` proves package integrity,
 not pronunciation or playback. Those remain part of the HTTPS phone
 walkthrough. Browser TTS and paid generation are not accepted substitutes.
 

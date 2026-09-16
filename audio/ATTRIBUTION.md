@@ -1,8 +1,9 @@
 # Tiny IPA US Trial Audio Credits
 
 The files in `audio/us/` are pronunciation recordings sourced from Wikimedia
-Commons and transcoded from Ogg or WAV to MP3 for Tiny IPA on 2026-09-16.
-No other audio edits were made.
+Commons and transcoded from Ogg or WAV to MP3 with metadata removed for Tiny IPA
+on 2026-09-16. No other audio edits were made. This file is shipped beside the
+audio as `/audio/ATTRIBUTION.md` in the public trial package.
 
 The CC BY-SA derivatives below remain licensed under
 [Creative Commons Attribution-ShareAlike 3.0 Unported](https://creativecommons.org/licenses/by-sa/3.0/).

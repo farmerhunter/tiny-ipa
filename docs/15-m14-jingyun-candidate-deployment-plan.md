@@ -1678,7 +1678,9 @@ real-host decision and receipt.
 The checked-in `p1b-content-audio.manifest.json` is a hard gate. It now binds a
 Human-approved `ready` package with one source, license, size and SHA-256 entry
 for each required trial word; public credits and conversion disclosure live in
-`audio/ATTRIBUTION.md`. Before host apply, a Reviewer must accept the exact
+`audio/ATTRIBUTION.md`. The operator copies that file to
+`/var/lib/tiny-ipa/audio/ATTRIBUTION.md`, and the manifest binds its SHA-256 and
+public `/audio/ATTRIBUTION.md` URL. Before host apply, a Reviewer must accept the exact
 manifest and asset bytes. `verify-p1b-assets.py` must return
 `status=manifest_integrity_verified` against the frozen repo and audio roots.
 This proves package paths, containment, non-empty bounded size, checksums and
@@ -1748,12 +1750,14 @@ bounded Nginx reloads; neither may alter a shared/default server.
 One later Human decision may cover this already frozen sequence:
 
 1. Revalidate discovery identities, P1a app/tool/state and the protected route
-   matrix. Stage frontend, manifest, verifier and approved audio under private
+   matrix. Stage frontend, manifest, verifier, approved audio and
+   `audio/ATTRIBUTION.md` under private
    collision-refusing paths.
 2. Verify content/audio bytes offline. Import the bound public Core 100 into the
    existing trial DB, then use private stdin to create exactly one trial owner.
    Never print the password, cookie, private rows or password/session hashes.
-3. Materialize only the Tiny IPA ACME webroot, frontend release and audio files.
+3. Materialize only the Tiny IPA ACME webroot, frontend release, audio files and
+   the manifest-bound credits at `/var/lib/tiny-ipa/audio/ATTRIBUTION.md`.
    When discovery proves no existing certificate or supported ACME owner,
    collision-refuse the Tiny IPA binding, install the HTTP-only bootstrap
    candidate, require candidate-content equality and `nginx -t`, then perform

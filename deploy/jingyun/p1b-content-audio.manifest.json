@@ -23,7 +23,7 @@
         "sha256": "887bac302eeae7ace3c726f1a960eca8f9a404feee7d69a6e66aee02126e8dcd",
         "bytes": 14155,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-bed.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "cat",
@@ -31,7 +31,7 @@
         "sha256": "cca1bf9b4221981554a4c23ce3068f13b5cf42e7981851f6ab462add90122fd7",
         "bytes": 7427,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-cat.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "cup",
@@ -39,7 +39,7 @@
         "sha256": "fe30255613dd565f01a69bb732cee35f4020df6a837b11afdb2e1908971411d7",
         "bytes": 15120,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-cup.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "fish",
@@ -47,7 +47,7 @@
         "sha256": "6df283c686f8e05d32d98e44d990b75799c54c8189f0d8a4355262bcf98c37dc",
         "bytes": 10034,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-fish.ogg; author=Dvortygirl",
-        "license": "Public Domain; https://creativecommons.org/publicdomain/mark/1.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "PD-self release by Dvortygirl at https://commons.wikimedia.org/wiki/File:En-us-fish.ogg; Ogg transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "food",
@@ -55,7 +55,7 @@
         "sha256": "ff1cb937fefdddad073f24961af0dbb30a16387053ae64d2de2fbb7e696e2e67",
         "bytes": 17013,
         "source": "https://commons.wikimedia.org/wiki/File:En_US_Food.wav; author=SalomeCzapiewski",
-        "license": "CC0 1.0; https://creativecommons.org/publicdomain/zero/1.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC0 1.0; https://creativecommons.org/publicdomain/zero/1.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "ship",
@@ -63,7 +63,7 @@
         "sha256": "9e553b3035d977c4a0bed3440c5ecb0e3bb6fc80c518272039df9218e25bc2a4",
         "bytes": 13401,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-ship.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "sun",
@@ -71,7 +71,7 @@
         "sha256": "cfbae134d5d1f8b25d97b6c275f28023459ca2bc70b6bffc2c4492c23f4caa3a",
         "bytes": 13894,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-Sun.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "think",
@@ -79,7 +79,7 @@
         "sha256": "b9cee7c6ae2148169faf1c26684e7d0bb228771f4f10ed390a1be883fdd1d11a",
         "bytes": 13189,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-think.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "three",
@@ -87,7 +87,7 @@
         "sha256": "77cc136a697b4fe956641aebe1831335dd4972b204d217c3a401bdcdd01086e4",
         "bytes": 12666,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-three.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       },
       {
         "word_id": "vision",
@@ -95,7 +95,7 @@
         "sha256": "596a88e0d44d05ff9b8b2a1c198aa7cf34377845da6fe67e58eb7bbc7e0920d7",
         "bytes": 12852,
         "source": "https://commons.wikimedia.org/wiki/File:En-us-vision.ogg; author=Dvortygirl",
-        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 for Tiny IPA on 2026-09-16"
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
       }
     ],
     "required_word_ids": [
@@ -110,8 +110,13 @@
       "three",
       "vision"
     ],
-    "source": "Wikimedia Commons per-file pages recorded in assets; source audio locally transcoded to MP3",
-    "license": "8 CC BY-SA 3.0, 1 Public Domain, 1 CC0 1.0; per-file terms and conversion recorded in assets"
+    "source": "Wikimedia Commons per-file pages recorded in assets; source audio locally transcoded to MP3 with metadata removed",
+    "license": "8 CC BY-SA 3.0, 1 PD-self, 1 CC0 1.0; per-file terms, provenance and conversion recorded in assets and credits",
+    "credits": {
+      "path": "ATTRIBUTION.md",
+      "public_url": "/audio/ATTRIBUTION.md",
+      "sha256": "b61910cde9266d60a3e54667c59c82ae4bd25be57d132f6d13d7bc96e960db4a"
+    }
   },
   "blocking_reasons": []
 }

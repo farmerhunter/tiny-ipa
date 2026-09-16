@@ -30,6 +30,8 @@ def _sha256(path: Path) -> str:
 def _ready_manifest(tmp_path: Path) -> tuple[Path, Path]:
     value = json.loads(MANIFEST.read_text(encoding="utf-8"))
     audio_root = tmp_path / "audio"
+    audio_root.mkdir()
+    (audio_root / "ATTRIBUTION.md").write_bytes(ATTRIBUTION.read_bytes())
     assets = []
     for word_id in value["audio"]["required_word_ids"]:
         relative = Path("us") / f"{word_id}.mp3"
@@ -135,6 +137,7 @@ def test_p1b_checked_in_manifest_binds_approved_audio_package() -> None:
         "word_count": 100,
         "audio_count": 10,
         "audio_bytes": 129751,
+        "credits_sha256": value["audio"]["credits"]["sha256"],
         "content_sha256": value["content"]["sha256"],
         "phonemes_sha256": value["content"]["phonemes_sha256"],
     }
@@ -147,6 +150,10 @@ def test_p1b_checked_in_manifest_binds_approved_audio_package() -> None:
     assert "CC0 1.0" in credits
     assert "Public Domain" in credits
     assert "transcoded from Ogg or WAV to MP3" in credits
+    assert "with metadata removed" in credits
+    assert value["audio"]["credits"]["path"] == "ATTRIBUTION.md"
+    assert value["audio"]["credits"]["public_url"] == "/audio/ATTRIBUTION.md"
+    assert _sha256(ATTRIBUTION) == value["audio"]["credits"]["sha256"]
 
 
 def test_p1b_manifest_binds_current_content_and_required_audio_urls() -> None:
@@ -254,6 +261,7 @@ def test_p1b_nginx_candidate_is_scoped_and_requires_test_before_reload() -> None
     assert "Host discovery, certificate issuance, installation, nginx -t, reload" in nginx
     assert "status `ready`" in readme
     assert "audio/ATTRIBUTION.md" in readme
+    assert "/audio/ATTRIBUTION.md" in readme
 
 
 def test_p1b_acme_bootstrap_allows_first_certificate_without_tls_dependency() -> None:
