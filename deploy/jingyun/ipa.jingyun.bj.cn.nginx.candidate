@@ -1,15 +1,32 @@
 # CANDIDATE - DO NOT APPLY.
-# Repository-only Nginx server-block candidate for Tiny IPA.
-# Do not write this to an enabled site, edit existing routes, run nginx -t, or
-# reload Nginx without a later Human-authorized host action.
-# TLS certificate ownership remains unresolved and Human-gated.
+# Repository-only Nginx candidate for the Tiny IPA P1b controlled trial.
+# Host discovery, certificate issuance, installation, nginx -t, reload and
+# withdrawal remain Human-gated in issue #282.
+
+limit_req_zone $binary_remote_addr zone=tiny_ipa_login:10m rate=6r/m;
+
+server {
+    listen 80;
+    server_name ipa.jingyun.bj.cn;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/lib/tiny-ipa/acme-webroot;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 308 https://ipa.jingyun.bj.cn$request_uri;
+    }
+}
 
 server {
     listen 443 ssl;
     server_name ipa.jingyun.bj.cn;
 
-    ssl_certificate <HUMAN_PROVIDED_TLS_CERTIFICATE_PATH_FOR_IPA_JINGYUN>;
-    ssl_certificate_key <HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>;
+    ssl_certificate /etc/letsencrypt/live/ipa.jingyun.bj.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ipa.jingyun.bj.cn/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
 
     root /var/www/tiny-ipa/current;
     index index.html;
@@ -29,6 +46,16 @@ server {
         add_header Cache-Control "no-store" always;
     }
 
+    location = /api/auth/login {
+        limit_req zone=tiny_ipa_login burst=5 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:18110/api/auth/login;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        add_header Cache-Control "no-store" always;
+    }
+
     location /api/ {
         proxy_pass http://127.0.0.1:18110/api/;
         proxy_set_header Host $host;
@@ -38,7 +65,10 @@ server {
 
     location ^~ /audio/ {
         alias /var/lib/tiny-ipa/audio/;
-        add_header Cache-Control "public, max-age=31536000";
+        autoindex off;
+        disable_symlinks if_not_owner from=/var/lib/tiny-ipa/audio;
+        limit_except GET HEAD { deny all; }
+        add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
     location / {

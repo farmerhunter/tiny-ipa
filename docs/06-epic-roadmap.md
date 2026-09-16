@@ -548,14 +548,16 @@ Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 Roadmap status:
 
 ```text
-Blocked at the Human-gated real-host readiness step. #276 through #281 are
-accepted on the M14 integration branch. #282 completed the local/disposable
-readiness review and the Human-authorized read-only inventory for
-`jingyun.bj.cn`; the host is shared with the higher-priority Xue Tu Zhi Ban
-application, so no staged deployment is released yet.
+P1a is accepted and merged to main. The Human-authorized bounded trial runs a
+synthetic Tiny IPA backend only on 127.0.0.1:18110, verified one backup oneshot
+and a separate restore, and left the timer active/waiting but disabled. This is
+private trial evidence, not a public or unattended production deployment.
 
-No real VPS, DNS, secret, deployment config, or private SQLite mutation is
-authorized without an explicit Human gate.
+P1b remains active under #282/#304. Public HTTPS/ACME, served frontend and
+licensed MP3 audio, a non-empty trial owner/practice/restore path, one natural
+scheduled backup occurrence, and an actual phone walkthrough are still open.
+No additional VPS, DNS, TLS, shared Nginx, credential, trial-data or private
+SQLite mutation is authorized without a concrete Human gate.
 ```
 
 Child issues:
@@ -567,7 +569,8 @@ Child issues:
 #279 [P2] Frontend build and reverse-proxy routing contract - Done
 #280 [P2] SQLite backup and restore dry-run verification - Done
 #281 [P3] Deployment smoke and rollback checklist - Done
-#282 [P4] VPS deployment readiness review and human deployment gate - active / blocked
+#282 [P4] VPS deployment readiness review and human deployment gate - active / P1b
+#304 [P1b] HTTPS phone trial and non-empty recovery package - active
 ```
 
 Dependency graph:

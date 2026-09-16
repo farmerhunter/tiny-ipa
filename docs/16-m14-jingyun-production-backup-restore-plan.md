@@ -179,3 +179,34 @@ matching owner, and `PRAGMA integrity_check=ok`. H2 must preserve that schema
 and all-zero table counts in the online backup and separate restore. No account,
 session, learner content, existing database migration, or provider call is part
 of this witness.
+
+## P1b non-empty trial and natural schedule gate
+
+P1b reuses the versioned P1a backup tool and narrow SHM permission. A manual
+oneshot against the earlier empty database is not P1b evidence. After the
+reviewed Core 100 import, one private-input trial owner and a completed phone
+practice flow, the source must contain non-zero, owner-consistent settings,
+session, daily session, session item and attempt/progress state.
+
+The P1b backup receipt records only release/tool IDs, snapshot ID, timestamp,
+SHA-256, byte size, schema fingerprint, table counts and owner-consistency
+booleans. The separate restore candidate must reproduce the content count and
+relationships among the one owner, settings, practice group/items, attempts and
+progress. It may use an isolated disposable application process for
+representative reads, but never changes the active DB pointer or emits row
+values, usernames, password hashes, cookies or session tokens.
+
+Natural scheduling is distinct from a manually started service. The acceptance
+receipt binds the timer's scheduled time, invocation ID and a newly created
+complete snapshot to one naturally elapsed occurrence. If the occurrence has
+not elapsed it remains `pending`. If it fails because the SQLite SHM file is
+absent after an idle/restarted app, the run is failed evidence and the package
+returns for the smallest reviewed fix; it must not widen write access to the
+whole state root or silently invoke the API to manufacture success.
+
+For the controlled public trial the API and timer remain disabled at boot and
+the timer remains `Persistent=false`. The operator records the next manual
+check and a named failure owner. Automatic pruning, missed-run catch-up,
+notification credentials and off-host copying remain forbidden until Human
+chooses concrete retention, notification and encrypted off-host policies. A
+maximum of seven complete snapshots and 100 MiB per set remains fail-closed.

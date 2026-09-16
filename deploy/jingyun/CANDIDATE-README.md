@@ -20,10 +20,14 @@ directory creation, environment-file writes, secret generation, database
 creation or mutation, systemd/Nginx/firewall/DNS/TLS changes, service reloads,
 backup, restore, rollback, or deployment.
 
-Full-public P1b placeholders that remain unresolved at the P1a gate:
+P1b uses the repository candidate certificate paths under
+`/etc/letsencrypt/live/ipa.jingyun.bj.cn/`. Host discovery must still confirm
+the existing ACME owner and scheduler before those paths are treated as real.
+The candidate prefers the existing supported manager; Certbot webroot is only
+the reviewed fallback when no manager exists.
 
-- `<HUMAN_PROVIDED_TLS_CERTIFICATE_PATH_FOR_IPA_JINGYUN>`
-- `<HUMAN_PROVIDED_TLS_KEY_PATH_FOR_IPA_JINGYUN>`
+Other full-public bindings that remain unresolved after P1a:
+
 - `<HUMAN_PROVISIONED_TINY_IPA_SESSION_SECRET>`
 - `<HUMAN_APPROVED_BACKUP_OWNER>`
 - `<HUMAN_APPROVED_BACKUP_RETENTION_POLICY>`
@@ -32,6 +36,13 @@ Full-public P1b placeholders that remain unresolved at the P1a gate:
 - `<INTENDED_GITHUB_COMMIT_SHA>`
 - `<OPTIONAL_SIGNED_OR_ANNOTATED_GIT_TAG>`
 - `<UTC_RELEASE_ARTIFACT_TIMESTAMP>`
+
+`p1b-content-audio.manifest.json` binds the accepted Core 100 and phoneme
+inputs. It deliberately has status `blocked_missing_approved_audio`: this
+repository contains no MP3 payload, source or license. A Reviewer must replace
+that state with a non-empty checksum list for the ten required trial words
+before any P1b apply packet can pass. Browser TTS and paid generation are not
+accepted substitutes.
 
 P1a instead fixes `tiny-ipa:tiny-ipa` and `/etc/tiny-ipa/tiny-ipa.env`; its
 exact accepted release ID, commit, artifact digest, trial operator, and bounded

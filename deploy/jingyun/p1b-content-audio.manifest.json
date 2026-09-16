@@ -1,0 +1,39 @@
+{
+  "authority": "CANDIDATE - DO NOT APPLY",
+  "schema": "tiny-ipa-p1b-content-audio/v1",
+  "status": "blocked_missing_approved_audio",
+  "frontend": {
+    "api_base": "/api",
+    "build_revision_binding": "frozen_operator_packet"
+  },
+  "content": {
+    "path": "content/core_100_words.json",
+    "sha256": "c5a7a41803d7f6836290d922ce7d9b5ebfa7bdaee9629dee4d7cae34fdb55d07",
+    "phonemes_path": "content/phonemes.json",
+    "phonemes_sha256": "612ea118bbfafaf0b8addd156376e8658b67d0a553f1c1b454ba29cc20340779",
+    "word_count": 100,
+    "import_content_level": "entry"
+  },
+  "audio": {
+    "host_root": "/var/lib/tiny-ipa/audio",
+    "assets": [],
+    "required_word_ids": [
+      "bed",
+      "cat",
+      "cup",
+      "fish",
+      "food",
+      "ship",
+      "sun",
+      "think",
+      "three",
+      "vision"
+    ],
+    "source": null,
+    "license": null
+  },
+  "blocking_reasons": [
+    "approved_audio_assets_missing",
+    "audio_source_and_license_missing"
+  ]
+}
