@@ -20,7 +20,7 @@ Tiny IPA uses Epic issues as the primary planning and multi-agent coordination u
 | M11 Localization and Configurable UI Language | #209 | Done |
 | M12 Minimal Auth and Multi-user Data Isolation | #210 | Done |
 | M13 Expand Practice Modes: Choose Word and Type Word | #256 | Done |
-| M14 VPS Deployment and Backup | #27 | Blocked / Planning |
+| M14 VPS Deployment and Backup | #27 | Done |
 | M15 Account Management and Admin UX | #212 | Backlog / Deferred |
 
 ## M0：Feasibility and Architecture Skeleton
@@ -548,16 +548,21 @@ Goal: make the app reachable on a real phone and maintainable on a personal VPS.
 Roadmap status:
 
 ```text
-P1a is accepted and merged to main. The Human-authorized bounded trial runs a
-synthetic Tiny IPA backend only on 127.0.0.1:18110, verified one backup oneshot
-and a separate restore, and left the timer active/waiting but disabled. This is
-private trial evidence, not a public or unattended production deployment.
+The Human-authorized controlled VPS trial is accepted. The merged release is
+served at https://ipa.jingyun.bj.cn with HTTPS/ACME renewal, same-origin API,
+licensed packaged MP3 audio, production auth policy and restart-persistent
+learner state. A non-empty online backup and separate restore passed integrity
+and relationship checks, and the real-phone login, three-word audio practice,
+refresh/reopen, Progress, Settings, logout and re-login walkthrough passed.
 
-P1b remains active under #282/#304. Public HTTPS/ACME, served frontend and
-licensed MP3 audio, a non-empty trial owner/practice/restore path, one natural
-scheduled backup occurrence, and an actual phone walkthrough are still open.
-No additional VPS, DNS, TLS, shared Nginx, credential, trial-data or private
-SQLite mutation is authorized without a concrete Human gate.
+The accepted timer evidence used a Human-authorized temporary accelerated
+systemd timer occurrence; it does not claim that the permanent 03:20 UTC wall
+clock occurrence was observed. The permanent timer configuration was restored.
+Backup capacity is now 7/7, so later runs fail closed until #309 chooses a
+retention and failure-response policy. The seventh snapshot predates the three
+phone attempts. M14 therefore proves the bounded deployment trial, not
+sustainable unattended backup, off-host recovery or production disaster
+recovery.
 ```
 
 Child issues:
@@ -569,8 +574,10 @@ Child issues:
 #279 [P2] Frontend build and reverse-proxy routing contract - Done
 #280 [P2] SQLite backup and restore dry-run verification - Done
 #281 [P3] Deployment smoke and rollback checklist - Done
-#282 [P4] VPS deployment readiness review and human deployment gate - active / P1b
-#304 [P1b] HTTPS phone trial and non-empty recovery package - active
+#282 [P4] VPS deployment readiness review and human deployment gate - Done
+#293 [P4] Prepare Jingyun isolated deployment candidate artifacts - Done
+#295 [P1a] Prepare bounded loopback trial and automated backup operation package - Done
+#304 [P1b] HTTPS phone trial and non-empty recovery package - Done
 ```
 
 Dependency graph:
