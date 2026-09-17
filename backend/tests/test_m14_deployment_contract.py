@@ -24,7 +24,7 @@ def test_m14_contract_uses_current_roadmap_numbering_and_placement() -> None:
     roadmap = _roadmap_text()
 
     assert "| M13 Expand Practice Modes: Choose Word and Type Word | #256 | Done |" in roadmap
-    assert "| M14 VPS Deployment and Backup | #27 | Blocked / Planning |" in roadmap
+    assert "| M14 VPS Deployment and Backup | #27 | Done |" in roadmap
     assert "| M15 Account Management and Admin UX | #212 | Backlog / Deferred |" in roadmap
 
     m13 = _section(

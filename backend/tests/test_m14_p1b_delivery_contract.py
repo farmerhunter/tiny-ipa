@@ -481,8 +481,9 @@ def test_p1b_bootstrap_and_roadmap_record_current_contract() -> None:
     roadmap = ROADMAP.read_text(encoding="utf-8")
     assert bootstrap.count('add_argument("--password-stdin", action="store_true")') == 2
     assert "password stdin must contain exactly one non-empty line" in bootstrap
-    assert "P1a is accepted and merged to main" in roadmap
-    assert "#304 [P1b] HTTPS phone trial and non-empty recovery package - active" in roadmap
+    assert "The Human-authorized controlled VPS trial is accepted" in roadmap
+    assert "#304 [P1b] HTTPS phone trial and non-empty recovery package - Done" in roadmap
+    assert "Backup capacity is now 7/7, so later runs fail closed until #309" in roadmap
 
 
 def test_p1b_discovery_is_read_only_and_apply_stays_human_gated() -> None:
