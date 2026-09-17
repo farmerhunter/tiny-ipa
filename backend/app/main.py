@@ -1,6 +1,7 @@
 """Tiny IPA FastAPI application."""
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -13,6 +14,7 @@ from app.auth_dependencies import (
     auth_runtime_config,
     request_origin_is_allowed,
 )
+from app.db import keep_wal_anchor, wal_anchor_enabled
 from app.routes.attempts import router as attempts_router
 from app.routes.auth import router as auth_router
 from app.routes.health import router as health_router
@@ -23,7 +25,16 @@ from app.routes.settings import router as settings_router
 
 def create_app() -> FastAPI:
     config = auth_runtime_config()
-    app = FastAPI(title="Tiny IPA", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        if wal_anchor_enabled():
+            with keep_wal_anchor():
+                yield
+        else:
+            yield
+
+    app = FastAPI(title="Tiny IPA", version="0.1.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,

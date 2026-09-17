@@ -14,6 +14,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from app import db as db_mod
+
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "deploy" / "jingyun" / "p1a-backup.py"
 DEPLOYMENT_PLAN = ROOT / "docs" / "15-m14-jingyun-candidate-deployment-plan.md"
@@ -420,6 +422,60 @@ def test_wal_coordination_file_is_validated_in_backup_entrypoint(tmp_path: Path)
     report = json.loads((backups / "with-shm" / "manifest.json").read_text())
     assert report["status"] == "complete"
     assert report["verification"]["table_counts"]["sample"] == 2
+
+
+def test_wal_anchor_keeps_idle_coordination_and_backup_includes_committed_data(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    backups = tmp_path / "backups"
+    restores = state / "restore-candidates"
+    state.mkdir()
+    backups.mkdir()
+    restores.mkdir()
+    source = state / "tiny-ipa.sqlite"
+
+    connection = db_mod.get_connection(str(source))
+    connection.execute("CREATE TABLE sample(id INTEGER PRIMARY KEY, value TEXT)")
+    connection.execute("INSERT INTO sample(value) VALUES ('before-anchor')")
+    connection.commit()
+    connection.close()
+    shm = Path(f"{source}-shm")
+    assert not shm.exists()
+
+    with db_mod.keep_wal_anchor(str(source)) as anchor:
+        assert shm.is_file()
+        assert not anchor.in_transaction
+
+        business = db_mod.get_connection(str(source))
+        business.execute("INSERT INTO sample(value) VALUES ('committed-while-idle')")
+        business.commit()
+        business.close()
+        assert shm.is_file()
+        assert not anchor.in_transaction
+
+        with MODULE._validated_wal_shm(str(shm), source):
+            backup = MODULE.create_backup(
+                source=str(source), state_root=str(state), destination_root=str(backups),
+                snapshot_id="natural-timer", release_id="release-2",
+                max_bytes=104857600, retention_limit=7,
+            )
+
+    artifact = backups / backup["snapshot_id"] / backup["artifact"]
+    restored = MODULE.verify_restore(
+        backup_file=str(artifact), backup_root=str(backups), restore_root=str(restores),
+        trial_id="restore-natural", expected_sha256=backup["sha256"],
+    )
+    restored_db = sqlite3.connect(restored["restore"])
+    try:
+        values = [row[0] for row in restored_db.execute("SELECT value FROM sample ORDER BY id")]
+    finally:
+        restored_db.close()
+
+    assert values == ["before-anchor", "committed-while-idle"]
+    assert backup["verification"]["table_counts"]["sample"] == 2
+    assert restored["verification"] == backup["verification"]
+    assert not shm.exists()
 
 
 @pytest.mark.parametrize("unexpected_type", ["missing", "directory", "symlink"])

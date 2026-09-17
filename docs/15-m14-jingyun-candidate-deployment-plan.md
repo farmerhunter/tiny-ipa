@@ -71,7 +71,12 @@ The frontend build must use `VITE_API_BASE=/api`. The backend must read
 exactly `https://ipa.jingyun.bj.cn`, with `TINY_IPA_COOKIE_SECURE=true` and
 `TINY_IPA_COOKIE_SAMESITE=lax`. The controlled P1b trial also fixes
 `TINY_IPA_REQUIRE_PACKAGED_AUDIO=true` so normal practice only selects audio
-that the manifest binds and the host deploys.
+that the manifest binds and the host deploys. Set
+`TINY_IPA_KEEP_WAL_ANCHOR=true` for the bounded backup trial so the API keeps
+one idle SQLite connection open for the process lifetime. The connection
+completes a read during startup and must not retain a transaction; SQLite then
+keeps its WAL coordination files available without backup-triggered HTTP
+traffic or broader backup-service write access.
 
 ## Release Identity and Version Readback
 
