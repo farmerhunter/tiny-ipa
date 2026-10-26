@@ -1047,3 +1047,106 @@ def test_bounded_restore_joins_storage_writer_lock(tmp_path: Path):
                 expected_sha256=report["sha256"], bounded_storage=True,
             )
     assert list(restores.iterdir()) == []
+
+
+def test_wal_source_bootstrap_and_rotation_match_existing_host_snapshot_layout(tmp_path: Path):
+    state, backups, restores, source = _roots(tmp_path)
+    anchor = sqlite3.connect(source)
+    try:
+        anchor.execute('PRAGMA journal_mode=WAL')
+        anchor.execute("INSERT INTO sample(value) VALUES ('committed-in-live-wal')")
+        anchor.commit()
+        legacy = ['fixed-before', 'fixed-h7'] + [f'legacy-{i}' for i in range(5)]
+        for name in legacy:
+            MODULE.create_backup(
+                source=str(source), state_root=str(state), destination_root=str(backups),
+                snapshot_id=name, release_id='legacy', max_bytes=104857600, retention_limit=7,
+            )
+        fixed_bytes = {n: (backups/n/'tiny-ipa.sqlite.backup').read_bytes() for n in legacy[:2]}
+        assert (backups/'fixed-h7'/'tiny-ipa.sqlite.backup-shm').stat().st_size == 32768
+        assert (backups/'fixed-h7'/'tiny-ipa.sqlite.backup-wal').stat().st_size == 0
+        options = dict(source=str(source), state_root=str(state), destination_root=str(backups),
+                       restore_root=str(restores), release_id='new', protected=legacy[:2])
+        boot = MODULE.rolling_backup(**options, snapshot_id='bootstrap-wal', bootstrap=True)
+        assert len(MODULE._valid_snapshots(backups)) == 8
+        assert {p.name for p in (backups/'bootstrap-wal').iterdir()} == {
+            'tiny-ipa.sqlite.backup', 'manifest.json',
+        }
+        restored = MODULE.verify_restore(
+            backup_file=str(backups/'bootstrap-wal'/'tiny-ipa.sqlite.backup'),
+            backup_root=str(backups), restore_root=str(restores), trial_id='wal-restore',
+            expected_sha256=boot['sha256'], bounded_storage=True,
+        )
+        with sqlite3.connect(restored['restore']) as c:
+            assert c.execute('SELECT value FROM sample ORDER BY id').fetchall() == [
+                ('synthetic',), ('committed-in-live-wal',),
+            ]
+        # Simulate separately authorized legacy cleanup only in this disposable fixture.
+        for name in legacy[2:]:
+            for p in (backups/name).iterdir():
+                p.unlink()
+            (backups/name).rmdir()
+        MODULE.rolling_backup(**options, snapshot_id='next-wal')
+        report = MODULE.rolling_backup(**options, snapshot_id='latest-wal')
+        assert report['deleted_snapshots'] == ['bootstrap-wal']
+        assert len(MODULE._valid_snapshots(backups)) == 4
+        for n, b in fixed_bytes.items():
+            assert (backups/n/'tiny-ipa.sqlite.backup').read_bytes() == b
+    finally:
+        anchor.close()
+
+
+@pytest.mark.parametrize('damage', ['nonempty-wal', 'bad-shm', 'symlink-wal'])
+def test_legacy_sidecars_require_closed_regular_snapshot(tmp_path: Path, damage):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    artifact = backups/'fixed-h7'/'tiny-ipa.sqlite.backup'
+    if damage == 'nonempty-wal':
+        Path(f'{artifact}-wal').write_bytes(b'not empty')
+    elif damage == 'bad-shm':
+        Path(f'{artifact}-shm').write_bytes(b'not shared-memory sized')
+    else:
+        outside=tmp_path/'outside-wal'
+        outside.write_bytes(b'')
+        Path(f'{artifact}-wal').symlink_to(outside)
+    with pytest.raises(MODULE.OperationError, match='sidecars'):
+        MODULE.rolling_backup(**options, snapshot_id='refused')
+    assert not (backups/'refused').exists()
+
+
+def test_managed_snapshots_never_silently_adopt_sidecars(tmp_path: Path):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    MODULE.rolling_backup(**options, snapshot_id='first')
+    (backups/'first'/'tiny-ipa.sqlite.backup-wal').write_bytes(b'')
+    with pytest.raises(MODULE.OperationError, match='managed snapshot'):
+        MODULE.rolling_backup(**options, snapshot_id='refused')
+    assert (backups/'first'/'tiny-ipa.sqlite.backup-wal').is_file()
+    assert not (backups/'refused').exists()
+
+
+def test_bounded_restore_leaves_closed_legacy_snapshot_and_sidecars_unchanged(tmp_path: Path):
+    state, backups, restores, source = _roots(tmp_path)
+    anchor=sqlite3.connect(source)
+    try:
+        anchor.execute('PRAGMA journal_mode=WAL')
+        anchor.execute("INSERT INTO sample(value) VALUES ('live-wal-value')")
+        anchor.commit()
+        report=MODULE.create_backup(
+            source=str(source), state_root=str(state), destination_root=str(backups),
+            snapshot_id='legacy-wal', release_id='old', max_bytes=104857600, retention_limit=7,
+        )
+        directory=backups/'legacy-wal'
+        before={p.name:p.read_bytes() for p in directory.iterdir()}
+        restored=MODULE.verify_restore(
+            backup_file=str(directory/'tiny-ipa.sqlite.backup'), backup_root=str(backups),
+            restore_root=str(restores), trial_id='closed-restore',
+            expected_sha256=report['sha256'], bounded_storage=True,
+        )
+        assert {p.name:p.read_bytes() for p in directory.iterdir()} == before
+        assert anchor.execute('PRAGMA journal_mode').fetchone()[0]=='wal'
+        with sqlite3.connect(restored['restore']) as c:
+            assert c.execute('PRAGMA journal_mode').fetchone()[0]=='delete'
+            assert c.execute('SELECT value FROM sample ORDER BY id').fetchall()==[
+                ('synthetic',), ('live-wal-value',),
+            ]
+    finally:
+        anchor.close()
