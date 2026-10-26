@@ -105,3 +105,12 @@ a fresh mode-0700 `/tmp/tiny-ipa-p1a` H1-staging root, then H1-activation and
 H2. Staging proves the exact target venv can install and import the frozen
 offline wheel set before any account, final app root, unit, database, pointer,
 or service mutation. A staging failure retains that root and stops.
+
+
+The separate `tiny-ipa-backup-rolling.service.candidate` opts into #309's
+Human-selected two-fixed/two-rolling policy. The original candidate above is
+unchanged. See docs/16's Post-M14 retention section for the explicit
+bootstrap (seven legacy copies to an eighth without deletion), independent
+restore, exact cleanup review and only then regular activation. Neither
+candidate authorizes a host change. Normal replacement holds at most five
+complete snapshots; shared backup/restore storage is bounded at 1 GiB.

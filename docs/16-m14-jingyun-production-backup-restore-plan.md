@@ -216,3 +216,132 @@ check and a named failure owner. Automatic pruning, missed-run catch-up,
 notification credentials and off-host copying remain forbidden until Human
 chooses concrete retention, notification and encrypted off-host policies. A
 maximum of seven complete snapshots and 100 MiB per set remains fail-closed.
+
+## Post-M14 trial retention — #309 repository candidate
+
+The Human accepted strategy v1 on 2026-10-26 with **two fixed recovery points
+plus two rolling backups**. This section supersedes the no-prune policy only
+for an explicitly activated `rolling-backup` operation. The original `backup`
+command and original service candidate retain their seven-snapshot/no-delete
+behavior. This repository change does not authorize host installation or any
+snapshot deletion. Review the concrete host execution list before applying it.
+
+The fixed points are `20260916T095935Z` (user/content before attempts) and
+`20260917T010641Z` (independently restored H7 witness). Daily operation retains
+these two plus the two latest successful managed backups, ordered by their
+recorded UTC creation time rather than directory names or modification times.
+Normal replacement temporarily holds a fifth complete snapshot. Existing
+legacy snapshots cannot silently become automatic cleanup candidates.
+
+`rolling-backup` checks both protected snapshots, all complete manifests and
+artifact checksums, and exact snapshot directory contents before creating a
+new copy. It publishes the verified new copy before unlinking the oldest
+managed rolling copy. A nonblocking directory lock excludes another legacy,
+bootstrap or rolling writer using this tool. Snapshot IDs, roots and artifacts
+remain subject to the existing path/symlink checks. Keep the backup namespace
+private to the service account; the lock is cooperative operator protection,
+not protection against an adversarial process with the same Unix identity.
+
+Creation failure preserves all successful old copies. An interrupted managed
+copy or a failed cleanup requires maintenance before another new copy; a
+cleanup failure retains the new complete copy and returns nonzero. Unknown
+objects, invalid checksums, missing protected points, unexpected files and
+unmanaged legacy copies fail closed. No unknown, incomplete or restore
+artifact is automatically removed.
+
+The shared budget for backup root and restore-candidates is 1 GiB, including
+incomplete files. Each new snapshot remains capped at 100 MiB; prechecks
+reserve the full 100 MiB copy cap (including metadata) and leave at least 512 MiB free on
+the target filesystem after copying. Bootstrap reserves space for both its
+backup and separate restore. Post-copy budget checks precede automatic
+cleanup. The bounded restore flag applies the same worst-case reservation, copy cap and
+budget/free-space checks, and shares the backup-root writer lock.
+These are limits, not preallocation. A growing source that exceeds the cap
+fails; the operator must review the limit rather than bypass it.
+
+### First migration: review before host effects
+
+The steady-state limit is four, while the host currently has seven legacy
+snapshots. A separate `bootstrap-backup` command accepts exactly seven
+verified legacy snapshots, creates one managed eighth snapshot and **never
+deletes anything**. It refuses a second bootstrap or a later rolling backup
+until the old legacy excess has been resolved. The original protected copies
+and every legacy copy remain in place throughout this first creation.
+
+After a reviewed version has been installed and the timer stopped with no
+backup service running, the candidate invocation is:
+
+```bash
+sudo -u tiny-ipa /opt/tiny-ipa/ops/<APPROVED_TOOL_REVISION>/p1a-backup.py \
+  bootstrap-backup \
+  --source /var/lib/tiny-ipa/tiny-ipa.sqlite \
+  --state-root /var/lib/tiny-ipa \
+  --destination-root /var/backups/tiny-ipa \
+  --restore-root /var/lib/tiny-ipa/restore-candidates \
+  --snapshot-id utc-now --release-id <APPROVED_RELEASE_ID> \
+  --protect 20260916T095935Z --protect 20260917T010641Z \
+  --writable-wal-shm /var/lib/tiny-ipa/tiny-ipa.sqlite-shm
+```
+
+Run it through the reviewed oneshot sandbox (temporarily materialize the
+rolling candidate with `bootstrap-backup` replacing `rolling-backup`), not an
+unrestricted shell invocation: the command above identifies its arguments,
+not permission to widen the existing DB/WAL/state-root access boundary. The
+API remains running; its current release and environment do not change.
+
+Record that invocation's new snapshot ID and checksum. Independently restore
+that exact artifact into a new, separate restore-candidates directory with
+`verify-restore ... --bounded-storage`. Check SQLite integrity, foreign keys,
+owner/settings and practice/attempt relationships against the fresh execution
+baseline. Existing M14 phone/TLS acceptance is reused; no active DB pointer is
+changed. Verification failure leaves every old copy intact and stops cleanup.
+
+Before deletion, present the exact five legacy empty-copy IDs below, their
+fresh checksums and retained receipt/manifest metadata for Human review:
+
+- `20260915T101140Z`
+- `shm-recovery-20260915t1118z`
+- `20260916T025408Z`
+- `20260916T032001Z`
+- `p1b-prestate-20260916T084751Z`
+
+On 2026-10-26 all five actual database files matched their manifests and shared
+SHA-256 `8706e0c798be00c44238bc4ab10dcf13e0b3c2f5984277a62562b6a03852ff97`.
+This identifies byte-identical cleanup candidates, not deletion authorization.
+Preserve the original receipt and manifest metadata. Revalidate the exact IDs
+and bytes immediately before an approved cleanup; never infer eligibility
+from empty row counts, a glob or mtime. Do not delete the two fixed copies,
+new bootstrap copy, old failure directory or restore witnesses. After all
+five approved removals, there are two fixed copies plus one managed copy; the
+next daily success fills the second rolling slot, and later successes replace
+the oldest managed slot.
+
+Install `tiny-ipa-backup-rolling.service.candidate` as the existing backup
+service only through the reviewed root-owned, versioned tool/unit procedure.
+Retain the old tool/unit for rollback, keep the original timer's daily
+03:20 UTC / `Persistent=false` / boot-disabled settings, and read back its
+actual next occurrence and installed command. Never activate the permanent
+rolling service before migration cleanup is complete.
+
+Rollback stops the timer, preserves every DB/backup/restore artifact, and
+restores the old reviewed unit/tool binding and previous timer activity.
+Read back service/tool and timer state. The old service may again fail at its
+seven-snapshot cap; report that limitation instead of deleting more data.
+Deletion is irreversible and rollback does not promise to recreate removed
+snapshots. Do not restart the API or touch other applications for this change.
+
+### Operating responsibility and accepted trial limits
+
+The maintainer checks last successful time and service failure before each
+trial and at least weekly; this is a manual responsibility, not an installed
+notification or Codex schedule. Reboots still require the maintainer to start
+the trial API/timer. The two latest successful backups do not imply two
+calendar days or a strict recovery objective. Failures remain visible in
+systemd and its journal; subsequent scheduled attempts do not bypass quantity,
+space or integrity checks. Budget exhaustion and failed cleanup require an
+explicit maintenance decision.
+
+Same-VPS backups do not cover disk/host loss. Off-host storage, automatic
+alerts, full user administration and production recovery commitments remain
+deferred. Revisit these decisions before keeping irreplaceable learner data,
+opening the application to real users or relying on unattended operation.
