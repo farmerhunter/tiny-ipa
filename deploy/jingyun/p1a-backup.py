@@ -396,8 +396,8 @@ def rolling_backup(
         required = _database_bytes(source_path) + METADATA_RESERVE_BYTES
         if required > DEFAULT_MAX_BYTES:
             raise OperationError("source database cannot fit inside the approved size cap")
-        # Bootstrap reserves both the new backup and its separate restore witness.
-        _bounded_storage(destination, restores, required * (2 if bootstrap else 1))
+        # Reserve the copy cap, since the live database can grow after sizing.
+        _bounded_storage(destination, restores, DEFAULT_MAX_BYTES * (2 if bootstrap else 1))
         created = datetime.now(timezone.utc)
         if not bootstrap and any(
             _managed_time(record) >= created
@@ -433,7 +433,7 @@ def rolling_backup(
         return {**report, "deleted_snapshots": deleted}
 
 
-def verify_restore(
+def _verify_restore_artifact(
     *, backup_file: str, backup_root: str, restore_root: str, trial_id: str,
     expected_sha256: str, bounded_storage: bool = False,
 ) -> dict[str, Any]:
@@ -448,13 +448,15 @@ def verify_restore(
     if shutil.disk_usage(restores).free < backup.stat().st_size + METADATA_RESERVE_BYTES:
         raise OperationError("restore root does not have enough free space")
     if bounded_storage:
-        _bounded_storage(backups, restores, backup.stat().st_size + METADATA_RESERVE_BYTES)
+        if backup.stat().st_size + METADATA_RESERVE_BYTES > DEFAULT_MAX_BYTES:
+            raise OperationError("restore source exceeds the approved size cap")
+        _bounded_storage(backups, restores, DEFAULT_MAX_BYTES)
     trial_dir = restores / trial
     restore = trial_dir / "tiny-ipa.sqlite"
     if trial_dir.exists():
         raise OperationError("restore trial collision")
     trial_dir.mkdir(mode=0o700)
-    _copy_sqlite(backup, restore)
+    _copy_sqlite(backup, restore, max_bytes=DEFAULT_MAX_BYTES if bounded_storage else None)
     backup_snapshot = _snapshot(backup)
     restore_snapshot = _snapshot(restore)
     if restore_snapshot != backup_snapshot:
@@ -466,6 +468,19 @@ def verify_restore(
         "sha256": expected_sha256,
         "verification": restore_snapshot,
     }
+
+
+
+def verify_restore(
+    *, backup_file: str, backup_root: str, restore_root: str, trial_id: str,
+    expected_sha256: str, bounded_storage: bool = False,
+) -> dict[str, Any]:
+    backups = _existing_directory(backup_root, "backup root")
+    with _backup_lock(backups) if bounded_storage else nullcontext():
+        return _verify_restore_artifact(
+            backup_file=backup_file, backup_root=backup_root, restore_root=restore_root,
+            trial_id=trial_id, expected_sha256=expected_sha256, bounded_storage=bounded_storage,
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:

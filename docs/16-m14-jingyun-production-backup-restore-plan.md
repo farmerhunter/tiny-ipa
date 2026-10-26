@@ -251,10 +251,11 @@ artifact is automatically removed.
 
 The shared budget for backup root and restore-candidates is 1 GiB, including
 incomplete files. Each new snapshot remains capped at 100 MiB; prechecks
-reserve estimated copy plus metadata space and leave at least 512 MiB free on
+reserve the full 100 MiB copy cap (including metadata) and leave at least 512 MiB free on
 the target filesystem after copying. Bootstrap reserves space for both its
 backup and separate restore. Post-copy budget checks precede automatic
-cleanup. The bounded restore flag applies the same budget/free-space checks.
+cleanup. The bounded restore flag applies the same worst-case reservation, copy cap and
+budget/free-space checks, and shares the backup-root writer lock.
 These are limits, not preallocation. A growing source that exceeds the cap
 fails; the operator must review the limit rather than bypass it.
 

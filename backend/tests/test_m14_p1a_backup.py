@@ -986,3 +986,64 @@ def test_foreign_source_snapshot_is_not_adopted_or_deleted(tmp_path: Path):
     with pytest.raises(MODULE.OperationError, match="different source"):
         MODULE.rolling_backup(**options, snapshot_id="refused")
     assert len(list(backups.iterdir())) == 2
+
+
+def test_live_source_growth_after_sizing_cannot_exceed_reserved_copy_budget(
+    tmp_path: Path, monkeypatch,
+):
+    _, backups, restores, source, options = _retention_roots(tmp_path)
+    cap = 256 * 1024
+    monkeypatch.setattr(MODULE, "DEFAULT_MAX_BYTES", cap)
+    budget = MODULE._tree_bytes(backups) + MODULE._tree_bytes(restores) + cap
+    monkeypatch.setattr(MODULE, "STORAGE_BUDGET_BYTES", budget)
+    original = MODULE._database_bytes
+    calls = 0
+
+    def grow_after_second_measurement(path):
+        nonlocal calls
+        size = original(path)
+        calls += 1
+        if calls == 2:
+            with sqlite3.connect(source) as connection:
+                connection.execute("INSERT INTO sample(value) VALUES (?)", ("x" * (cap * 2),))
+                connection.commit()
+        return size
+
+    monkeypatch.setattr(MODULE, "_database_bytes", grow_after_second_measurement)
+    with pytest.raises(MODULE.OperationError, match="grew beyond"):
+        MODULE.rolling_backup(**options, snapshot_id="growing")
+    assert len(MODULE._valid_snapshots(backups)) == 2
+    assert (backups / ".incomplete-growing" / "FAILED").is_file()
+    assert MODULE._tree_bytes(backups) + MODULE._tree_bytes(restores) <= budget
+
+
+@pytest.mark.parametrize("bootstrap", [False, True])
+def test_reserves_maximum_copy_space_before_writing(tmp_path: Path, monkeypatch, bootstrap):
+    state, backups, restores, source, options = _retention_roots(tmp_path)
+    if bootstrap:
+        for i in range(5):
+            MODULE.create_backup(
+                source=str(source), state_root=str(state), destination_root=str(backups),
+                snapshot_id=f"legacy-{i}", release_id="release-1", max_bytes=104857600,
+                retention_limit=7,
+            )
+    reserved = MODULE.DEFAULT_MAX_BYTES * (2 if bootstrap else 1)
+    used = MODULE._tree_bytes(backups) + MODULE._tree_bytes(restores)
+    monkeypatch.setattr(MODULE, "STORAGE_BUDGET_BYTES", used + reserved - 1)
+    before = set(backups.iterdir())
+    with pytest.raises(MODULE.OperationError, match="budget"):
+        MODULE.rolling_backup(**options, snapshot_id="not-enough-reserve", bootstrap=bootstrap)
+    assert set(backups.iterdir()) == before
+
+
+def test_bounded_restore_joins_storage_writer_lock(tmp_path: Path):
+    _, backups, restores, _, options = _retention_roots(tmp_path)
+    report = MODULE.rolling_backup(**options, snapshot_id="first")
+    with MODULE._backup_lock(backups):
+        with pytest.raises(MODULE.OperationError, match="lock"):
+            MODULE.verify_restore(
+                backup_file=str(backups / "first" / "tiny-ipa.sqlite.backup"),
+                backup_root=str(backups), restore_root=str(restores), trial_id="locked",
+                expected_sha256=report["sha256"], bounded_storage=True,
+            )
+    assert list(restores.iterdir()) == []
