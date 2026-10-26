@@ -235,12 +235,26 @@ legacy snapshots cannot silently become automatic cleanup candidates.
 
 `rolling-backup` checks both protected snapshots, all complete manifests and
 artifact checksums, and exact snapshot directory contents before creating a
-new copy. It publishes the verified new copy before unlinking the oldest
+new copy. Legacy snapshots may contain only the two recognized SQLite sidecars:
+a regular, non-symlink zero-byte `tiny-ipa.sqlite.backup-wal` and/or a regular,
+non-symlink 32768-byte `tiny-ipa.sqlite.backup-shm`. Nonempty WAL, unexpected
+sizes/types or other files fail closed. These legacy files are preserved by
+the tool; accepting their layout does not authorize their deletion. It publishes the verified new copy before unlinking the oldest
 managed rolling copy. A nonblocking directory lock excludes another legacy,
 bootstrap or rolling writer using this tool. Snapshot IDs, roots and artifacts
 remain subject to the existing path/symlink checks. Keep the backup namespace
 private to the service account; the lock is cooperative operator protection,
 not protection against an adversarial process with the same Unix identity.
+
+New managed copies are normalized to SQLite DELETE journal mode inside their
+private incomplete directory, before checksum/verification and publication.
+Only the destination copy changes journal mode; the live source remains WAL.
+Managed directories must still contain exactly the DB and manifest, so later
+sidecars are never silently adopted as automatic cleanup targets. Bounded
+restore reads a verified, closed legacy artifact with `immutable=1` only after
+checking its WAL is absent/empty and known sidecars are safe; the live source
+never uses immutable reads. This avoids rewriting historical SHM or creating
+new sidecars while validating a fixed recovery point.
 
 Creation failure preserves all successful old copies. An interrupted managed
 copy or a failed cleanup requires maintenance before another new copy; a
@@ -308,6 +322,14 @@ fresh checksums and retained receipt/manifest metadata for Human review:
 On 2026-10-26 all five actual database files matched their manifests and shared
 SHA-256 `8706e0c798be00c44238bc4ab10dcf13e0b3c2f5984277a62562b6a03852ff97`.
 This identifies byte-identical cleanup candidates, not deletion authorization.
+Host preflight later found the recognized zero-byte WAL and 32768-byte SHM in
+every legacy snapshot directory. PR #311 was merged but not installed: its
+strict two-file check stopped the migration before a new backup or deletion.
+The follow-up layout fix requires a separately reviewed candidate and an
+updated first-cleanup authorization listing these two additional files in
+each of the same five named legacy directories. Never apply the original
+two-file-only cleanup to this four-file layout. Preserve the two fixed
+snapshots' sidecars and existing restore witnesses.
 Preserve the original receipt and manifest metadata. Revalidate the exact IDs
 and bytes immediately before an approved cleanup; never infer eligibility
 from empty row counts, a glob or mtime. Do not delete the two fixed copies,

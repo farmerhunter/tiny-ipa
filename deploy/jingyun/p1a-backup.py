@@ -113,8 +113,19 @@ def _quoted_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
-def _snapshot(path: Path) -> dict[str, Any]:
-    conn = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
+
+def _closed_snapshot_uri(path: Path) -> str:
+    for suffix, size in (("-wal", 0), ("-shm", 32768)):
+        sidecar = Path(f"{path}{suffix}")
+        if sidecar.exists() or sidecar.is_symlink():
+            if sidecar.is_symlink() or not sidecar.is_file() or sidecar.stat().st_size != size:
+                raise OperationError("closed snapshot has unsafe or nonempty WAL sidecars")
+    return f"{path.as_uri()}?mode=ro&immutable=1"
+
+
+def _snapshot(path: Path, *, closed_snapshot: bool = False) -> dict[str, Any]:
+    uri = _closed_snapshot_uri(path) if closed_snapshot else f"{path.as_uri()}?mode=ro"
+    conn = sqlite3.connect(uri, uri=True)
     try:
         quick_check = [row[0] for row in conn.execute("PRAGMA quick_check")]
         if quick_check != ["ok"]:
@@ -147,8 +158,12 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _copy_sqlite(source: Path, destination: Path, *, max_bytes: int | None = None) -> None:
-    source_conn = sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True)
+def _copy_sqlite(
+    source: Path, destination: Path, *, max_bytes: int | None = None,
+    standalone: bool = False, closed_source: bool = False,
+) -> None:
+    uri = _closed_snapshot_uri(source) if closed_source else f"{source.as_uri()}?mode=ro"
+    source_conn = sqlite3.connect(uri, uri=True)
     destination_conn = sqlite3.connect(destination)
     try:
         page_size = source_conn.execute("PRAGMA page_size").fetchone()[0]
@@ -159,6 +174,10 @@ def _copy_sqlite(source: Path, destination: Path, *, max_bytes: int | None = Non
                 raise OperationError("backup grew beyond the approved size cap")
 
         source_conn.backup(destination_conn, pages=16, progress=enforce_limit)
+        if standalone:
+            # Normalize only the new private copy; never change the live source journal mode.
+            if destination_conn.execute("PRAGMA journal_mode=DELETE").fetchone()[0] != "delete":
+                raise OperationError("new snapshot could not enter standalone journal mode")
     finally:
         destination_conn.close()
         source_conn.close()
@@ -224,7 +243,7 @@ def _create_backup_artifact(
         if metadata:
             (incomplete_dir / "ROLLING").touch(mode=0o600)
         source_snapshot = _snapshot(source_path)
-        _copy_sqlite(source_path, backup, max_bytes=max_bytes)
+        _copy_sqlite(source_path, backup, max_bytes=max_bytes, standalone=bool(metadata))
         size = backup.stat().st_size
         if size + METADATA_RESERVE_BYTES > max_bytes:
             raise OperationError("backup exceeds the approved size cap")
@@ -319,7 +338,11 @@ def _checked_snapshots(root: Path) -> dict[str, dict[str, Any]]:
                 raise OperationError("incomplete rolling backup requires maintenance")
             continue
         _safe_id(child.name, "snapshot id")
-        if {p.name for p in child.iterdir()} != {"manifest.json", "tiny-ipa.sqlite.backup"}:
+        names = {p.name for p in child.iterdir()}
+        required = {"manifest.json", "tiny-ipa.sqlite.backup"}
+        if not required <= names or names - required - {
+            "tiny-ipa.sqlite.backup-wal", "tiny-ipa.sqlite.backup-shm",
+        }:
             raise OperationError("unknown files in snapshot directory")
         manifest_path = _child_file(str(child / "manifest.json"), child,
                                     "manifest", must_exist=True)
@@ -339,6 +362,10 @@ def _checked_snapshots(root: Path) -> dict[str, dict[str, Any]]:
             or record.get("sha256") != _sha256(artifact)
         ):
             raise OperationError("snapshot manifest or checksum mismatch")
+        if names != required:
+            if "retention_policy" in record:
+                raise OperationError("managed snapshot must not contain sidecars")
+            _closed_snapshot_uri(artifact)
         snapshots[child.name] = record
     return snapshots
 
@@ -456,8 +483,11 @@ def _verify_restore_artifact(
     if trial_dir.exists():
         raise OperationError("restore trial collision")
     trial_dir.mkdir(mode=0o700)
-    _copy_sqlite(backup, restore, max_bytes=DEFAULT_MAX_BYTES if bounded_storage else None)
-    backup_snapshot = _snapshot(backup)
+    _copy_sqlite(
+        backup, restore, max_bytes=DEFAULT_MAX_BYTES if bounded_storage else None,
+        standalone=bounded_storage, closed_source=bounded_storage,
+    )
+    backup_snapshot = _snapshot(backup, closed_snapshot=bounded_storage)
     restore_snapshot = _snapshot(restore)
     if restore_snapshot != backup_snapshot:
         raise OperationError("restored database differs from backup")
