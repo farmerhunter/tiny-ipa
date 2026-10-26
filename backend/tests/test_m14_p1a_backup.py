@@ -717,3 +717,272 @@ def test_h2_unit_summary_executes_and_rejects_extra_fields() -> None:
     assert result.returncode == 0
     assert result.stdout.strip() == '{"r2_unit_summary":"invalid"}'
     assert secret not in result.stdout
+
+
+def _retention_roots(tmp_path: Path):
+    state, backups, restores, source = _roots(tmp_path)
+    for name in ("fixed-before", "fixed-h7"):
+        MODULE.create_backup(
+            source=str(source), state_root=str(state), destination_root=str(backups),
+            snapshot_id=name, release_id="release-1", max_bytes=104857600,
+            retention_limit=7,
+        )
+    options = dict(
+        source=str(source), state_root=str(state), destination_root=str(backups),
+        restore_root=str(restores), release_id="release-2",
+        protected=["fixed-before", "fixed-h7"],
+    )
+    return state, backups, restores, source, options
+
+
+def test_two_fixed_two_rolling_preserve_latest_content_and_ignore_mtime(tmp_path: Path):
+    _, backups, restores, source, options = _retention_roots(tmp_path)
+    fixed = {name: (backups / name / "tiny-ipa.sqlite.backup").read_bytes()
+             for name in options["protected"]}
+    MODULE.rolling_backup(**options, snapshot_id="z-first")
+    MODULE.rolling_backup(**options, snapshot_id="a-second")
+    os.utime(backups / "z-first", (2000000000, 2000000000))
+    with sqlite3.connect(source) as connection:
+        connection.execute("INSERT INTO sample(value) VALUES ('new-committed-state')")
+        connection.commit()
+    newest = MODULE.rolling_backup(**options, snapshot_id="middle-third")
+    assert newest["deleted_snapshots"] == ["z-first"]
+    assert {p.name for p in backups.iterdir()} == {
+        "fixed-before", "fixed-h7", "a-second", "middle-third",
+    }
+    for name, original in fixed.items():
+        assert (backups / name / "tiny-ipa.sqlite.backup").read_bytes() == original
+    restored = MODULE.verify_restore(
+        backup_file=str(backups / "middle-third" / "tiny-ipa.sqlite.backup"),
+        backup_root=str(backups), restore_root=str(restores), trial_id="rolling-restore",
+        expected_sha256=newest["sha256"], bounded_storage=True,
+    )
+    with sqlite3.connect(restored["restore"]) as connection:
+        assert connection.execute("SELECT value FROM sample ORDER BY id").fetchall() == [
+            ("synthetic",), ("new-committed-state",),
+        ]
+
+
+def test_bootstrap_creates_eighth_without_deletion_then_requires_reviewed_cleanup(tmp_path: Path):
+    state, backups, restores, source, options = _retention_roots(tmp_path)
+    for i in range(5):
+        MODULE.create_backup(
+            source=str(source), state_root=str(state), destination_root=str(backups),
+            snapshot_id=f"legacy-{i}", release_id="release-1", max_bytes=104857600,
+            retention_limit=7,
+        )
+    previous = {p.name: (p / "tiny-ipa.sqlite.backup").read_bytes() for p in backups.iterdir()}
+    report = MODULE.rolling_backup(**options, snapshot_id="bootstrap", bootstrap=True)
+    assert len(MODULE._valid_snapshots(backups)) == 8
+    assert "disabled" in report["cleanup"]
+    for name, data in previous.items():
+        assert (backups / name / "tiny-ipa.sqlite.backup").read_bytes() == data
+    MODULE.verify_restore(
+        backup_file=str(backups / "bootstrap" / "tiny-ipa.sqlite.backup"),
+        backup_root=str(backups), restore_root=str(restores), trial_id="bootstrap-restore",
+        expected_sha256=report["sha256"], bounded_storage=True,
+    )
+    for bootstrap in (True, False):
+        with pytest.raises(MODULE.OperationError):
+            MODULE.rolling_backup(**options, snapshot_id="ninth", bootstrap=bootstrap)
+    assert len(MODULE._valid_snapshots(backups)) == 8
+    assert not (backups / "ninth").exists()
+
+
+def test_failed_copy_preserves_all_old_snapshots_and_blocks_repeated_incomplete(
+    tmp_path: Path, monkeypatch,
+):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    for name in ("first", "second"):
+        MODULE.rolling_backup(**options, snapshot_id=name)
+    previous = {p.name: (p / "tiny-ipa.sqlite.backup").read_bytes() for p in backups.iterdir()}
+
+    def failed_copy(*args, **kwargs):
+        raise MODULE.OperationError("injected copy failure")
+
+    monkeypatch.setattr(MODULE, "_copy_sqlite", failed_copy)
+    with pytest.raises(MODULE.OperationError, match="copy failure"):
+        MODULE.rolling_backup(**options, snapshot_id="failed")
+    for name, data in previous.items():
+        assert (backups / name / "tiny-ipa.sqlite.backup").read_bytes() == data
+    with pytest.raises(MODULE.OperationError, match="maintenance"):
+        MODULE.rolling_backup(**options, snapshot_id="another-failed")
+    assert not (backups / ".incomplete-another-failed").exists()
+
+
+def test_cleanup_failure_retains_new_fifth_and_refuses_a_sixth(tmp_path: Path, monkeypatch):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    for name in ("first", "second"):
+        MODULE.rolling_backup(**options, snapshot_id=name)
+
+    def failed_cleanup(*args, **kwargs):
+        raise PermissionError("injected delete failure")
+
+    monkeypatch.setattr(MODULE, "_remove_snapshot", failed_cleanup)
+    with pytest.raises(MODULE.OperationError, match="new backup retained"):
+        MODULE.rolling_backup(**options, snapshot_id="third")
+    assert len(MODULE._valid_snapshots(backups)) == 5
+    assert (backups / "third" / "manifest.json").is_file()
+    with pytest.raises(MODULE.OperationError, match="maintenance"):
+        MODULE.rolling_backup(**options, snapshot_id="fourth")
+    assert not (backups / "fourth").exists()
+
+
+@pytest.mark.parametrize("damage", ["checksum", "manifest", "extra", "symlink", "unknown"])
+def test_untrusted_snapshot_layout_fails_before_copy_or_cleanup(tmp_path: Path, damage: str):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    artifact = backups / "fixed-h7" / "tiny-ipa.sqlite.backup"
+    if damage == "checksum":
+        artifact.write_bytes(b"damaged")
+    elif damage == "manifest":
+        (backups / "fixed-h7" / "manifest.json").write_text("[]")
+    elif damage == "extra":
+        (backups / "fixed-h7" / "unknown").write_text("preserve me")
+    elif damage == "symlink":
+        artifact.rename(artifact.with_suffix(".outside"))
+        artifact.symlink_to(artifact.with_suffix(".outside"))
+    else:
+        (backups / "unknown").mkdir()
+    before = {p.name for p in backups.iterdir()}
+    with pytest.raises(MODULE.OperationError):
+        MODULE.rolling_backup(**options, snapshot_id="refused")
+    assert {p.name for p in backups.iterdir()} == before
+
+
+@pytest.mark.parametrize("pins", [["fixed-h7"], ["fixed-h7", "fixed-h7"],
+                                  ["fixed-h7", "missing"], ["../bad", "fixed-h7"]])
+def test_missing_or_invalid_protection_refuses_before_writing(tmp_path: Path, pins):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    options["protected"] = pins
+    with pytest.raises(MODULE.OperationError):
+        MODULE.rolling_backup(**options, snapshot_id="refused")
+    assert len(list(backups.iterdir())) == 2
+
+
+def test_unmanaged_legacy_snapshot_is_never_automatically_pruned(tmp_path: Path):
+    state, backups, _, source, options = _retention_roots(tmp_path)
+    MODULE.create_backup(
+        source=str(source), state_root=str(state), destination_root=str(backups),
+        snapshot_id="legacy", release_id="release-1", max_bytes=104857600,
+        retention_limit=7,
+    )
+    with pytest.raises(MODULE.OperationError, match="explicit migration cleanup"):
+        MODULE.rolling_backup(**options, snapshot_id="refused")
+    assert (backups / "legacy").is_dir()
+    assert not (backups / "refused").exists()
+
+
+@pytest.mark.parametrize("boundary", ["free", "budget", "restore-budget"])
+def test_storage_guard_includes_failed_and_restore_artifacts(tmp_path: Path, monkeypatch, boundary):
+    _, backups, restores, _, options = _retention_roots(tmp_path)
+    if boundary == "free":
+        usage = MODULE.shutil._ntuple_diskusage(total=1000000000, used=500000000,
+                                              free=MODULE.MIN_FREE_BYTES)
+        monkeypatch.setattr(MODULE.shutil, "disk_usage", lambda _: usage)
+    else:
+        root = restores if boundary == "restore-budget" else backups / ".incomplete-old"
+        root.mkdir(exist_ok=True)
+        (root / "FAILED").write_text("old failure")
+        monkeypatch.setattr(MODULE, "STORAGE_BUDGET_BYTES", 1)
+    with pytest.raises(MODULE.OperationError, match="storage"):
+        MODULE.rolling_backup(**options, snapshot_id="refused")
+    assert not (backups / ".incomplete-refused").exists()
+
+
+def test_directory_lock_blocks_legacy_and_rolling_writers(tmp_path: Path):
+    state, backups, _, source, options = _retention_roots(tmp_path)
+    with MODULE._backup_lock(backups):
+        with pytest.raises(MODULE.OperationError, match="lock"):
+            MODULE.rolling_backup(**options, snapshot_id="rolling")
+        with pytest.raises(MODULE.OperationError, match="lock"):
+            MODULE.create_backup(
+                source=str(source), state_root=str(state), destination_root=str(backups),
+                snapshot_id="legacy", release_id="release-1", max_bytes=104857600,
+                retention_limit=7,
+            )
+    assert len(list(backups.iterdir())) == 2
+
+
+def test_rolling_cli_and_bounded_restore_cli(tmp_path: Path, capsys):
+    state, backups, restores, source, _ = _retention_roots(tmp_path)
+    assert MODULE.main([
+        "rolling-backup", "--source", str(source), "--state-root", str(state),
+        "--destination-root", str(backups), "--restore-root", str(restores),
+        "--snapshot-id", "cli", "--release-id", "release-2",
+        "--protect", "fixed-before", "--protect", "fixed-h7",
+    ]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert MODULE.main([
+        "verify-restore", "--backup-file", str(backups / "cli" / "tiny-ipa.sqlite.backup"),
+        "--backup-root", str(backups), "--restore-root", str(restores),
+        "--trial-id", "cli-restore", "--expected-sha256", report["sha256"],
+        "--bounded-storage",
+    ]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "verified"
+
+
+def test_failed_postcopy_budget_check_never_prunes(tmp_path: Path, monkeypatch):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    for name in ("first", "second"):
+        MODULE.rolling_backup(**options, snapshot_id=name)
+    original = MODULE._bounded_storage
+
+    def source_grew(backups, restores, required):
+        if required == 0:
+            raise MODULE.OperationError("postcopy budget exceeded")
+        original(backups, restores, required)
+
+    monkeypatch.setattr(MODULE, "_bounded_storage", source_grew)
+    with pytest.raises(MODULE.OperationError, match="postcopy"):
+        MODULE.rolling_backup(**options, snapshot_id="new-but-unpruned")
+    assert len(MODULE._valid_snapshots(backups)) == 5
+    assert (backups / "first").is_dir()
+
+
+def test_bounded_restore_budget_refuses_without_creating_witness(tmp_path: Path, monkeypatch):
+    _, backups, restores, _, options = _retention_roots(tmp_path)
+    report = MODULE.rolling_backup(**options, snapshot_id="first")
+    monkeypatch.setattr(MODULE, "STORAGE_BUDGET_BYTES", 1)
+    with pytest.raises(MODULE.OperationError, match="budget"):
+        MODULE.verify_restore(
+            backup_file=str(backups / "first" / "tiny-ipa.sqlite.backup"),
+            backup_root=str(backups), restore_root=str(restores), trial_id="over-budget",
+            expected_sha256=report["sha256"], bounded_storage=True,
+        )
+    assert list(restores.iterdir()) == []
+
+
+def test_future_managed_time_refuses_backup_without_deletion(tmp_path: Path):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    MODULE.rolling_backup(**options, snapshot_id="first")
+    manifest = backups / "first" / "manifest.json"
+    data = json.loads(manifest.read_text())
+    data["created_at"] = "2999-01-01T00:00:00.000000Z"
+    manifest.write_text(json.dumps(data))
+    with pytest.raises(MODULE.OperationError, match="clock"):
+        MODULE.rolling_backup(**options, snapshot_id="refused")
+    assert not (backups / "refused").exists()
+    assert (backups / "first").is_dir()
+
+
+def test_rolling_candidate_opts_in_without_changing_legacy_timer_or_sandbox():
+    service = (ROOT / "deploy/jingyun/tiny-ipa-backup-rolling.service.candidate").read_text()
+    assert "p1a-backup.py rolling-backup" in service
+    assert "--protect 20260916T095935Z --protect 20260917T010641Z" in service
+    assert "--restore-root /var/lib/tiny-ipa/restore-candidates" in service
+    assert "ReadOnlyPaths=/var/lib/tiny-ipa\n" in service
+    assert "ReadWritePaths=/var/lib/tiny-ipa\n" not in service
+    assert "ReadWritePaths=/var/lib/tiny-ipa/tiny-ipa.sqlite-shm\n" in service
+    assert "--writable-wal-shm /var/lib/tiny-ipa/tiny-ipa.sqlite-shm" in service
+    assert "User=tiny-ipa\n" in service
+
+
+def test_foreign_source_snapshot_is_not_adopted_or_deleted(tmp_path: Path):
+    _, backups, _, _, options = _retention_roots(tmp_path)
+    manifest = backups / "fixed-h7" / "manifest.json"
+    record = json.loads(manifest.read_text())
+    record["source"] = "/another-app/database.sqlite"
+    manifest.write_text(json.dumps(record))
+    with pytest.raises(MODULE.OperationError, match="different source"):
+        MODULE.rolling_backup(**options, snapshot_id="refused")
+    assert len(list(backups.iterdir())) == 2
