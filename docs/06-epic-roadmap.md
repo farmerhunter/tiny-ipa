@@ -558,11 +558,14 @@ refresh/reopen, Progress, Settings, logout and re-login walkthrough passed.
 The accepted timer evidence used a Human-authorized temporary accelerated
 systemd timer occurrence; it does not claim that the permanent 03:20 UTC wall
 clock occurrence was observed. The permanent timer configuration was restored.
-Backup capacity is now 7/7, so later runs fail closed until #309 chooses a
-retention and failure-response policy. The seventh snapshot predates the three
-phone attempts. M14 therefore proves the bounded deployment trial, not
-sustainable unattended backup, off-host recovery or production disaster
-recovery.
+Post-M14 #309 implemented two fixed recovery points plus two rolling backups.
+A fresh snapshot covering all four current attempts passed a separate restore
+and content/relationship comparison on 2026-10-26. The permanent daily timer
+naturally ran on 2026-10-27, created a new verified snapshot and evicted the
+oldest rolling copy while preserving both fixed recovery points and four total
+snapshots. Same-host-only recovery, manual inspection and boot-disabled /
+Persistent=false operation remain accepted trial limits; this does not claim
+off-host recovery or production disaster recovery.
 ```
 
 Child issues:
