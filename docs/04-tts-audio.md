@@ -246,3 +246,73 @@ Tiny IPA 的推荐方式是：
 内容更新时生成一次
 日常学习时播放静态文件
 ```
+
+## Core100 扩展候选包（#314）
+
+本轮保留 M14 的十文件 manifest 和原始 Core100 内容作为历史输入，新增独立
+`deploy/jingyun/core100-content-audio.manifest.json` 候选。目标覆盖 99/100 个美式
+单词录音；原十个 MP3 字节及既有来源声明保持不变，其余来自逐文件核验的
+Wikimedia Commons MP3 转码。授权、作者/未具名状态、原始文件页、license URL、
+来源/输出 checksum、转换说明保存在 manifest 与 attribution 中。
+
+`wood` 只有未确认美式口音的候选来源，本包不将澳式或未确认地区录音标为美式。
+它在候选内容中的 `audio_us` 仍为 `null`。缺口保存在 `build.missing_word_ids`，
+不会伪装成 Core100 全量音频，也不依赖 Human 此时提供试用反馈。
+
+以下操作只构建本地候选，不安装到 VPS，不修改线上数据库/账户：
+
+```bash
+uv run --project backend python backend/scripts/prepare_core100_audio.py \
+  --allow-download --check-media \
+  --report content/generated/core100-audio-validation.json
+cd frontend
+pnpm test:e2e:core100-real
+```
+
+首次准备会按固定 URL/checksum 下载公开文件；Commons 请求串行并保留间隔。
+已有十文件可从本地 `audio/us/` 复用，否则使用其已部署静态 URL 取得相同字节。
+命中缓存后，无需 `--allow-download` 即可重复构建。不同 checksum 的既有文件
+一律保留并报错，不自动覆盖。不存在生产安装模式；音频输出只允许本地候选或
+系统临时目录。`--check-media` 需要 ffmpeg/ffprobe，逐文件验证 MP3 解码、时长、
+采样率和非静音；这是媒体完整性证据，不是人工发音或教学质量验收。
+
+本地生成物：
+
+- `audio/core100-candidate/us/` 与公开用 `ATTRIBUTION.md`；
+- `content/generated/core_100_audio_candidate.json`（仅根据可用资产派生音频字段）；
+- `content/generated/core100-audio-validation.json`（显式命令请求的原始验证结果）。
+
+`test:e2e:core100-real` 使用临时 SQLite、新建的合成账户、真实 FastAPI、Vite
+同源 API/audio 代理和 Chromium 的原生播放器，不 mock API、媒体数据或播放结果。
+测试覆盖未登录拒绝、12词练习、真实新录音播放、提交、刷新后续做、登出/重登、
+完成后 Progress 与 attempts 不重复、不丢失。12个不同词确保练习组至少包含两个
+不在旧十词包中的词。数据库路径必须是不存在的系统临时文件，禁止复用真实 DB。
+这是本地自动回归；当前普通 CI 不自动下载音频或运行该浏览器套件。
+
+线上仍使用已批准的原十文件包。候选的主分支合并、VPS 新文件/credits 更新、
+共享词库音频字段导入及验证/回退方案要在具体清单 review 后执行。无需为本轮
+自动验证请求 Human 练习、视觉或教学反馈；这些验收保持延期。
+
+
+### 受限音频字段激活候选
+
+通用 `import_words.py` 会同时 upsert 默认 settings，后续线上激活不得直接重跑
+该完整导入器。`backend/scripts/activate_core100_audio.py` 默认仅生成只读计划：
+
+```bash
+uv run --project backend python backend/scripts/activate_core100_audio.py \
+  --manifest deploy/jingyun/core100-content-audio.manifest.json \
+  --repo-root . --audio-root audio/core100-candidate \
+  --db <reviewed-existing-db>
+```
+
+计划绑定 manifest hash、当前全部词条的 id/word/ipa_us/audio_us 状态 hash，逐项列出
+89 个预期从 null 增加为静态 URL 的字段。只允许缺失音频的新增，不允许覆盖既有
+自定义 URL、改变词条 ID/拼写/IPA、写设置/用户/练习表。未来获得具体线上清单
+批准后才可使用 `--apply-plan-sha256 <reviewed-plan>`；它在一个 IMMEDIATE 事务中
+重算计划并逐行检查更新数，任何漂移即回滚。该参数只是绑定被审对象，不代表
+Human 已同意执行。当前仅在临时库执行该操作。
+
+真实浏览器 fixture 从原十音频状态导入新建临时库，先保存12词自定义设置，再
+通过这同一受限事务启用89条URL，确认设置未被重置后启动实际后端，连接了
+“候选资产→词库字段激活→真实播放/答题/持久化”的路径。
