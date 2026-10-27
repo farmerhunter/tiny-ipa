@@ -202,7 +202,9 @@ def prepare(
     us = _directory(audio_root / "us", audio_root)
     credits = VERIFIER._regular_under(repo_root, "deploy/jingyun/core100-audio-attribution.md")
     _write(
-        audio_root / "ATTRIBUTION.md", credits.read_bytes(), manifest["audio"]["credits"]["sha256"]
+        audio_root / VERIFIER._credits_relative(manifest["audio"]["credits"]),
+        credits.read_bytes(),
+        manifest["audio"]["credits"]["sha256"],
     )
     media = {}
     for asset in assets:

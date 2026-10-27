@@ -278,7 +278,7 @@ pnpm test:e2e:core100-real
 
 本地生成物：
 
-- `audio/core100-candidate/us/` 与公开用 `ATTRIBUTION.md`；
+- `audio/core100-candidate/us/` 与公开用 `ATTRIBUTION-4634c26243c49ad5.md`；
 - `content/generated/core_100_audio_candidate.json`（仅根据可用资产派生音频字段）；
 - `content/generated/core100-audio-validation.json`（显式命令请求的原始验证结果）。
 
@@ -316,3 +316,9 @@ Human 已同意执行。当前仅在临时库执行该操作。
 真实浏览器 fixture 从原十音频状态导入新建临时库，先保存12词自定义设置，再
 通过这同一受限事务启用89条URL，确认设置未被重置后启动实际后端，连接了
 “候选资产→词库字段激活→真实播放/答题/持久化”的路径。
+
+
+新署名URL为 `/audio/ATTRIBUTION-4634c26243c49ad5.md`，文件名绑定其内容hash，
+适配现有 `/audio/` 的长期immutable缓存。线上原 `ATTRIBUTION.md` 保持原样，
+无需替换或Nginx改动；旧客户端可继续使用原十录音及旧署名，新包/清单使用新的
+版本化署名。verifier同时支持历史固定文件名与hash匹配的新文件名，其余路径拒绝。

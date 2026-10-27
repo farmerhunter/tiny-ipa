@@ -34,6 +34,10 @@ def test_expanded_manifest_preserves_original_ten_and_reports_remaining_gap():
         assert assets[a["word_id"]] == a
     credits = (ROOT / "deploy/jingyun/core100-audio-attribution.md").read_bytes()
     assert hashlib.sha256(credits).hexdigest() == value["audio"]["credits"]["sha256"]
+    assert (
+        value["audio"]["credits"]["path"]
+        == f"ATTRIBUTION-{value['audio']['credits']['sha256'][:16]}.md"
+    )
     for wid, source in value["build"]["sources"].items():
         assert source["sha256"] == assets[wid]["sha256"]
         if "file_page" in source:
@@ -234,3 +238,10 @@ def test_audio_activation_rejects_drift_without_partial_updates(tmp_path):
     assert conn.execute("SELECT audio_us FROM words").fetchone()[0] == "/existing/custom.mp3"
     assert not conn.in_transaction
     conn.close()
+
+
+@pytest.mark.parametrize("name", ["../ATTRIBUTION.md", "ATTRIBUTION-deadbeef.md", "/absolute"])
+def test_versioned_credits_are_bound_to_checksum_without_path_traversal(name):
+    credits = {"path": name, "public_url": "/audio/" + name, "sha256": "a" * 64}
+    with pytest.raises(MODULE.VERIFIER.VerificationError, match="credits path"):
+        MODULE.VERIFIER._credits_relative(credits)

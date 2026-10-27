@@ -51,6 +51,9 @@ test("real packaged audio and attempts survive reload and logout/relogin", async
   await page.getByLabel(/界面语言|UI language/).selectOption("en-US");
   expect((await page.request.get("/api/progress")).status()).toBe(401);
   await signIn(page);
+  const credits = await page.request.get(manifest.audio.credits.public_url);
+  expect(credits.status()).toBe(200);
+  expect(createHash("sha256").update(await credits.body()).digest("hex")).toBe(manifest.audio.credits.sha256);
   expect((await state(page, "progress")).total_attempts).toBe(0);
   await page.getByRole("button", { name: "Start Entry group", exact: true }).click();
   await expect(page.getByText("Practice group: 1 / 12", { exact: true })).toBeVisible();
