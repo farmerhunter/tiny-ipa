@@ -23,6 +23,13 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest tests/ -v
+      - name: Record content and scoring audit
+        run: python scripts/audit_core100_learning.py --probe-attempts > "$RUNNER_TEMP/core100-learning-audit.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core100-learning-audit
+          path: ${{ runner.temp }}/core100-learning-audit.json
+          retention-days: 7
 
   frontend:
     runs-on: ubuntu-latest
@@ -46,3 +53,45 @@ jobs:
         run: pnpm exec tsc --noEmit
       - name: Build
         run: pnpm run build
+
+  core100-real:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: "0.11.13"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: |
+          uv sync --project ../backend --frozen
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Real Core100 workflow with frozen media
+        run: pnpm test:e2e:core100-real
+      - name: Retain failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core100-real-failure
+          path: |
+            frontend/test-results/core100-real
+            frontend/playwright-report/core100-real
+          retention-days: 7

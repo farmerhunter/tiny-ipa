@@ -452,3 +452,28 @@ phoneme overrides = 13 accepted STRUT/r-colored overrides reused from Core100
 `content/core_1000_curation_report.json` is intentionally compact review
 evidence, not the raw generated candidate report. #127 still owns runtime
 settings/scheduler/API/UI level selection.
+
+
+## Core100 内容与听辨准备审计（#316）
+
+运行 `backend/scripts/audit_core100_learning.py` 可从冻结 Core100 与扩充音频
+manifest 重建审计结果。当前 schema validator 返回零 errors；它检查标签是否合法，
+并不证明每个词的标签完整、音频与 IPA 一致或教学正确。
+
+- 100词中99词有扩充 US 音频，`wood` 保持不可用；99词的声明标签覆盖41音位，
+  但 `/ð/` 只有1词，`/θ/` 只有4词。这是标签覆盖，不是听辨训练充分性。
+- 13词存在超出已说明元音记法转换的标签丢失：bus、cup、cut、fun、jump、luck、
+  paper、river、run、sister、sun、teacher、water。所有词都有既有人工修正说明；
+  但例如 bus 的 `/b/、/s/`、paper 的 `/p/、/eɪ/` 被删掉，不能用
+  `/ə/→/ʌ/` 或 `/ɝ/→/ɚ/` 的说明豁免。审计分别列出可解释转换与未解释丢失，
+  不自动重写这些来源资产、冻结 manifest 或线上数据。
+- 现有 choose_word scorer 对100词都能提供3个干扰项，没有 fallback；
+  knew/new 的相同 US IPA 被识别并排除互作干扰项。这只证明四选一结构，
+  不是严格最小对立、音位诊断或录音可辨性。
+- IPA parser 会去重音位，因此不能直接用输出标签序列证明两个词只相差一个音；
+  音源页面作者也不等于已验证的说话人身份。听辨候选需另核对有序音位、
+  重音、音节、实际录音及口音；不能把文件 hash 正确当作这些问题已通过。
+
+修复标签和重新发布内容需保留来源、明确修正规则、重跑覆盖/干扰项报告，
+并单独 review 线上词库与既有统计的处理清单。优先修复这些已定位问题，再
+扩充常见易混音所需的少量词和同口音音频，不以词数增长替代训练覆盖。
