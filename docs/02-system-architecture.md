@@ -244,3 +244,30 @@ settings_invalid
 ```
 
 内容构建失败应生成报告；运行时失败应返回稳定错误码和用户可理解提示。
+
+
+## Development-only listening preview (#320)
+
+The accepted four-word route uses one owner-scoped `listening_previews` table
+(state JSON + active/completed status) and a partial unique index for one active
+group per user. Its service owns the eight items, heard state and immutable first
+answers; normal session/attempt/mastery services remain unchanged. SQLite
+IMMEDIATE transactions serialize create/resume and actions. No preview score
+is written into attempts, daily_sessions, session_items or phoneme_stats.
+
+`TINY_IPA_ENABLE_LISTENING_PREVIEW=true` only works when `TINY_IPA_ENV=development`.
+The opt-in app lifespan initializes the one table/index; production ignores the
+flag and cannot expose the preview through configuration alone. This is an
+offline prototype, not a production migration or rollout. A production proposal
+must separately cover schema/backup inclusion, release/restore behavior, audio
+phonetic checks and exact online installation/rollback effects.
+
+Authenticated `GET /api/listening/current` returns enabled + saved lesson.
+`POST /api/listening/lessons` creates or resumes an active group; completed groups
+remain saved and only this explicit action creates another.
+`POST /api/listening/lessons/{id}/actions` accepts the bounded commands begin,
+played, answer and next. Index/current-state and ownership checks fail closed;
+a same-answer retry returns the saved state without scoring, changed answers
+conflict. A played command is client-reported workflow state, not proof of
+audibility or an anti-cheating mechanism. Native player evidence verifies only
+the automated client route.

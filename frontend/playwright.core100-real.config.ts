@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
 const frontendPort = Number(process.env.CORE100_REAL_FRONTEND_PORT ?? "5185");
 const backendPort = Number(process.env.CORE100_REAL_BACKEND_PORT ?? "8035");
 for (const port of [frontendPort, backendPort]) {
@@ -7,9 +9,11 @@ for (const port of [frontendPort, backendPort]) {
 }
 const runId = `${Date.now()}-${process.pid}`;
 const dbPath = process.env.CORE100_REAL_DB_PATH ?? `/tmp/tiny-ipa-core100-${runId}.sqlite`;
+const audioRoot = process.env.CORE100_REAL_AUDIO_DIR ?? resolve(realpathSync(tmpdir()), `tiny-ipa-core100-${runId}-audio`);
+process.env.CORE100_REAL_AUDIO_DIR = audioRoot;
 const frontendURL = `http://127.0.0.1:${frontendPort}`;
 export default defineConfig({
-  testDir: "./tests/e2e", testMatch: "core100-real-workflow.spec.ts",
+  testDir: "./tests/e2e", testMatch: ["core100-real-workflow.spec.ts", "listening-real-workflow.spec.ts"],
   outputDir: "./test-results/core100-real",
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report/core100-real" }]],
   workers: 1,
@@ -21,7 +25,8 @@ export default defineConfig({
       url: `http://127.0.0.1:${backendPort}/api/health`, reuseExistingServer: false, timeout: 120_000,
       env: {
         TINY_IPA_DB_PATH: dbPath, CORE100_REAL_DB_PATH: dbPath,
-        TINY_IPA_AUDIO_DIR: resolve("../audio/core100-candidate"), TINY_IPA_REQUIRE_PACKAGED_AUDIO: "true",
+        TINY_IPA_AUDIO_DIR: audioRoot, CORE100_REAL_AUDIO_DIR: audioRoot,
+        TINY_IPA_REQUIRE_PACKAGED_AUDIO: "true", TINY_IPA_ENABLE_LISTENING_PREVIEW: "true",
         TINY_IPA_ENV: "development", TINY_IPA_ALLOWED_ORIGINS: frontendURL,
         TINY_IPA_SESSION_SECRET: "local-core100-disposable-fixture-only",
       },

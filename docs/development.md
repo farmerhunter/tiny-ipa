@@ -745,3 +745,19 @@ artifact 7天。审计发现会如实输出，命令成功并不表示没有教�
 
 审计判断与听辨方案分别见现有内容方案、API 合同及 UX 方案中的 #316 小节。
 此 PR 只变更测试、CI、审计和文档；不需要 VPS 安装、服务重启或数据迁移。
+
+
+## Development-only listening prototype (#320)
+
+The same `pnpm test:e2e:core100-real` job now runs both the normal practice
+workflow and listening preview. It prepares a unique temporary audio directory
+as well as the disposable database, so the missing-file playback test only
+renames/restores its own temporary copy. No API/media responses or native
+playback events are faked. Normal progress is compared before/after the full
+listening group, wrong-answer replay and new-group flow.
+
+For a manual local inspection, use a disposable development DB and the prepared
+audio root with `TINY_IPA_ENABLE_LISTENING_PREVIEW=true`. The preview remains
+disabled by default and cannot be enabled in production. Its table and index
+are initialized only by the opt-in development lifespan. No online change is
+needed to review this prototype; Human trials remain deferred.

@@ -2,6 +2,7 @@ import {
   fetchAuthState,
   fetchHealth,
   fetchSettings,
+  fetchListening,
   isAuthRequiredError,
   login,
   logout,
@@ -12,6 +13,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import TodayPractice from "./pages/TodayPractice";
 import ProgressPage from "./pages/ProgressPage";
 import SettingsPage from "./pages/SettingsPage";
+import ListeningLesson from "./pages/ListeningLesson";
 import { DEFAULT_LOCALE, createTranslator, type Locale } from "./locales";
 
 function App() {
@@ -20,11 +22,17 @@ function App() {
   const [authChecking, setAuthChecking] = useState(true);
   const [authUser, setAuthUser] = useState<CurrentUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [page, setPage] = useState<"today" | "progress" | "settings">("today");
+  const [page, setPage] = useState<"today" | "progress" | "settings" | "listening">("today");
+  const [listeningAvailable, setListeningAvailable] = useState(false);
   const [uiLanguage, setUiLanguage] = useState<Locale>(DEFAULT_LOCALE);
   const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
   const [practiceSession, setPracticeSession] = useState<TodayResponse | null>(null);
   const t = createTranslator(uiLanguage);
+  useEffect(() => {
+    let active = true;
+    if (authUser) fetchListening().then((state) => { if (active) setListeningAvailable(state.enabled); }).catch(() => { if (active) setListeningAvailable(false); });
+    return () => { active = false; };
+  }, [authUser]);
 
   useEffect(() => {
     fetchHealth()
@@ -72,6 +80,7 @@ function App() {
       setAuthError(error instanceof Error ? error.message : t("auth.error.logout_failed"));
     } finally {
       setAuthUser(null);
+      setListeningAvailable(false);
       setFocusPhonemes([]);
       setPracticeSession(null);
       setPage("today");
@@ -135,7 +144,10 @@ function App() {
         <button className={`nav-tab ${page === "settings" ? "nav-active" : ""}`}
           onClick={() => setPage("settings")}>{t("app.nav.settings")}</button>
       </nav>
-      {page === "progress"
+      {page === "today" && listeningAvailable && <button className="secondary-action-btn listening-entry" onClick={() => setPage("listening")}>{t("listening.entry")}</button>}
+      {page === "listening"
+        ? <ListeningLesson uiLanguage={uiLanguage} onBack={() => setPage("today")} />
+        : page === "progress"
         ? <ProgressPage
             uiLanguage={uiLanguage}
             onBack={() => setPage("today")}

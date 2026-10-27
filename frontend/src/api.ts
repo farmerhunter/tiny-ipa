@@ -419,3 +419,28 @@ export async function saveSettings(
   }
   return res.json();
 }
+
+export interface ListeningAnswer {
+  index: number; selected: string; correct: string; is_correct: boolean; audio_url: string;
+}
+export interface ListeningLesson {
+  id: string; phase: "demo" | "question" | "completed"; cursor: number;
+  demo: { word: string; ipa: string; audio_url: string }[];
+  item: { index: number; choices: string[]; audio_url: string; heard: boolean;
+    feedback: ListeningAnswer | null } | null;
+  answers: ListeningAnswer[];
+  summary: { correct: number; total: number; practice_correct: number; new_words_correct: number };
+}
+export async function fetchListening(): Promise<{ enabled: boolean; lesson: ListeningLesson | null }> {
+  const res = await fetch(`${API_BASE}/listening/current`, { credentials: AUTH_CREDENTIALS });
+  if (!res.ok) throw new Error(await normalizeApiError(res));
+  return res.json();
+}
+export async function listeningCommand(lessonId?: string, command?: Record<string, unknown>): Promise<ListeningLesson> {
+  const res = await fetch(`${API_BASE}/listening/lessons${lessonId ? `/${lessonId}/actions` : ""}`, {
+    method: "POST", credentials: AUTH_CREDENTIALS, headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(command ?? {}),
+  });
+  if (!res.ok) throw new Error(await normalizeApiError(res));
+  return res.json();
+}
