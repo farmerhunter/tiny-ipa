@@ -483,7 +483,8 @@ def test_p1b_bootstrap_and_roadmap_record_current_contract() -> None:
     assert "password stdin must contain exactly one non-empty line" in bootstrap
     assert "The Human-authorized controlled VPS trial is accepted" in roadmap
     assert "#304 [P1b] HTTPS phone trial and non-empty recovery package - Done" in roadmap
-    assert "Backup capacity is now 7/7, so later runs fail closed until #309" in roadmap
+    assert "Post-M14 #309 implemented two fixed recovery points plus two rolling backups" in roadmap
+    assert "naturally ran on 2026-10-27" in roadmap
 
 
 def test_p1b_discovery_is_read_only_and_apply_stays_human_gated() -> None:
