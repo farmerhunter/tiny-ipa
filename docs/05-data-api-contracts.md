@@ -1443,3 +1443,23 @@ SETTINGS_INVALID
 播放失败不应计错，声学诊断不得从整词正误反推。小课结果独立呈现，是否以及
 如何进入既有 `phoneme_stats` 要先做语义决定，不能沿用现有更新路径就声称
 获得了音位级诊断。方案 review 见 `docs/10-ux-research-and-optimization.md`。
+
+
+### #318 首答保护与内容修正候选
+
+`POST /api/attempt` 在 SQLite IMMEDIATE 事务内执行所有 item/session/既有答题
+检查和计分写入。归属校验在重试回读之前。相同 item、相同去首尾空格答案返回
+保存的首次判题（`replayed=true`），`updated_phonemes=[]`，不新增 attempts 或
+统计；改答案返回409 `ITEM_ALREADY_ANSWERED`。最终题完成后仍支持同答案重试，
+`next_action` 反映当前组是否完成。第一次提交返回 `replayed=false`。
+历史多条记录不删除，按 created_at/rowid 最早一条判断；不承诺重放旧 response
+的整个统计快照。事务出错回滚 attempt、item 和统计，不依赖前端防连点。
+
+标签修正保存在 `content/core_100_phoneme_corrections.json`，绑定冻结源 hash
+和13条 old/new 标签；`correct_core100_tags.py` 先验证来源与完整保留解析音位，
+再派生候选。可用 `--db <reviewed-db>` 仅列计划；仅在后来获批准时，使用
+`--apply-plan-sha256 <plan>` 原子更新13个 `words.phoneme_tags_us`。不运行通用
+导入器，不修改 IPA/audio、session targets、attempts 或 phoneme_stats。
+既有组（含未完成组）的 targets 保持原样，新生成组才使用新词条标签。
+Core300 的相同 IDs 也可能适用这一受限补丁；Mid 的 `mid_*` IDs 不在范围内，
+不能宣称所有等级的来源资产已修正。后续线上采用及残留统计处理须审定具体清单。

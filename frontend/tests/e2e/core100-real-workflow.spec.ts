@@ -64,6 +64,12 @@ test("real packaged audio and attempts survive reload and logout/relogin", async
   const groupId = first.group_id;
   await chooseCorrect(page);
   await expect(page.getByText("Practice group: 2 / 12", { exact: true })).toBeVisible();
+  const retry = await page.request.post("/api/attempt", { data: {
+    session_item_id: first.items[0].session_item_id, selected_answer: first.items[0].display_ipa,
+  } });
+  expect(retry.status()).toBe(200);
+  expect((await retry.json()).replayed).toBe(true);
+  expect((await state(page, "progress")).total_attempts).toBe(1);
 
   await page.reload();
   await page.getByRole("button", { name: "Resume Entry group", exact: true }).click();

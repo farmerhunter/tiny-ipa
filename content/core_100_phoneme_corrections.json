@@ -1,0 +1,195 @@
+{
+  "schema": "tiny-ipa-core100-tag-corrections/v1",
+  "source": "content/core_100_words.json",
+  "source_sha256": "bb276f0c8b76ebe350bc70fc981d337434967abf606716e8f99d001b307541b8",
+  "changes": [
+    {
+      "word_id": "bus",
+      "ipa_us": "/ˈbəs/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/b/",
+        "/ʌ/",
+        "/s/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "cup",
+      "ipa_us": "/ˈkəp/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/k/",
+        "/ʌ/",
+        "/p/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "cut",
+      "ipa_us": "/ˈkət/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/k/",
+        "/ʌ/",
+        "/t/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "fun",
+      "ipa_us": "/ˈfən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/f/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "jump",
+      "ipa_us": "/ˈdʒəmp/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/dʒ/",
+        "/ʌ/",
+        "/m/",
+        "/p/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "luck",
+      "ipa_us": "/ˈɫək/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/l/",
+        "/ʌ/",
+        "/k/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "paper",
+      "ipa_us": "/ˈpeɪpɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/p/",
+        "/eɪ/",
+        "/ɚ/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "river",
+      "ipa_us": "/ˈɹɪvɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/r/",
+        "/ɪ/",
+        "/v/",
+        "/ɚ/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "run",
+      "ipa_us": "/ˈɹən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/r/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "sister",
+      "ipa_us": "/ˈsɪstɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/s/",
+        "/ɪ/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "sun",
+      "ipa_us": "/ˈsən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/s/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "teacher",
+      "ipa_us": "/ˈtitʃɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/t/",
+        "/iː/",
+        "/tʃ/",
+        "/ɚ/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    },
+    {
+      "word_id": "water",
+      "ipa_us": "/ˈwɔtɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/w/",
+        "/ɔ/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Preserve all parsed tags while applying this word's documented vowel notation correction."
+    }
+  ],
+  "historical_statistics": "preserve; do not recalculate attempts, session targets or phoneme_stats"
+}
