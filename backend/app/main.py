@@ -14,13 +14,15 @@ from app.auth_dependencies import (
     auth_runtime_config,
     request_origin_is_allowed,
 )
-from app.db import keep_wal_anchor, wal_anchor_enabled
+from app.db import get_db, keep_wal_anchor, wal_anchor_enabled
 from app.routes.attempts import router as attempts_router
 from app.routes.auth import router as auth_router
 from app.routes.health import router as health_router
+from app.routes.listening import router as listening_router
 from app.routes.practice import router as practice_router
 from app.routes.progress import router as progress_router
 from app.routes.settings import router as settings_router
+from app.services import listening
 
 
 def create_app() -> FastAPI:
@@ -28,6 +30,9 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        if listening.enabled():
+            with get_db() as conn:
+                listening.initialize(conn)
         if wal_anchor_enabled():
             with keep_wal_anchor():
                 yield
@@ -76,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(attempts_router, prefix="/api")
     app.include_router(progress_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
+    app.include_router(listening_router, prefix="/api")
 
     # Mount static audio directory for local dev. In production Nginx serves /audio/.
     audio_dir = os.getenv(

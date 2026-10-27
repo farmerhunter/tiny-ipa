@@ -1914,6 +1914,188 @@
       "source": "frontend/src/components/ChoiceQuestion.tsx frontend/src/pages/TodayPractice.tsx content/phonemes.json",
       "current": "/ʃ/ /θ/ /æ/ /ɪ/ /tʃ/ /ʌ/ and all IPA choices",
       "notes": "Never translate, normalize, or wrap as prose."
+    },
+    {
+      "key": "listening.title",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Listening lesson (preview)"
+    },
+    {
+      "key": "listening.entry",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/App.tsx",
+      "current": "Listening lesson (preview)"
+    },
+    {
+      "key": "listening.notice",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Experimental recordings, not yet phonetically certified. Scores describe this group only and do not change mastery."
+    },
+    {
+      "key": "listening.error",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Could not confirm the saved state. Retry the action or return to Today."
+    },
+    {
+      "key": "listening.audio_error",
+      "surface": "loading_error",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Recording unavailable. Retry playback; no answer was scored."
+    },
+    {
+      "key": "listening.demo",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Listen to the contrast"
+    },
+    {
+      "key": "listening.contrast",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Compare /k/ and /g/ in came and game. Listen before choosing."
+    },
+    {
+      "key": "listening.play_word",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Play {word}"
+    },
+    {
+      "key": "listening.begin",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Begin eight questions"
+    },
+    {
+      "key": "listening.item",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Listening question {n} / 8"
+    },
+    {
+      "key": "listening.practice",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Practice: came / game"
+    },
+    {
+      "key": "listening.new_words",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "New words: back / bag"
+    },
+    {
+      "key": "listening.play",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Play question recording"
+    },
+    {
+      "key": "listening.playing",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Playing recording…"
+    },
+    {
+      "key": "listening.choose",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Choose the word you heard."
+    },
+    {
+      "key": "listening.hear_first",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Play the full recording before choosing."
+    },
+    {
+      "key": "listening.correct",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Correct: {word}"
+    },
+    {
+      "key": "listening.wrong",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "The recording was: {word}"
+    },
+    {
+      "key": "listening.next",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Continue listening"
+    },
+    {
+      "key": "listening.complete",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Listening group complete"
+    },
+    {
+      "key": "listening.score",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "First answers correct: {n} / 8"
+    },
+    {
+      "key": "listening.parts",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Practice: {practice}/4; new-word check: {check}/4. This is not a mastery test."
+    },
+    {
+      "key": "listening.review",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Replay missed recordings (not scored)"
+    },
+    {
+      "key": "listening.again",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "Start another listening group"
+    },
+    {
+      "key": "listening.initial_contrast",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "came / game: compare word-initial /k/ and /g/."
+    },
+    {
+      "key": "listening.final_contrast",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "back / bag: compare word-final /k/ and /g/."
     }
   ]
 }

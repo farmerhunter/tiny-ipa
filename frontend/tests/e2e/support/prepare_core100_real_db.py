@@ -74,7 +74,12 @@ def main():
             json.loads(manifest_path.read_text()),
             cache,
         )
-        report = prepare(manifest_path, ROOT, ROOT / "audio/core100-candidate", cache)
+        audio_root = Path(
+            os.environ.get(
+                "CORE100_REAL_AUDIO_DIR", str(ROOT / "audio/core100-candidate")
+            )
+        )
+        report = prepare(manifest_path, ROOT, audio_root, cache)
     imported = import_words(
         source_path=ROOT / "content/core_100_words.json",
         phonemes_path=ROOT / "content/phonemes.json",

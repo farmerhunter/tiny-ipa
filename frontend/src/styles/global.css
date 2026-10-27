@@ -1304,3 +1304,28 @@ summary:focus-visible {
     justify-self: start;
   }
 }
+
+.listening-preview section {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+}
+.listening-preview h1 { font-size: 1.65rem; margin: 16px 0 10px; }
+.listening-preview h2 { font-size: 1.3rem; }
+.listening-preview h3 { font-size: 1rem; }
+.listening-preview button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-solid);
+  color: var(--ink);
+}
+.listening-preview button:disabled { cursor: default; opacity: 0.5; }
+.listening-preview .btn-primary { background: var(--accent); color: white; }
+.listening-preview .choices-list { margin-top: 0; }
+.listening-entry { display: block; margin: 12px auto; }

@@ -83,6 +83,9 @@ jobs:
         run: |
           uv sync --project ../backend --frozen
           pnpm install --frozen-lockfile
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          fi
           pnpm exec playwright install --with-deps chromium
       - name: Real Core100 workflow with frozen media
         run: pnpm test:e2e:core100-real
