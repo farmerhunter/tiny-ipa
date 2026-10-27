@@ -263,5 +263,7 @@
   "listening.score": "首答正确：{n} / 8",
   "listening.parts": "练习：{practice}/4；换词检查：{check}/4。这不是掌握度测试。",
   "listening.review": "重听错题录音（不计分）",
-  "listening.again": "再练一组听辨"
+  "listening.again": "再练一组听辨",
+  "listening.initial_contrast": "came / game：对比词首的 /k/ 与 /g/。",
+  "listening.final_contrast": "back / bag：对比词尾的 /k/ 与 /g/。"
 }

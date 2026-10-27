@@ -263,5 +263,7 @@
   "listening.score": "First answers correct: {n} / 8",
   "listening.parts": "Practice: {practice}/4; new-word check: {check}/4. This is not a mastery test.",
   "listening.review": "Replay missed recordings (not scored)",
-  "listening.again": "Start another listening group"
+  "listening.again": "Start another listening group",
+  "listening.initial_contrast": "came / game: compare word-initial /k/ and /g/.",
+  "listening.final_contrast": "back / bag: compare word-final /k/ and /g/."
 }

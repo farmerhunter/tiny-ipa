@@ -67,6 +67,8 @@ export default function ListeningLesson({ uiLanguage, onBack }: { uiLanguage: Lo
       <div className="choices-list">{item.choices.map((choice) => <button key={choice} className="choice-btn" disabled={busy || playing || !item.heard || Boolean(item.feedback)} onClick={() => void command("answer", choice)}>{choice}</button>)}</div>
       {item.feedback && <div className="feedback" role="status">
         <p>{t(item.feedback.is_correct ? "listening.correct" : "listening.wrong", { word: item.feedback.correct })}</p>
+        <p className="ipa-text listening-feedback-ipa">{item.feedback.ipa}</p>
+        <p>{t(lesson.cursor < 4 ? "listening.initial_contrast" : "listening.final_contrast")}</p>
         <button disabled={busy || playing} onClick={() => void command("next")}>{t("listening.next")}</button>
       </div>}
     </section>}

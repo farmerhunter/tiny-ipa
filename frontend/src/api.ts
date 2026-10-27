@@ -421,7 +421,7 @@ export async function saveSettings(
 }
 
 export interface ListeningAnswer {
-  index: number; selected: string; correct: string; is_correct: boolean; audio_url: string;
+  index: number; selected: string; correct: string; ipa: string; is_correct: boolean; audio_url: string;
 }
 export interface ListeningLesson {
   id: string; phase: "demo" | "question" | "completed"; cursor: number;

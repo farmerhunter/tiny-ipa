@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
@@ -79,6 +80,11 @@ def test_eight_item_route_retry_resume_review_and_normal_stats_unchanged(preview
     before = snapshot(database)
     lesson = first_question(client)
     lesson_id = lesson["id"]
+    expected_ipa = {
+        w["word_id"]: w["ipa_us"]
+        for w in json.loads((ROOT / "content/core_100_words.json").read_text())["words"]
+    }
+    assert lesson["item"]["feedback"] is None
     assert action(client, lesson, "answer", selected_answer=correct(lesson)).status_code == 409
     assert action(client, lesson, "next").status_code == 409
     for i in range(8):
@@ -90,6 +96,7 @@ def test_eight_item_route_retry_resume_review_and_normal_stats_unchanged(preview
             else next(w for w in lesson["item"]["choices"] if w != correct(lesson))
         )
         lesson = action(client, lesson, "answer", selected_answer=answer).json()
+        assert lesson["item"]["feedback"]["ipa"] == expected_ipa[correct(lesson)]
         replay = action(client, lesson, "answer", selected_answer=answer)
         assert replay.status_code == 200 and replay.json()["replayed"]
         assert replay.json()["summary"]["total"] == i + 1

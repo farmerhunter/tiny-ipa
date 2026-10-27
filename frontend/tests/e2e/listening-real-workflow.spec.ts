@@ -45,6 +45,7 @@ test("native listening, failed playback, resume, first answers and independent s
   const first = await state(page);
   const id = first.id;
   await expect(page.locator(".listening-preview .choice-btn").first()).toBeDisabled();
+  await expect(page.locator(".listening-feedback-ipa")).toHaveCount(0);
   const mediaPath = join(process.env.CORE100_REAL_AUDIO_DIR!, first.item.audio_url.replace("/audio/", ""));
   renameSync(mediaPath, `${mediaPath}.held`);
   try {
@@ -58,6 +59,8 @@ test("native listening, failed playback, resume, first answers and independent s
   const wrong = first.item.choices.find((w: string) => w !== target);
   await page.getByRole("button", { name: wrong, exact: true }).click();
   await expect(page.getByRole("status")).toContainText(`The recording was: ${target}`);
+  await expect(page.locator(".listening-feedback-ipa")).toHaveText((await state(page)).item.feedback.ipa);
+  await expect(page.getByRole("status")).toContainText("word-initial /k/ and /g/");
   const retry = await page.request.post(`/api/listening/lessons/${id}/actions`, { data: {
     action: "answer", index: 0, selected_answer: wrong,
   } });
@@ -81,6 +84,8 @@ test("native listening, failed playback, resume, first answers and independent s
     const word = current.item.audio_url.split("/").at(-1).replace(".mp3", "");
     await page.getByRole("button", { name: word, exact: true }).click();
     await expect(page.getByRole("status")).toContainText(`Correct: ${word}`);
+    await expect(page.locator(".listening-feedback-ipa")).toHaveText((await state(page)).item.feedback.ipa);
+    if (i >= 4) await expect(page.getByRole("status")).toContainText("word-final /k/ and /g/");
     await page.getByRole("button", { name: "Continue listening", exact: true }).click();
   }
   await expect(page.getByRole("heading", { name: "Listening group complete" })).toBeVisible();

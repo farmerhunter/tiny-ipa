@@ -2082,6 +2082,20 @@
       "classification": "translatable",
       "source": "frontend/src/pages/ListeningLesson.tsx",
       "current": "Start another listening group"
+    },
+    {
+      "key": "listening.initial_contrast",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "came / game: compare word-initial /k/ and /g/."
+    },
+    {
+      "key": "listening.final_contrast",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/pages/ListeningLesson.tsx",
+      "current": "back / bag: compare word-final /k/ and /g/."
     }
   ]
 }

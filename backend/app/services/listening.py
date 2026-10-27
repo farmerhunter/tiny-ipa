@@ -74,6 +74,7 @@ def present(row) -> dict | None:
             "index": i,
             "selected": x["answer"],
             "correct": x["target"],
+            "ipa": words[x["target"]]["ipa_us"],
             "is_correct": x["answer"] == x["target"],
             "audio_url": _audio(x["target"]),
         }
