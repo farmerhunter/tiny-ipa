@@ -477,3 +477,15 @@ manifest 重建审计结果。当前 schema validator 返回零 errors；它检�
 修复标签和重新发布内容需保留来源、明确修正规则、重跑覆盖/干扰项报告，
 并单独 review 线上词库与既有统计的处理清单。优先修复这些已定位问题，再
 扩充常见易混音所需的少量词和同口音音频，不以词数增长替代训练覆盖。
+
+
+### #318 修正候选与冻结来源
+
+保留 `core_100_words.json` 和已有音频 manifest 的历史字节；新增小型
+`core_100_phoneme_corrections.json` 只列13词的 before/after。派生候选保留
+全部解析音位，再按这些词既有说明进行 /ə/→/ʌ/、/ɝ/→/ɚ/ 转换，例如
+bus 为 /b,ʌ,s/，paper 为 /p,eɪ,ɚ/。审计 JSON 分开报告冻结源的历史问题和
+`corrected_candidate` 的结果，后者未解释标签差异为零。
+这不等于完成录音/IPA人工核对，也不自动改 Core300/Core1000 或真实 DB。
+使用 `uv run --project backend python backend/scripts/correct_core100_tags.py`
+可在 stdout 检查完整候选；临时测试按13项补丁应用后验证其他字段和历史表不变。

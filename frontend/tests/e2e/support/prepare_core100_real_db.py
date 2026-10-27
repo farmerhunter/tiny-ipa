@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "backend/scripts"))
 from activate_core100_audio import apply, plan  # noqa: E402
+from correct_core100_tags import apply as apply_tags  # noqa: E402
+from correct_core100_tags import load_corrections, plan as plan_tags  # noqa: E402
 from app.db import get_connection  # noqa: E402
 from app.models import User  # noqa: E402
 from app.services.auth import hash_password  # noqa: E402
@@ -110,6 +112,9 @@ def main():
             apply(conn, content, manifest_sha, activation["plan_sha256"])["updated"]
             == 89
         )
+        _, corrections = load_corrections()
+        tag_plan = plan_tags(conn, corrections)
+        assert apply_tags(conn, corrections, tag_plan["plan_sha256"])["updated"] == 13
         assert (
             conn.execute(
                 "SELECT daily_word_count FROM settings WHERE user_id='default'"

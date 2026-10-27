@@ -740,8 +740,8 @@ uv run --project backend python backend/scripts/audit_core100_learning.py --prob
 无 `--probe-attempts` 时仅读仓库输入；开启后仅创建并清理系统临时目录内的新库
 及合成账号，不接收 DB 路径，不接触真实账号。CI backend job 保存 JSON 审计
 artifact 7天。审计发现会如实输出，命令成功并不表示没有教学或产品问题；
-`test_core100_ci_audit.py` 中的 replay 检查是对当前缺陷的 characterization，
-不是要求产品保留重复计分。修复时应同步更新复现预期。
+早期 replay probe 复现了重复计分；#318 已更新其预期为一次计分、四次重放。
+审计保留冻结源问题并另列 corrected_candidate，不把历史来源伪装为已经修改。
 
 审计判断与听辨方案分别见现有内容方案、API 合同及 UX 方案中的 #316 小节。
 此 PR 只变更测试、CI、审计和文档；不需要 VPS 安装、服务重启或数据迁移。

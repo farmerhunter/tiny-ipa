@@ -94,11 +94,12 @@ def test_audit_reports_actual_audio_coverage_and_homophone_exclusion():
     assert all(s["word_id"] not in {d["word_id"] for d in s["distractors"]} for s in samples)
 
 
-def test_disposable_probe_exposes_current_replay_and_whole_answer_attribution():
+def test_disposable_probe_confirms_replay_guard_and_whole_answer_attribution():
     observed = probe_attempt_semantics()
-    assert observed["duplicate_attempt_risk"]
-    assert observed["recorded_total_attempts"] == 5
+    assert not observed["duplicate_attempt_risk"]
+    assert observed["recorded_total_attempts"] == 1
+    assert observed["replayed_responses"] == 4
     assert observed["unique_submitted_items"] == 1
-    assert all(s["mastery_status"] == "mastered" for s in observed["phoneme_stats_after_replay"])
+    assert all(s["attempt_count"] == 1 for s in observed["phoneme_stats_after_replay"])
     wrong = observed["whole_answer_wrong_updates"]
     assert {p["phoneme"] for p in wrong} == set(observed["whole_answer_wrong_target_tags"])

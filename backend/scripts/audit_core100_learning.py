@@ -16,6 +16,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
+from correct_core100_tags import derive, load_corrections  # noqa: E402
 from report_choose_word_distractors import _word_from_entry  # noqa: E402
 from select_candidates import parse_ipa_to_phonemes  # noqa: E402
 from validate_content import load_phoneme_set, validate_words  # noqa: E402
@@ -150,7 +151,8 @@ def probe_attempt_semantics() -> dict:
                     "unique_submitted_items": 1,
                     "submission_statuses": [r.status_code for r in attempts],
                     "recorded_total_attempts": progress.json()["total_attempts"],
-                    "phoneme_stats_after_replay": attempts[-1].json()["updated_phonemes"],
+                    "phoneme_stats_after_replay": attempts[0].json()["updated_phonemes"],
+                    "replayed_responses": sum(r.json().get("replayed", False) for r in attempts),
                     "duplicate_attempt_risk": progress.json()["total_attempts"] > 1,
                 }
                 wrong = response.json()["items"][1]
@@ -186,6 +188,12 @@ def main():
         p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
         for p in (source, manifest, ROOT / "content/phonemes.json")
     }
+    content, corrections = load_corrections()
+    report["corrected_candidate"] = audit_content(
+        derive(content, corrections)["words"],
+        json.loads(manifest.read_text()),
+        load_phoneme_set(ROOT / "content/phonemes.json"),
+    )
     if args.probe_attempts:
         report["attempt_semantics_probe"] = probe_attempt_semantics()
     print(json.dumps(report, indent=2, ensure_ascii=False))

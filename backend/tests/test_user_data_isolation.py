@@ -118,6 +118,14 @@ def test_attempt_rejects_other_users_session_item(isolated_db: str):
 
     assert resp.status_code == 404
     assert resp.json()["detail"]["error"] == "ITEM_NOT_FOUND"
+    saved = alice.post("/api/attempt", json={
+        "session_item_id": item["session_item_id"], "selected_answer": item["display_ipa"],
+    })
+    assert saved.status_code == 200
+    replay_by_bob = bob.post("/api/attempt", json={
+        "session_item_id": item["session_item_id"], "selected_answer": item["display_ipa"],
+    })
+    assert replay_by_bob.status_code == 404
 
 
 def test_current_group_review_rejects_other_users_source_group(isolated_db: str):

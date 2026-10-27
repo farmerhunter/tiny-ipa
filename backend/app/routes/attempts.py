@@ -47,13 +47,18 @@ async def attempt(
     session_item_id = body.get("session_item_id", "")
     selected_answer = body.get("selected_answer", "")
 
-    if not session_item_id:
+    if (
+        not isinstance(session_item_id, str)
+        or not session_item_id
+        or not isinstance(selected_answer, str)
+    ):
         raise HTTPException(
             status_code=400,
             detail={"error": "INVALID_ATTEMPT", "detail": "Missing session_item_id"},
         )
 
     with get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         # Resolve session from the session_item_id prefix.
         # Items have ids like "2026-06-06-default_item_001".
         # The session_id is the prefix before the last "_item_".
@@ -88,6 +93,29 @@ async def attempt(
             raise HTTPException(
                 status_code=404,
                 detail={"error": "ITEM_NOT_FOUND", "detail": session_item_id},
+            )
+        previous = conn.execute(
+            "SELECT selected_answer, correct_answer, is_correct FROM attempts "
+            "WHERE user_id=? AND session_item_id=? ORDER BY created_at, rowid LIMIT 1",
+            (current_user.id, session_item_id),
+        ).fetchone()
+        if previous is not None:
+            if selected_answer.strip() != (previous["selected_answer"] or "").strip():
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": "ITEM_ALREADY_ANSWERED", "detail": session_item_id},
+                )
+            return {
+                "is_correct": bool(previous["is_correct"]),
+                "correct_answer": previous["correct_answer"],
+                "updated_phonemes": [],
+                "next_action": "group_complete" if session.status == "completed" else "next_item",
+                "replayed": True,
+            }
+        if item.status in {"complete", "completed"}:
+            raise HTTPException(
+                status_code=409,
+                detail={"error": "ITEM_ALREADY_ANSWERED", "detail": session_item_id},
             )
         if session.status == "completed":
             raise HTTPException(
@@ -152,4 +180,5 @@ async def attempt(
             "correct_answer": correct_answer,
             "updated_phonemes": updated_phonemes,
             "next_action": next_action,
+            "replayed": False,
         }

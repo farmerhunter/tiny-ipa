@@ -57,6 +57,81 @@ def _get_first_item(client: TestClient) -> dict:
     return items[0]
 
 
+def test_first_answer_replays_without_recounting_and_rejects_changes(client, seeded_db):
+    item = _get_first_item(client)
+    payload = {"session_item_id": item["session_item_id"], "selected_answer": item["display_ipa"]}
+    first = client.post("/api/attempt", json=payload)
+    assert first.status_code == 200 and first.json()["replayed"] is False
+    repeated = client.post("/api/attempt", json=payload)
+    assert repeated.status_code == 200 and repeated.json()["replayed"] is True
+    assert repeated.json()["correct_answer"] == first.json()["correct_answer"]
+    assert repeated.json()["updated_phonemes"] == []
+    changed = client.post("/api/attempt", json={**payload, "selected_answer": "/changed/"})
+    assert changed.status_code == 409
+    with get_connection(seeded_db) as conn:
+        assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 1
+        assert max(r[0] for r in conn.execute("SELECT attempt_count FROM phoneme_stats")) == 1
+
+
+def test_final_item_retry_replays_completed_group(client):
+    today = client.post("/api/practice/next-normal").json()
+    for item in today["items"]:
+        payload = {"session_item_id": item["session_item_id"], "selected_answer": item["display_ipa"]}
+        assert client.post("/api/attempt", json=payload).status_code == 200
+    replay = client.post("/api/attempt", json=payload)
+    assert replay.status_code == 200
+    assert replay.json()["next_action"] == "group_complete"
+    assert replay.json()["replayed"] is True
+    assert client.get("/api/progress").json()["total_attempts"] == len(today["items"])
+
+
+@pytest.mark.parametrize("conflicting", [False, True])
+def test_concurrent_submissions_score_only_one_first_answer(client, seeded_db, conflicting):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    item = _get_first_item(client)
+    barrier = Barrier(2)
+    cookies = dict(client.cookies)
+
+    def submit(answer):
+        with TestClient(app, cookies=cookies) as parallel:
+            barrier.wait(timeout=10)
+            return parallel.post("/api/attempt", json={
+                "session_item_id": item["session_item_id"], "selected_answer": answer,
+            })
+
+    answers = [item["display_ipa"], "/wrong/" if conflicting else item["display_ipa"]]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(submit, answers))
+    assert sorted(r.status_code for r in responses) == ([200, 409] if conflicting else [200, 200])
+    with get_connection(seeded_db) as conn:
+        assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 1
+        assert max(r[0] for r in conn.execute("SELECT attempt_count FROM phoneme_stats")) == 1
+
+
+def test_failed_stat_update_rolls_back_attempt_and_item(client, seeded_db, monkeypatch):
+    import app.routes.attempts as route
+
+    item = _get_first_item(client)
+    payload = {"session_item_id": item["session_item_id"], "selected_answer": item["display_ipa"]}
+    original = route.update_phoneme_stats
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("stat-write fault")
+
+    monkeypatch.setattr(route, "update_phoneme_stats", fail)
+    with pytest.raises(RuntimeError, match="stat-write fault"):
+        client.post("/api/attempt", json=payload)
+    with get_connection(seeded_db) as conn:
+        assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 0
+        assert conn.execute("SELECT status FROM session_items WHERE id=?", (
+            item["session_item_id"],
+        )).fetchone()[0] == "pending"
+    monkeypatch.setattr(route, "update_phoneme_stats", original)
+    assert client.post("/api/attempt", json=payload).json()["replayed"] is False
+
+
 # ---------------------------------------------------------------------------
 # Mastery status
 # ---------------------------------------------------------------------------
@@ -194,20 +269,25 @@ class TestAttemptRoute:
         assert data["detail"]["error"] == "INVALID_ATTEMPT"
 
     def test_phoneme_stats_updated(self, client, seeded_db):
-        item = _get_first_item(client)
+        items = client.post("/api/practice/next-normal").json()["items"]
+        item = next(i for i in items if i["word_id"] == "ship")
+        other = next(i for i in items if i["word_id"] == "sheep")
         client.post("/api/attempt", json={
             "session_item_id": item["session_item_id"],
             "selected_answer": item["display_ipa"],
         })
         resp_data = client.post("/api/attempt", json={
-            "session_item_id": item["session_item_id"],
+            "session_item_id": other["session_item_id"],
             "selected_answer": "/wrong/",
         }).json()
 
-        # Should show attempt_count=2, correct_count=1 for each phoneme
         for ps in resp_data["updated_phonemes"]:
-            assert ps["attempt_count"] == 2
-            assert ps["correct_count"] == 1
+            if ps["phoneme"] in {"/ʃ/", "/p/"}:
+                assert ps["attempt_count"] == 2
+                assert ps["correct_count"] == 1
+            else:
+                assert ps["attempt_count"] == 1
+                assert ps["correct_count"] == 0
 
     def test_stats_are_accent_partitioned(self, client, seeded_db):
         """Stats written with primary_accent='US' are persisted."""
