@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import stat
 from pathlib import Path, PurePosixPath
 
@@ -49,6 +50,25 @@ def _regular_under(root: Path, relative: str) -> Path:
     if not stat.S_ISREG(resolved.stat().st_mode):
         raise VerificationError("asset is not a regular file")
     return resolved
+
+
+def _credits_relative(credits: object) -> str:
+    if not isinstance(credits, dict) or set(credits) != {
+        "path",
+        "public_url",
+        "sha256",
+    }:
+        raise VerificationError("audio credits binding missing")
+    checksum = credits["sha256"]
+    if not isinstance(checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", checksum):
+        raise VerificationError("audio credits checksum invalid")
+    allowed = {"ATTRIBUTION.md", f"ATTRIBUTION-{checksum[:16]}.md"}
+    if (
+        credits["path"] not in allowed
+        or credits["public_url"] != f"/audio/{credits['path']}"
+    ):
+        raise VerificationError("audio credits path mismatch")
+    return credits["path"]
 
 
 def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, object]:
@@ -99,11 +119,7 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
             raise VerificationError("content audio availability exceeds manifest")
 
     credits = audio.get("credits")
-    if not isinstance(credits, dict) or set(credits) != {"path", "public_url", "sha256"}:
-        raise VerificationError("audio credits binding missing")
-    if credits["path"] != "ATTRIBUTION.md" or credits["public_url"] != "/audio/ATTRIBUTION.md":
-        raise VerificationError("audio credits path mismatch")
-    credits_path = _regular_under(audio_root, credits["path"])
+    credits_path = _regular_under(audio_root, _credits_relative(credits))
     if _sha256(credits_path) != credits["sha256"]:
         raise VerificationError("audio credits checksum mismatch")
 

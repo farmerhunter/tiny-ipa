@@ -1,0 +1,2061 @@
+{
+  "authority": "CANDIDATE - DO NOT APPLY",
+  "schema": "tiny-ipa-p1b-content-audio/v1",
+  "status": "ready",
+  "frontend": {
+    "api_base": "/api",
+    "build_revision_binding": "frozen_operator_packet"
+  },
+  "content": {
+    "path": "content/generated/core_100_audio_candidate.json",
+    "sha256": "a743ea4bea426f9e092b0a99ea7dadd0ab87abeca81b2364e6069507106ffff9",
+    "phonemes_path": "content/phonemes.json",
+    "phonemes_sha256": "612ea118bbfafaf0b8addd156376e8658b67d0a553f1c1b454ba29cc20340779",
+    "word_count": 100,
+    "import_content_level": "auto"
+  },
+  "audio": {
+    "host_root": "/var/lib/tiny-ipa/audio",
+    "assets": [
+      {
+        "word_id": "about",
+        "path": "us/about.mp3",
+        "sha256": "6ba011b89a6f5ac9c03583914e230521a30de42c6f6862752bd09a98671f9683",
+        "bytes": 12510,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-about.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "age",
+        "path": "us/age.mp3",
+        "sha256": "8db88d5ca60bc258b526d4aaf0317ab9745498c6f5cc92ff40b8f87373337b7f",
+        "bytes": 18728,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-age.ogg; author=No machine-readable author provided. Dvortygirl assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "ago",
+        "path": "us/ago.mp3",
+        "sha256": "1f0744b03e932e0122e28a44326d99dbadf3ba68e8c006bc9e51ee118a5d8661",
+        "bytes": 12089,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-ago.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "baby",
+        "path": "us/baby.mp3",
+        "sha256": "b20cc20215595591b6b74ac754eb5594063b67cd0880a43cd0b19043871fc979",
+        "bytes": 12674,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-baby.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "back",
+        "path": "us/back.mp3",
+        "sha256": "0a20724c4dcdc0497d0d5c7b23de2da809b1bc1b8cd847fe94c8cee07268cd2a",
+        "bytes": 15806,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-back.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "bag",
+        "path": "us/bag.mp3",
+        "sha256": "35b4b6098e22b5e0f68fb6dcfe1a7a99c3acbf54cd6006fb37a50dcd4749f9d6",
+        "bytes": 19044,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-bag.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "bed",
+        "path": "us/bed.mp3",
+        "sha256": "887bac302eeae7ace3c726f1a960eca8f9a404feee7d69a6e66aee02126e8dcd",
+        "bytes": 14155,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-bed.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "best",
+        "path": "us/best.mp3",
+        "sha256": "593e3e025be946b127928aab8bc6f5b245dd459e8164a4b88037bc5697f490ff",
+        "bytes": 12926,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-best.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "box",
+        "path": "us/box.mp3",
+        "sha256": "ec2ded90808ccfe64221b25163bcf74010c0688342c3eac8b6340f9dc1005c70",
+        "bytes": 18832,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-box.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "boys",
+        "path": "us/boys.mp3",
+        "sha256": "db2647df5a31fd4183fb8d1c3f172c241f62b6a4d54396b10e57bb3baf348b95",
+        "bytes": 11462,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-boys.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "bus",
+        "path": "us/bus.mp3",
+        "sha256": "daa0db06c1eb6627343f27a264356e917589bdce61408fe29dd0729b93f85d44",
+        "bytes": 18294,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-bus.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "came",
+        "path": "us/came.mp3",
+        "sha256": "e381a553e2816c35e7b8ed58cc2e337c1880efbfefcf3f4d5e52f51ec851712f",
+        "bytes": 13821,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-came.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "cat",
+        "path": "us/cat.mp3",
+        "sha256": "cca1bf9b4221981554a4c23ce3068f13b5cf42e7981851f6ab462add90122fd7",
+        "bytes": 7427,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-cat.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "chat",
+        "path": "us/chat.mp3",
+        "sha256": "e1acbec21ee853510735492cba4023c1e6fb3320f28e59d5877dbabe47fd7510",
+        "bytes": 12563,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-chat.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "check",
+        "path": "us/check.mp3",
+        "sha256": "70dd511baa8833555a671efefadf51ddda7da6d1c89fc1206fad55ac44f19447",
+        "bytes": 10733,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-check.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "city",
+        "path": "us/city.mp3",
+        "sha256": "7bffd32a2c9f16a670f16d204c748bf046dbaeaae68758626913653fbb66659c",
+        "bytes": 18192,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-city.ogg; author=Muke Tever (User:Muke; explicitly named on source page)",
+        "license": "Public domain; https://commons.wikimedia.org/wiki/File:En-us-city.ogg#Licensing; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "cup",
+        "path": "us/cup.mp3",
+        "sha256": "fe30255613dd565f01a69bb732cee35f4020df6a837b11afdb2e1908971411d7",
+        "bytes": 15120,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-cup.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "cut",
+        "path": "us/cut.mp3",
+        "sha256": "9cb4fe3fba46faf9bda4f8203c7af46a9b88375c76964989bbb3dee3ec785fa9",
+        "bytes": 11830,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-cut.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "dog",
+        "path": "us/dog.mp3",
+        "sha256": "79992d2c9da403fc85ebcd14a1f71befb3366dc55fb0687fa17f0560cf3dcf91",
+        "bytes": 16745,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-dog.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "early",
+        "path": "us/early.mp3",
+        "sha256": "8fda2a9c22a2bca633c181a0586a9f1ae1a09bf974e3a35c8202e746b2692e0a",
+        "bytes": 15702,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-early.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "find",
+        "path": "us/find.mp3",
+        "sha256": "f847dab4fb3e6dc86bbcf98461003e9ec8cf6b0e50877052995d009cf4c74df5",
+        "bytes": 17473,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-find.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "first",
+        "path": "us/first.mp3",
+        "sha256": "dcfe792a9f0e3f83a5574df946bcb5e63da2ad5e7374e0c9f68e1c464453acb1",
+        "bytes": 12091,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-first.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "fish",
+        "path": "us/fish.mp3",
+        "sha256": "6df283c686f8e05d32d98e44d990b75799c54c8189f0d8a4355262bcf98c37dc",
+        "bytes": 10034,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-fish.ogg; author=Dvortygirl",
+        "license": "PD-self release by Dvortygirl at https://commons.wikimedia.org/wiki/File:En-us-fish.ogg; Ogg transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "food",
+        "path": "us/food.mp3",
+        "sha256": "ff1cb937fefdddad073f24961af0dbb30a16387053ae64d2de2fbb7e696e2e67",
+        "bytes": 17013,
+        "source": "https://commons.wikimedia.org/wiki/File:En_US_Food.wav; author=SalomeCzapiewski",
+        "license": "CC0 1.0; https://creativecommons.org/publicdomain/zero/1.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "full",
+        "path": "us/full.mp3",
+        "sha256": "40aeb24c51b80c3dcee127f42b6799a43e1a274388658ab66a80c5871b3372b0",
+        "bytes": 17580,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-full.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "fun",
+        "path": "us/fun.mp3",
+        "sha256": "dbba20ff5eba443401003fcb198cfc855b4a8770d2fd96dfc7a83f94decef0d6",
+        "bytes": 12872,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-fun.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "game",
+        "path": "us/game.mp3",
+        "sha256": "f5850fe969028e9c56ca14b11a1615b673dea5a896524d1a1ea8f55c2fb8e768",
+        "bytes": 12349,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-game.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "gave",
+        "path": "us/gave.mp3",
+        "sha256": "e4768cce90c724662aa35c03f514e8e390ed6cc3aa37eaea37e0572cf83adb05",
+        "bytes": 13183,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-gave.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "goal",
+        "path": "us/goal.mp3",
+        "sha256": "5302b94566909ffff4ac550e9cf5014e4bb3f55a5b1a7c42eb63fd6cf0b61832",
+        "bytes": 8700,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-goal.ogg; author=Neskaya",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "good",
+        "path": "us/good.mp3",
+        "sha256": "9b11b7f90fcfe614ab22bbc62279be6c70ba44d492c3f440f53f4c25b8e6b89c",
+        "bytes": 10475,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-good.ogg; author=Dvortygirl (PD-user release on source page)",
+        "license": "Public domain; https://commons.wikimedia.org/wiki/File:En-us-good.ogg#Licensing; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "half",
+        "path": "us/half.mp3",
+        "sha256": "c174e15b49ebe9af634e436831a81593ea992ddbead0b71f93ccf283880906b0",
+        "bytes": 13812,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-half.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "hang",
+        "path": "us/hang.mp3",
+        "sha256": "7a2ea66e3b2977fcfd4392b6a58a0bf60114b4529c481f2c58dc6bf892a49d44",
+        "bytes": 11279,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-hang.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "hard",
+        "path": "us/hard.mp3",
+        "sha256": "92aa71f7ccceced8b00f6f008c6e3a9f0e8e8d9ed16426c7f64a69eccf2f7fa1",
+        "bytes": 17424,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-hard.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "hat",
+        "path": "us/hat.mp3",
+        "sha256": "6385345914519f8ea1d94c7d296ba31c2092ae9fd34495fc3e01a8a66aff31f7",
+        "bytes": 17162,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-hat.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "hear",
+        "path": "us/hear.mp3",
+        "sha256": "f49c26866d089267944b7a609e63816e40862ae342e5b325cb37bb0fd8c7704d",
+        "bytes": 14814,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-hear.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "help",
+        "path": "us/help.mp3",
+        "sha256": "988708e22bd06ae2753c2c4bb2412afee2ef8242f0c5892f5c4e7ed5cba9d57b",
+        "bytes": 11100,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-help.ogg; author=No machine-readable author provided. Dvortygirl assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "hope",
+        "path": "us/hope.mp3",
+        "sha256": "e18ae6397544b17bc8a360d740def668932ede834b262c20edb4b2632f5c45c2",
+        "bytes": 15335,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-hope.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "hours",
+        "path": "us/hours.mp3",
+        "sha256": "9b10df38b5c367c8292f77aa17e998315f05baeea8207f416bf26c4fee534ae1",
+        "bytes": 14384,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-hours.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "inch",
+        "path": "us/inch.mp3",
+        "sha256": "dcb15d004ddf96ca3dc875b38d5891ad4a7a010a18466dc987dc46fa6f6f8515",
+        "bytes": 10474,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-inch.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "item",
+        "path": "us/item.mp3",
+        "sha256": "ff45fe357838559b37f295cb0fb4a93fbf4138e55bab7ffa98a58916bd5f01fa",
+        "bytes": 16833,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-item.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "jack",
+        "path": "us/jack.mp3",
+        "sha256": "98743ec17fa991151178ff7172741e632e450b77674000147d1e67f77abcbf99",
+        "bytes": 12663,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-jack.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "join",
+        "path": "us/join.mp3",
+        "sha256": "fb69ff224856f6712de1a182b8c8b3b29e887dded2bedc84a61678b39394d469",
+        "bytes": 20033,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-join.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "jump",
+        "path": "us/jump.mp3",
+        "sha256": "df65bf3daccb5d8d3241239fb523318526a393fe23d443388af8a993ff1320d8",
+        "bytes": 24029,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-jump.ogg; author=TreeMama",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "kind",
+        "path": "us/kind.mp3",
+        "sha256": "3c6def82e78f525563b90098b5e345a290fba9ef4045fb36448d2f3a738920d9",
+        "bytes": 16641,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-kind.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "knew",
+        "path": "us/knew.mp3",
+        "sha256": "bb7f6c948938e0774b919032795d65772c979b5668824951144112023417936d",
+        "bytes": 9117,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-knew.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "leave",
+        "path": "us/leave.mp3",
+        "sha256": "75125acbab9d14de12ed7578a2686055f0fe5c9f985b13b6ede7e81e384b9431",
+        "bytes": 14071,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-leave.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "left",
+        "path": "us/left.mp3",
+        "sha256": "994dae748bbd4deae0bd819cf4abee20258eb9f1532cdfb8d30e04cd190934d0",
+        "bytes": 15492,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-left.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "long",
+        "path": "us/long.mp3",
+        "sha256": "fc630a958bb5d93eb93d0f5c82ea917530d25ea3331445c151883e0603b12a64",
+        "bytes": 16573,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-long.ogg; author=Creator not named in file description; PD-self release on source page",
+        "license": "Public domain; https://commons.wikimedia.org/wiki/File:En-us-long.ogg#Licensing; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "luck",
+        "path": "us/luck.mp3",
+        "sha256": "bb2383679a6c102a37d64573b5a4a00d5fbb778f4914d056a46474788e7928f4",
+        "bytes": 14307,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-luck.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "map",
+        "path": "us/map.mp3",
+        "sha256": "d4b4d800d2e20955f70560a1f0f47e67e1022f6fbbd6480dc95b60f938ee7fcf",
+        "bytes": 13823,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-map.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "match",
+        "path": "us/match.mp3",
+        "sha256": "eedeb6c20dc0341171e274823c71d5d84c0c2959ef4ef097d4f5aefc08d7f2ff",
+        "bytes": 15700,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-match.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "measure",
+        "path": "us/measure.mp3",
+        "sha256": "45a51d6083df74549cdb6da1f513bd0d04f5e063b1636d9508b5d3bb89ee8346",
+        "bytes": 20020,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-measure.ogg; author=Creator not named in file description; PD-self release on source page",
+        "license": "Public domain; https://commons.wikimedia.org/wiki/File:En-us-measure.ogg#Licensing; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "milk",
+        "path": "us/milk.mp3",
+        "sha256": "bdf8997111d911c58f9de2835b3b2c30b8f7db388fe1e0bbfa9be244c8590f73",
+        "bytes": 24969,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-milk.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "move",
+        "path": "us/move.mp3",
+        "sha256": "21fbc11a0c2968dd7eb71ce6d658a49363362d274fba707519c6d6123a10c84b",
+        "bytes": 13729,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-move.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "new",
+        "path": "us/new.mp3",
+        "sha256": "ba5e4db8289db3249bad5814988f09695decda1f2799791772cfd6c5a6b7728f",
+        "bytes": 14864,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-new.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "news",
+        "path": "us/news.mp3",
+        "sha256": "f7f404a28e3588d80948cc13c0b5f52fc164412a0d585590bc0d4ef555533ab9",
+        "bytes": 12167,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-news.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "next",
+        "path": "us/next.mp3",
+        "sha256": "0cfed5eab5a437a203e689836af512c8e8ee0f0ee67d7936d99fd13a2efa6103",
+        "bytes": 17841,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-next.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "once",
+        "path": "us/once.mp3",
+        "sha256": "7459c9b9bac8a3beb59def6211a0bbda7338a9846676fec9bb18d935e638d242",
+        "bytes": 14490,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-once.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "open",
+        "path": "us/open.mp3",
+        "sha256": "274d99a781ef6732ca73058ac6ab60e772c60afbc694b712cd08adfe4b2c89ee",
+        "bytes": 14344,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-open.ogg; author=No machine-readable author provided. TheDaveRoss assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "other",
+        "path": "us/other.mp3",
+        "sha256": "69305c4574196f7a36c44cb77f87c6511ac7f783fa109f331b322cb8de684d7a",
+        "bytes": 15909,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-other.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "page",
+        "path": "us/page.mp3",
+        "sha256": "81ee69b53b36f945800403604426ccd2122967e2a7f655ab85dd82edb3134256",
+        "bytes": 13029,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-page.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "paper",
+        "path": "us/paper.mp3",
+        "sha256": "761fb0c9fad4e847ed1ccc1fbedb3d2adaeecdad2229fd91b7be5eb23a6c4a59",
+        "bytes": 9898,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-paper.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "part",
+        "path": "us/part.mp3",
+        "sha256": "2042117a92db83784e99b60a758d9146a11202bd2f6fc1bb7e10377c07618f27",
+        "bytes": 15076,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-part.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "pleasure",
+        "path": "us/pleasure.mp3",
+        "sha256": "c4f85a7a6a49a94849dae72334fb747deb18c8a275b415d093ec682d72853566",
+        "bytes": 14595,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-pleasure.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "power",
+        "path": "us/power.mp3",
+        "sha256": "46619e37fe9071474bc601625040e49ccda00115d11025033a25eda20c23d889",
+        "bytes": 14762,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-power.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "pull",
+        "path": "us/pull.mp3",
+        "sha256": "588244fcc73a49a3486fd1ed12d570ddeda3c9411dae3e29ee9efa9a8e4822e8",
+        "bytes": 11944,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-pull.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "push",
+        "path": "us/push.mp3",
+        "sha256": "5e8291a0f71139b88dd31d397e054070e933af2ef9a05ff3fbe6022014c0100b",
+        "bytes": 14865,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-push.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "rich",
+        "path": "us/rich.mp3",
+        "sha256": "948f6a3fca07b797c6bb1e4a166d7dd1172b5e7f24e6a4083cbcebd144045a8e",
+        "bytes": 12822,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-rich.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "river",
+        "path": "us/river.mp3",
+        "sha256": "8c468a2a3a96efc80e3ef07e13828c3be466ae268eda094a13e746e3c49b0d04",
+        "bytes": 10263,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-river.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "room",
+        "path": "us/room.mp3",
+        "sha256": "94652752edc79c1960e0e6f408847abee2ccc653d7590360a0ad8a405bbcf9c2",
+        "bytes": 11827,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-room.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "run",
+        "path": "us/run.mp3",
+        "sha256": "e3791df926a83aec513e5209dec555a3670f3a8e8e8c737a74b49952372d859f",
+        "bytes": 13093,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-run.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "ship",
+        "path": "us/ship.mp3",
+        "sha256": "9e553b3035d977c4a0bed3440c5ecb0e3bb6fc80c518272039df9218e25bc2a4",
+        "bytes": 13401,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-ship.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "shop",
+        "path": "us/shop.mp3",
+        "sha256": "7bce48d66f2f285d21cf541bd487d2a5da9c25d05a8ec0ff44eef234198dd1cf",
+        "bytes": 19810,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-shop.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "shows",
+        "path": "us/shows.mp3",
+        "sha256": "b08a52ef469478c29d1e7618b2bca22e8cea9124cd8b4b5707f7824fa7006480",
+        "bytes": 20798,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-shows.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "sister",
+        "path": "us/sister.mp3",
+        "sha256": "923895ba5b42eb369637a9608e55dcbc98877e502c5a4003cfecbbff018f4e47",
+        "bytes": 14179,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-sister.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "song",
+        "path": "us/song.mp3",
+        "sha256": "5ba82e9d77ab21c3d9a83cb0d72b2f8a6680225af1c0ea2adcac8b567e868bf8",
+        "bytes": 14020,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-song.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "south",
+        "path": "us/south.mp3",
+        "sha256": "cc70e5dc03ed7d03cdd1f3373fb2f57f397e373ec0e31756726d007715905913",
+        "bytes": 17786,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-south.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "star",
+        "path": "us/star.mp3",
+        "sha256": "dac9aebdd71402efbdca5dd43cff1795efe21ee0662d6358682f7ab87c7cb5ef",
+        "bytes": 15196,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-star.ogg; author=No machine-readable author provided. Dvortygirl assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "sun",
+        "path": "us/sun.mp3",
+        "sha256": "cfbae134d5d1f8b25d97b6c275f28023459ca2bc70b6bffc2c4492c23f4caa3a",
+        "bytes": 13894,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-Sun.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "sure",
+        "path": "us/sure.mp3",
+        "sha256": "bf3035912ed886db06d59b8da8e4a06da7ff440c044644370ebdc6bdfb929257",
+        "bytes": 13759,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-sure.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "teacher",
+        "path": "us/teacher.mp3",
+        "sha256": "8d885d4a5c45b88cf23f93d1ce13e890ca53ef5c22c3aee6f03ceba185aa298a",
+        "bytes": 18660,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-teacher.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "thing",
+        "path": "us/thing.mp3",
+        "sha256": "10233cb9e30188d53bc9eb8c685a170cf98111ea052c6fb923f8789fcb2cf658",
+        "bytes": 16785,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-thing.ogg; author=Creator not named in file description; PD-self release on source page",
+        "license": "Public domain; https://commons.wikimedia.org/wiki/File:En-us-thing.ogg#Licensing; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "think",
+        "path": "us/think.mp3",
+        "sha256": "b9cee7c6ae2148169faf1c26684e7d0bb228771f4f10ed390a1be883fdd1d11a",
+        "bytes": 13189,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-think.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "three",
+        "path": "us/three.mp3",
+        "sha256": "77cc136a697b4fe956641aebe1831335dd4972b204d217c3a401bdcdd01086e4",
+        "bytes": 12666,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-three.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "told",
+        "path": "us/told.mp3",
+        "sha256": "6aacc94b1673dae851024ea544537923eff370dc0f6620c63d7d49669568fb37",
+        "bytes": 12455,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-told.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "tree",
+        "path": "us/tree.mp3",
+        "sha256": "d3adc98ecb2020cfea53c3b12d4653d8989dd11a1221bee8f17492a099e9b196",
+        "bytes": 10473,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-tree.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "usual",
+        "path": "us/usual.mp3",
+        "sha256": "f359098035748b225f73505e17306c4a727e6f53a2baa08d34b8520858d8796e",
+        "bytes": 12609,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-usual.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "usually",
+        "path": "us/usually.mp3",
+        "sha256": "7c7872527fc90eb6395f14d11a0df0b024ec7dd406f84609d6cf4ef79dbb93d5",
+        "bytes": 15113,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-usually.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "view",
+        "path": "us/view.mp3",
+        "sha256": "d1cccc20fec8c519b62c6fcc4f4bdd4a9c6e920a59fc072d700230c2d8b1bc61",
+        "bytes": 12193,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-view.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "vision",
+        "path": "us/vision.mp3",
+        "sha256": "596a88e0d44d05ff9b8b2a1c198aa7cf34377845da6fe67e58eb7bbc7e0920d7",
+        "bytes": 12852,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-vision.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; Ogg/WAV transcoded to MP3 with metadata removed for Tiny IPA on 2026-09-16"
+      },
+      {
+        "word_id": "voice",
+        "path": "us/voice.mp3",
+        "sha256": "fd969b058e16c7ad021b975ff7aadc059faa426d73a6206872d00bff5eb9bd3d",
+        "bytes": 16030,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-voice.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "want",
+        "path": "us/want.mp3",
+        "sha256": "7c4cfff45948a517ebcf6d966d6202d5f73b7c6313323eebbdf96c839aaa19f3",
+        "bytes": 14553,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-want.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "watch",
+        "path": "us/watch.mp3",
+        "sha256": "1f079f13a7baa346ee604a4d367ef425ef1e2405c1524493beba89e611b738f3",
+        "bytes": 18625,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-watch.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "water",
+        "path": "us/water.mp3",
+        "sha256": "a17bac580c590fd363d93fa9a3ade98f22619c0f30bc2c3cc44f23f959edeb20",
+        "bytes": 17789,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-water.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "why",
+        "path": "us/why.mp3",
+        "sha256": "47f5ab29710ed393cc1f49759f4d0348b41b36538ca7cf9e553ea1570d99ac05",
+        "bytes": 20845,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-why.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "wing",
+        "path": "us/wing.mp3",
+        "sha256": "318f515f367913212ee8a4c70a6284cbc163b3a022c03331b3a58da893790415",
+        "bytes": 11957,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-wing.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "wish",
+        "path": "us/wish.mp3",
+        "sha256": "aac4733627f5b007dac369e65eac18ef6576ba6eccfd3d780141f03ba6cc2e84",
+        "bytes": 11566,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-wish.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "wrong",
+        "path": "us/wrong.mp3",
+        "sha256": "22b304813972a2a4c572099d8d904d09a23e02b4d6d5c0f12096647660470d42",
+        "bytes": 17671,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-wrong.ogg; author=Creator not named in file description; PD-self release on source page",
+        "license": "Public domain; https://commons.wikimedia.org/wiki/File:En-us-wrong.ogg#Licensing; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      },
+      {
+        "word_id": "years",
+        "path": "us/years.mp3",
+        "sha256": "fb6608e67603be993c764bdcff7911b239a9e5c23a1fc7461b7995e77edfbb45",
+        "bytes": 11724,
+        "source": "https://commons.wikimedia.org/wiki/File:En-us-years.ogg; author=Dvortygirl",
+        "license": "CC BY-SA 3.0; https://creativecommons.org/licenses/by-sa/3.0/; MP3 transcode supplied by Wikimedia Commons; copied unchanged for Tiny IPA on 2026-10-27"
+      }
+    ],
+    "required_word_ids": [
+      "about",
+      "age",
+      "ago",
+      "baby",
+      "back",
+      "bag",
+      "bed",
+      "best",
+      "box",
+      "boys",
+      "bus",
+      "came",
+      "cat",
+      "chat",
+      "check",
+      "city",
+      "cup",
+      "cut",
+      "dog",
+      "early",
+      "find",
+      "first",
+      "fish",
+      "food",
+      "full",
+      "fun",
+      "game",
+      "gave",
+      "goal",
+      "good",
+      "half",
+      "hang",
+      "hard",
+      "hat",
+      "hear",
+      "help",
+      "hope",
+      "hours",
+      "inch",
+      "item",
+      "jack",
+      "join",
+      "jump",
+      "kind",
+      "knew",
+      "leave",
+      "left",
+      "long",
+      "luck",
+      "map",
+      "match",
+      "measure",
+      "milk",
+      "move",
+      "new",
+      "news",
+      "next",
+      "once",
+      "open",
+      "other",
+      "page",
+      "paper",
+      "part",
+      "pleasure",
+      "power",
+      "pull",
+      "push",
+      "rich",
+      "river",
+      "room",
+      "run",
+      "ship",
+      "shop",
+      "shows",
+      "sister",
+      "song",
+      "south",
+      "star",
+      "sun",
+      "sure",
+      "teacher",
+      "thing",
+      "think",
+      "three",
+      "told",
+      "tree",
+      "usual",
+      "usually",
+      "view",
+      "vision",
+      "voice",
+      "want",
+      "watch",
+      "water",
+      "why",
+      "wing",
+      "wish",
+      "wrong",
+      "years"
+    ],
+    "source": "Wikimedia Commons per-file metadata and pinned MP3 transcodes; ten existing M14 files preserved byte-for-byte",
+    "license": "Per-file CC BY-SA 3.0, public domain and CC0; attribution/source/license links in assets and credits",
+    "credits": {
+      "path": "ATTRIBUTION-4634c26243c49ad5.md",
+      "public_url": "/audio/ATTRIBUTION-4634c26243c49ad5.md",
+      "sha256": "4634c26243c49ad58f7fadd43dc01f2ac30b633e17fea6f5d23c33e3365fdbe1"
+    }
+  },
+  "blocking_reasons": [],
+  "build": {
+    "source_content": "content/core_100_words.json",
+    "source_content_sha256": "bb276f0c8b76ebe350bc70fc981d337434967abf606716e8f99d001b307541b8",
+    "sources": {
+      "about": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ee/En-us-about.ogg/En-us-about.ogg.mp3",
+        "sha256": "6ba011b89a6f5ac9c03583914e230521a30de42c6f6862752bd09a98671f9683",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/ee/En-us-about.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-about.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the word 'about' in US English"
+      },
+      "age": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/b0/En-us-age.ogg/En-us-age.ogg.mp3",
+        "sha256": "8db88d5ca60bc258b526d4aaf0317ab9745498c6f5cc92ff40b8f87373337b7f",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/b0/En-us-age.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-age.ogg",
+        "creator": "No machine-readable author provided. Dvortygirl assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English, recorded by Dvortygirl , 4 February 2006"
+      },
+      "ago": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9a/En-us-ago.ogg/En-us-ago.ogg.mp3",
+        "sha256": "1f0744b03e932e0122e28a44326d99dbadf3ba68e8c006bc9e51ee118a5d8661",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/9a/En-us-ago.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-ago.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "baby": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/de/En-us-baby.ogg/En-us-baby.ogg.mp3",
+        "sha256": "b20cc20215595591b6b74ac754eb5594063b67cd0880a43cd0b19043871fc979",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/de/En-us-baby.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-baby.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "back": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ec/En-us-back.ogg/En-us-back.ogg.mp3",
+        "sha256": "0a20724c4dcdc0497d0d5c7b23de2da809b1bc1b8cd847fe94c8cee07268cd2a",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/ec/En-us-back.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-back.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "bag": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e1/En-us-bag.ogg/En-us-bag.ogg.mp3",
+        "sha256": "35b4b6098e22b5e0f68fb6dcfe1a7a99c3acbf54cd6006fb37a50dcd4749f9d6",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/En-us-bag.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-bag.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "bed": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/bed.mp3",
+        "sha256": "887bac302eeae7ace3c726f1a960eca8f9a404feee7d69a6e66aee02126e8dcd",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "best": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3a/En-us-best.ogg/En-us-best.ogg.mp3",
+        "sha256": "593e3e025be946b127928aab8bc6f5b245dd459e8164a4b88037bc5697f490ff",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/3a/En-us-best.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-best.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "box": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/95/En-us-box.ogg/En-us-box.ogg.mp3",
+        "sha256": "ec2ded90808ccfe64221b25163bcf74010c0688342c3eac8b6340f9dc1005c70",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/95/En-us-box.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-box.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "boys": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/bc/En-us-boys.ogg/En-us-boys.ogg.mp3",
+        "sha256": "db2647df5a31fd4183fb8d1c3f172c241f62b6a4d54396b10e57bb3baf348b95",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/bc/En-us-boys.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-boys.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "bus": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/5e/En-us-bus.ogg/En-us-bus.ogg.mp3",
+        "sha256": "daa0db06c1eb6627343f27a264356e917589bdce61408fe29dd0729b93f85d44",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/5/5e/En-us-bus.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-bus.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Audio pronunciation of the term 'bus' in United States English."
+      },
+      "came": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/7d/En-us-came.ogg/En-us-came.ogg.mp3",
+        "sha256": "e381a553e2816c35e7b8ed58cc2e337c1880efbfefcf3f4d5e52f51ec851712f",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/En-us-came.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-came.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "cat": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/cat.mp3",
+        "sha256": "cca1bf9b4221981554a4c23ce3068f13b5cf42e7981851f6ab462add90122fd7",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "chat": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a4/En-us-chat.ogg/En-us-chat.ogg.mp3",
+        "sha256": "e1acbec21ee853510735492cba4023c1e6fb3320f28e59d5877dbabe47fd7510",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/En-us-chat.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-chat.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "check": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/ff/En-us-check.ogg/En-us-check.ogg.mp3",
+        "sha256": "70dd511baa8833555a671efefadf51ddda7da6d1c89fc1206fad55ac44f19447",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/En-us-check.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-check.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "city": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/92/En-us-city.ogg/En-us-city.ogg.mp3",
+        "sha256": "7bffd32a2c9f16a670f16d204c748bf046dbaeaae68758626913653fbb66659c",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/92/En-us-city.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-city.ogg",
+        "creator": "Muke Tever (User:Muke; explicitly named on source page)",
+        "license": "Public domain",
+        "license_url": "https://commons.wikimedia.org/wiki/File:En-us-city.ogg#Licensing",
+        "retrieved_at": "2026-10-27",
+        "description": ""
+      },
+      "cup": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/cup.mp3",
+        "sha256": "fe30255613dd565f01a69bb732cee35f4020df6a837b11afdb2e1908971411d7",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "cut": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/53/En-us-cut.ogg/En-us-cut.ogg.mp3",
+        "sha256": "9cb4fe3fba46faf9bda4f8203c7af46a9b88375c76964989bbb3dee3ec785fa9",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/5/53/En-us-cut.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-cut.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "dog": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/06/En-us-dog.ogg/En-us-dog.ogg.mp3",
+        "sha256": "79992d2c9da403fc85ebcd14a1f71befb3366dc55fb0687fa17f0560cf3dcf91",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/0/06/En-us-dog.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-dog.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "early": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/da/En-us-early.ogg/En-us-early.ogg.mp3",
+        "sha256": "8fda2a9c22a2bca633c181a0586a9f1ae1a09bf974e3a35c8202e746b2692e0a",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/da/En-us-early.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-early.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "find": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/48/En-us-find.ogg/En-us-find.ogg.mp3",
+        "sha256": "f847dab4fb3e6dc86bbcf98461003e9ec8cf6b0e50877052995d009cf4c74df5",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/4/48/En-us-find.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-find.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "first": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9e/En-us-first.ogg/En-us-first.ogg.mp3",
+        "sha256": "dcfe792a9f0e3f83a5574df946bcb5e63da2ad5e7374e0c9f68e1c464453acb1",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/En-us-first.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-first.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the word 'first' in US English"
+      },
+      "fish": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/fish.mp3",
+        "sha256": "6df283c686f8e05d32d98e44d990b75799c54c8189f0d8a4355262bcf98c37dc",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "food": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/food.mp3",
+        "sha256": "ff1cb937fefdddad073f24961af0dbb30a16387053ae64d2de2fbb7e696e2e67",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "full": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3e/En-us-full.ogg/En-us-full.ogg.mp3",
+        "sha256": "40aeb24c51b80c3dcee127f42b6799a43e1a274388658ab66a80c5871b3372b0",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/3e/En-us-full.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-full.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "fun": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/fd/En-us-fun.ogg/En-us-fun.ogg.mp3",
+        "sha256": "dbba20ff5eba443401003fcb198cfc855b4a8770d2fd96dfc7a83f94decef0d6",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/En-us-fun.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-fun.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "game": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/62/En-us-game.ogg/En-us-game.ogg.mp3",
+        "sha256": "f5850fe969028e9c56ca14b11a1615b673dea5a896524d1a1ea8f55c2fb8e768",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/62/En-us-game.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-game.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "gave": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/bb/En-us-gave.ogg/En-us-gave.ogg.mp3",
+        "sha256": "e4768cce90c724662aa35c03f514e8e390ed6cc3aa37eaea37e0572cf83adb05",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/bb/En-us-gave.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-gave.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "goal": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f1/En-us-goal.ogg/En-us-goal.ogg.mp3",
+        "sha256": "5302b94566909ffff4ac550e9cf5014e4bb3f55a5b1a7c42eb63fd6cf0b61832",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/En-us-goal.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-goal.ogg",
+        "creator": "Neskaya",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Audio pronunciation of the term 'goal' in United States English."
+      },
+      "good": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/28/En-us-good.ogg/En-us-good.ogg.mp3",
+        "sha256": "9b11b7f90fcfe614ab22bbc62279be6c70ba44d492c3f440f53f4c25b8e6b89c",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/2/28/En-us-good.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-good.ogg",
+        "creator": "Dvortygirl (PD-user release on source page)",
+        "license": "Public domain",
+        "license_url": "https://commons.wikimedia.org/wiki/File:En-us-good.ogg#Licensing",
+        "retrieved_at": "2026-10-27",
+        "description": ""
+      },
+      "half": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/32/En-us-half.ogg/En-us-half.ogg.mp3",
+        "sha256": "c174e15b49ebe9af634e436831a81593ea992ddbead0b71f93ccf283880906b0",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/32/En-us-half.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-half.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "hang": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9a/En-us-hang.ogg/En-us-hang.ogg.mp3",
+        "sha256": "7a2ea66e3b2977fcfd4392b6a58a0bf60114b4529c481f2c58dc6bf892a49d44",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/9a/En-us-hang.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-hang.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "hard": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/78/En-us-hard.ogg/En-us-hard.ogg.mp3",
+        "sha256": "92aa71f7ccceced8b00f6f008c6e3a9f0e8e8d9ed16426c7f64a69eccf2f7fa1",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/78/En-us-hard.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-hard.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "hat": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/8b/En-us-hat.ogg/En-us-hat.ogg.mp3",
+        "sha256": "6385345914519f8ea1d94c7d296ba31c2092ae9fd34495fc3e01a8a66aff31f7",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/8/8b/En-us-hat.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-hat.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "hear": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/be/En-us-hear.ogg/En-us-hear.ogg.mp3",
+        "sha256": "f49c26866d089267944b7a609e63816e40862ae342e5b325cb37bb0fd8c7704d",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/be/En-us-hear.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-hear.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "help": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/b7/En-us-help.ogg/En-us-help.ogg.mp3",
+        "sha256": "988708e22bd06ae2753c2c4bb2412afee2ef8242f0c5892f5c4e7ed5cba9d57b",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/b7/En-us-help.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-help.ogg",
+        "creator": "No machine-readable author provided. Dvortygirl assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English, recorded by Dvortygirl , 21 June 2005"
+      },
+      "hope": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/30/En-us-hope.ogg/En-us-hope.ogg.mp3",
+        "sha256": "e18ae6397544b17bc8a360d740def668932ede834b262c20edb4b2632f5c45c2",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/30/En-us-hope.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-hope.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "hours": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/af/En-us-hours.ogg/En-us-hours.ogg.mp3",
+        "sha256": "9b10df38b5c367c8292f77aa17e998315f05baeea8207f416bf26c4fee534ae1",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/af/En-us-hours.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-hours.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "inch": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/cd/En-us-inch.ogg/En-us-inch.ogg.mp3",
+        "sha256": "dcb15d004ddf96ca3dc875b38d5891ad4a7a010a18466dc987dc46fa6f6f8515",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/c/cd/En-us-inch.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-inch.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "item": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/7b/En-us-item.ogg/En-us-item.ogg.mp3",
+        "sha256": "ff45fe357838559b37f295cb0fb4a93fbf4138e55bab7ffa98a58916bd5f01fa",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/7b/En-us-item.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-item.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Audio pronunciation of the term 'item' in United States English."
+      },
+      "jack": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d3/En-us-jack.ogg/En-us-jack.ogg.mp3",
+        "sha256": "98743ec17fa991151178ff7172741e632e450b77674000147d1e67f77abcbf99",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/d3/En-us-jack.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-jack.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "join": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/74/En-us-join.ogg/En-us-join.ogg.mp3",
+        "sha256": "fb69ff224856f6712de1a182b8c8b3b29e887dded2bedc84a61678b39394d469",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/74/En-us-join.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-join.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "jump": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/96/En-us-jump.ogg/En-us-jump.ogg.mp3",
+        "sha256": "df65bf3daccb5d8d3241239fb523318526a393fe23d443388af8a993ff1320d8",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/96/En-us-jump.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-jump.ogg",
+        "creator": "TreeMama",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Audio pronunciation of the term 'jump' in United States English."
+      },
+      "kind": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/66/En-us-kind.ogg/En-us-kind.ogg.mp3",
+        "sha256": "3c6def82e78f525563b90098b5e345a290fba9ef4045fb36448d2f3a738920d9",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/66/En-us-kind.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-kind.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "knew": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d5/En-us-knew.ogg/En-us-knew.ogg.mp3",
+        "sha256": "bb7f6c948938e0774b919032795d65772c979b5668824951144112023417936d",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/d5/En-us-knew.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-knew.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "leave": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/8d/En-us-leave.ogg/En-us-leave.ogg.mp3",
+        "sha256": "75125acbab9d14de12ed7578a2686055f0fe5c9f985b13b6ede7e81e384b9431",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/En-us-leave.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-leave.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "left": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/fb/En-us-left.ogg/En-us-left.ogg.mp3",
+        "sha256": "994dae748bbd4deae0bd819cf4abee20258eb9f1532cdfb8d30e04cd190934d0",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/fb/En-us-left.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-left.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "long": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f8/En-us-long.ogg/En-us-long.ogg.mp3",
+        "sha256": "fc630a958bb5d93eb93d0f5c82ea917530d25ea3331445c151883e0603b12a64",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/f8/En-us-long.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-long.ogg",
+        "creator": "Creator not named in file description; PD-self release on source page",
+        "license": "Public domain",
+        "license_url": "https://commons.wikimedia.org/wiki/File:En-us-long.ogg#Licensing",
+        "retrieved_at": "2026-10-27",
+        "description": ""
+      },
+      "luck": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/8d/En-us-luck.ogg/En-us-luck.ogg.mp3",
+        "sha256": "bb2383679a6c102a37d64573b5a4a00d5fbb778f4914d056a46474788e7928f4",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/En-us-luck.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-luck.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "map": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e0/En-us-map.ogg/En-us-map.ogg.mp3",
+        "sha256": "d4b4d800d2e20955f70560a1f0f47e67e1022f6fbbd6480dc95b60f938ee7fcf",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/e0/En-us-map.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-map.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "match": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/ad/En-us-match.ogg/En-us-match.ogg.mp3",
+        "sha256": "eedeb6c20dc0341171e274823c71d5d84c0c2959ef4ef097d4f5aefc08d7f2ff",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/ad/En-us-match.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-match.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "measure": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/35/En-us-measure.ogg/En-us-measure.ogg.mp3",
+        "sha256": "45a51d6083df74549cdb6da1f513bd0d04f5e063b1636d9508b5d3bb89ee8346",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/35/En-us-measure.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-measure.ogg",
+        "creator": "Creator not named in file description; PD-self release on source page",
+        "license": "Public domain",
+        "license_url": "https://commons.wikimedia.org/wiki/File:En-us-measure.ogg#Licensing",
+        "retrieved_at": "2026-10-27",
+        "description": ""
+      },
+      "milk": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/64/En-us-milk.ogg/En-us-milk.ogg.mp3",
+        "sha256": "bdf8997111d911c58f9de2835b3b2c30b8f7db388fe1e0bbfa9be244c8590f73",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/64/En-us-milk.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-milk.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "move": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9d/En-us-move.ogg/En-us-move.ogg.mp3",
+        "sha256": "21fbc11a0c2968dd7eb71ce6d658a49363362d274fba707519c6d6123a10c84b",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/9d/En-us-move.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-move.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "new": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/34/En-us-new.ogg/En-us-new.ogg.mp3",
+        "sha256": "ba5e4db8289db3249bad5814988f09695decda1f2799791772cfd6c5a6b7728f",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/34/En-us-new.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-new.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "news": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f6/En-us-news.ogg/En-us-news.ogg.mp3",
+        "sha256": "f7f404a28e3588d80948cc13c0b5f52fc164412a0d585590bc0d4ef555533ab9",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/f6/En-us-news.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-news.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English, recorded by Dvortygirl"
+      },
+      "next": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d0/En-us-next.ogg/En-us-next.ogg.mp3",
+        "sha256": "0cfed5eab5a437a203e689836af512c8e8ee0f0ee67d7936d99fd13a2efa6103",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/d0/En-us-next.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-next.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "once": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f8/En-us-once.ogg/En-us-once.ogg.mp3",
+        "sha256": "7459c9b9bac8a3beb59def6211a0bbda7338a9846676fec9bb18d935e638d242",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/f8/En-us-once.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-once.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "open": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/67/En-us-open.ogg/En-us-open.ogg.mp3",
+        "sha256": "274d99a781ef6732ca73058ac6ab60e772c60afbc694b712cd08adfe4b2c89ee",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/67/En-us-open.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-open.ogg",
+        "creator": "No machine-readable author provided. TheDaveRoss assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English, recorded by TheDaveRoss 19:36, 15 June 2006 (UTC)"
+      },
+      "other": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3d/En-us-other.ogg/En-us-other.ogg.mp3",
+        "sha256": "69305c4574196f7a36c44cb77f87c6511ac7f783fa109f331b322cb8de684d7a",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/3d/En-us-other.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-other.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "page": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/eb/En-us-page.ogg/En-us-page.ogg.mp3",
+        "sha256": "81ee69b53b36f945800403604426ccd2122967e2a7f655ab85dd82edb3134256",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/eb/En-us-page.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-page.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "paper": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/33/En-us-paper.ogg/En-us-paper.ogg.mp3",
+        "sha256": "761fb0c9fad4e847ed1ccc1fbedb3d2adaeecdad2229fd91b7be5eb23a6c4a59",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/33/En-us-paper.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-paper.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "part": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/33/En-us-part.ogg/En-us-part.ogg.mp3",
+        "sha256": "2042117a92db83784e99b60a758d9146a11202bd2f6fc1bb7e10377c07618f27",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/33/En-us-part.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-part.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "pleasure": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d6/En-us-pleasure.ogg/En-us-pleasure.ogg.mp3",
+        "sha256": "c4f85a7a6a49a94849dae72334fb747deb18c8a275b415d093ec682d72853566",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/En-us-pleasure.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-pleasure.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "power": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a5/En-us-power.ogg/En-us-power.ogg.mp3",
+        "sha256": "46619e37fe9071474bc601625040e49ccda00115d11025033a25eda20c23d889",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/a5/En-us-power.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-power.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "pull": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/77/En-us-pull.ogg/En-us-pull.ogg.mp3",
+        "sha256": "588244fcc73a49a3486fd1ed12d570ddeda3c9411dae3e29ee9efa9a8e4822e8",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/77/En-us-pull.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-pull.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "push": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/66/En-us-push.ogg/En-us-push.ogg.mp3",
+        "sha256": "5e8291a0f71139b88dd31d397e054070e933af2ef9a05ff3fbe6022014c0100b",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/66/En-us-push.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-push.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "rich": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/45/En-us-rich.ogg/En-us-rich.ogg.mp3",
+        "sha256": "948f6a3fca07b797c6bb1e4a166d7dd1172b5e7f24e6a4083cbcebd144045a8e",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/4/45/En-us-rich.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-rich.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "river": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e2/En-us-river.ogg/En-us-river.ogg.mp3",
+        "sha256": "8c468a2a3a96efc80e3ef07e13828c3be466ae268eda094a13e746e3c49b0d04",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/e2/En-us-river.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-river.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "room": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/67/En-us-room.ogg/En-us-room.ogg.mp3",
+        "sha256": "94652752edc79c1960e0e6f408847abee2ccc653d7590360a0ad8a405bbcf9c2",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/67/En-us-room.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-room.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "run": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a9/En-us-run.ogg/En-us-run.ogg.mp3",
+        "sha256": "e3791df926a83aec513e5209dec555a3670f3a8e8e8c737a74b49952372d859f",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/a9/En-us-run.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-run.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "ship": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/ship.mp3",
+        "sha256": "9e553b3035d977c4a0bed3440c5ecb0e3bb6fc80c518272039df9218e25bc2a4",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "shop": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/ba/En-us-shop.ogg/En-us-shop.ogg.mp3",
+        "sha256": "7bce48d66f2f285d21cf541bd487d2a5da9c25d05a8ec0ff44eef234198dd1cf",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/ba/En-us-shop.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-shop.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Audio pronunciation of the term 'shop' in United States English."
+      },
+      "shows": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/53/En-us-shows.ogg/En-us-shows.ogg.mp3",
+        "sha256": "b08a52ef469478c29d1e7618b2bca22e8cea9124cd8b4b5707f7824fa7006480",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/5/53/En-us-shows.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-shows.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Audio pronunciation of the term 'shows' in United States English."
+      },
+      "sister": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/47/En-us-sister.ogg/En-us-sister.ogg.mp3",
+        "sha256": "923895ba5b42eb369637a9608e55dcbc98877e502c5a4003cfecbbff018f4e47",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/4/47/En-us-sister.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-sister.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "song": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f1/En-us-song.ogg/En-us-song.ogg.mp3",
+        "sha256": "5ba82e9d77ab21c3d9a83cb0d72b2f8a6680225af1c0ea2adcac8b567e868bf8",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/En-us-song.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-song.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "south": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/6e/En-us-south.ogg/En-us-south.ogg.mp3",
+        "sha256": "cc70e5dc03ed7d03cdd1f3373fb2f57f397e373ec0e31756726d007715905913",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/6e/En-us-south.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-south.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "star": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a6/En-us-star.ogg/En-us-star.ogg.mp3",
+        "sha256": "dac9aebdd71402efbdca5dd43cff1795efe21ee0662d6358682f7ab87c7cb5ef",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/a6/En-us-star.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-star.ogg",
+        "creator": "No machine-readable author provided. Dvortygirl assumed (based on copyright claims).",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English, recorded by Dvortygirl , 9 September 2006"
+      },
+      "sun": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/sun.mp3",
+        "sha256": "cfbae134d5d1f8b25d97b6c275f28023459ca2bc70b6bffc2c4492c23f4caa3a",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "sure": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ed/En-us-sure.ogg/En-us-sure.ogg.mp3",
+        "sha256": "bf3035912ed886db06d59b8da8e4a06da7ff440c044644370ebdc6bdfb929257",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/e/ed/En-us-sure.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-sure.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "teacher": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/74/En-us-teacher.ogg/En-us-teacher.ogg.mp3",
+        "sha256": "8d885d4a5c45b88cf23f93d1ce13e890ca53ef5c22c3aee6f03ceba185aa298a",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/74/En-us-teacher.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-teacher.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Audio pronunciation of the term 'teacher' in United States English."
+      },
+      "thing": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/b1/En-us-thing.ogg/En-us-thing.ogg.mp3",
+        "sha256": "10233cb9e30188d53bc9eb8c685a170cf98111ea052c6fb923f8789fcb2cf658",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/b1/En-us-thing.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-thing.ogg",
+        "creator": "Creator not named in file description; PD-self release on source page",
+        "license": "Public domain",
+        "license_url": "https://commons.wikimedia.org/wiki/File:En-us-thing.ogg#Licensing",
+        "retrieved_at": "2026-10-27",
+        "description": ""
+      },
+      "think": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/think.mp3",
+        "sha256": "b9cee7c6ae2148169faf1c26684e7d0bb228771f4f10ed390a1be883fdd1d11a",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "three": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/three.mp3",
+        "sha256": "77cc136a697b4fe956641aebe1831335dd4972b204d217c3a401bdcdd01086e4",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "told": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/61/En-us-told.ogg/En-us-told.ogg.mp3",
+        "sha256": "6aacc94b1673dae851024ea544537923eff370dc0f6620c63d7d49669568fb37",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/61/En-us-told.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-told.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "tree": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d2/En-us-tree.ogg/En-us-tree.ogg.mp3",
+        "sha256": "d3adc98ecb2020cfea53c3b12d4653d8989dd11a1221bee8f17492a099e9b196",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/d2/En-us-tree.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-tree.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "usual": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/2f/En-us-usual.ogg/En-us-usual.ogg.mp3",
+        "sha256": "f359098035748b225f73505e17306c4a727e6f53a2baa08d34b8520858d8796e",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/2/2f/En-us-usual.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-usual.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "usually": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/92/En-us-usually.ogg/En-us-usually.ogg.mp3",
+        "sha256": "7c7872527fc90eb6395f14d11a0df0b024ec7dd406f84609d6cf4ef79dbb93d5",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/92/En-us-usually.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-usually.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "view": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f5/En-us-view.ogg/En-us-view.ogg.mp3",
+        "sha256": "d1cccc20fec8c519b62c6fcc4f4bdd4a9c6e920a59fc072d700230c2d8b1bc61",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/f5/En-us-view.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-view.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "vision": {
+        "url": "https://ipa.jingyun.bj.cn/audio/us/vision.mp3",
+        "sha256": "596a88e0d44d05ff9b8b2a1c198aa7cf34377845da6fe67e58eb7bbc7e0920d7",
+        "mode": "copy",
+        "provenance": "existing M14 licensed package, bytes preserved"
+      },
+      "voice": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/03/En-us-voice.ogg/En-us-voice.ogg.mp3",
+        "sha256": "fd969b058e16c7ad021b975ff7aadc059faa426d73a6206872d00bff5eb9bd3d",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/0/03/En-us-voice.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-voice.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "want": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4d/En-us-want.ogg/En-us-want.ogg.mp3",
+        "sha256": "7c4cfff45948a517ebcf6d966d6202d5f73b7c6313323eebbdf96c839aaa19f3",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/4/4d/En-us-want.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-want.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "watch": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/05/En-us-watch.ogg/En-us-watch.ogg.mp3",
+        "sha256": "1f079f13a7baa346ee604a4d367ef425ef1e2405c1524493beba89e611b738f3",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/0/05/En-us-watch.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-watch.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "water": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/bd/En-us-water.ogg/En-us-water.ogg.mp3",
+        "sha256": "a17bac580c590fd363d93fa9a3ade98f22619c0f30bc2c3cc44f23f959edeb20",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/bd/En-us-water.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-water.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "why": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/69/En-us-why.ogg/En-us-why.ogg.mp3",
+        "sha256": "47f5ab29710ed393cc1f49759f4d0348b41b36538ca7cf9e553ea1570d99ac05",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/69/En-us-why.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-why.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "wing": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/1/1d/En-us-wing.ogg/En-us-wing.ogg.mp3",
+        "sha256": "318f515f367913212ee8a4c70a6284cbc163b3a022c03331b3a58da893790415",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/1/1d/En-us-wing.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-wing.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "wish": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/7e/En-us-wish.ogg/En-us-wish.ogg.mp3",
+        "sha256": "aac4733627f5b007dac369e65eac18ef6576ba6eccfd3d780141f03ba6cc2e84",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/7e/En-us-wish.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-wish.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      },
+      "wrong": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/b9/En-us-wrong.ogg/En-us-wrong.ogg.mp3",
+        "sha256": "22b304813972a2a4c572099d8d904d09a23e02b4d6d5c0f12096647660470d42",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/b/b9/En-us-wrong.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-wrong.ogg",
+        "creator": "Creator not named in file description; PD-self release on source page",
+        "license": "Public domain",
+        "license_url": "https://commons.wikimedia.org/wiki/File:En-us-wrong.ogg#Licensing",
+        "retrieved_at": "2026-10-27",
+        "description": ""
+      },
+      "years": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/62/En-us-years.ogg/En-us-years.ogg.mp3",
+        "sha256": "fb6608e67603be993c764bdcff7911b239a9e5c23a1fc7461b7995e77edfbb45",
+        "mode": "copy",
+        "original_url": "https://upload.wikimedia.org/wikipedia/commons/6/62/En-us-years.ogg",
+        "file_page": "https://commons.wikimedia.org/wiki/File:En-us-years.ogg",
+        "creator": "Dvortygirl",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "retrieved_at": "2026-10-27",
+        "description": "Pronunciation of the term in US English"
+      }
+    },
+    "missing_word_ids": [
+      "wood"
+    ],
+    "evidence_scope": "source metadata, file integrity and automated playback; human phonetic/learning acceptance deferred"
+  }
+}
