@@ -162,15 +162,15 @@ class TestProgressApi:
         """After several attempts across phonemes, weak/strong lists appear."""
         today = client.post("/api/practice/next-normal").json()
 
-        # Submit 3 wrong answers for first item
-        for _ in range(3):
+        for item in today["items"]:
             client.post("/api/attempt", json={
-                "session_item_id": today["items"][0]["session_item_id"],
+                "session_item_id": item["session_item_id"],
                 "selected_answer": "/wrong/",
             })
 
         resp = client.get("/api/progress")
         data = resp.json()
+        assert data["total_attempts"] == len(today["items"])
         # Should have weak phonemes (low accuracy)
         assert len(data["weak_phonemes"]) > 0
         for wp in data["weak_phonemes"]:
