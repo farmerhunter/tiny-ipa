@@ -489,3 +489,30 @@ bus 为 /b,ʌ,s/，paper 为 /p,eɪ,ɚ/。审计 JSON 分开报告冻结源的�
 这不等于完成录音/IPA人工核对，也不自动改 Core300/Core1000 或真实 DB。
 使用 `uv run --project backend python backend/scripts/correct_core100_tags.py`
 可在 stdout 检查完整候选；临时测试按13项补丁应用后验证其他字段和历史表不变。
+
+
+### Core300 / Core1000 来源审计（#322）
+
+运行 `uv run --project backend python backend/scripts/audit_core100_learning.py --all-packs`
+重建两个等级的来源审计；CI 加 `--probe-attempts`，报告与输入 hash 保存在既有
+`core100-learning-audit` artifact。此处审计仓库来源，不推断线上 DB 与来源相同。
+
+- Core300：300词，`feb` 已 disabled，choose_word 实际检查299个有效目标；
+  Core1000：1000个有效目标。两包有效目标均有3个干扰项、无 fallback；
+  同 IPA 干扰项排除仍有效，但不等于声学可辨性已经验证。
+- Core300 来源仍有同样13词丢失辅音/其他元音标签，恰好匹配现有 Core100
+  修正的 before 值。已上线的13词修复不代表这些冻结来源文件已更新。
+- Core1000 的13项差异是 mid_run/love/fun/cut/cup/father/teacher/water/paper/
+  better/letter/sister/river；也存在非目标音位丢失。其 US 元音差异没有对应的
+  逐词 override note，不能自动沿用 Core100 豁免或跨 mid_ ID 应用补丁。
+- Core300 的300个 audio_us 是来源 URL 引用，其中99个与现有许可包的 ID+URL
+  绑定，其余201个没有本包证据；Core1000 的 audio_us 全为空。URL、planned
+  状态、同名词或 source_word_id 都不能当作已安装录音的证明。
+- 两包均没有 minimal_pair_group 元数据；现有 Sound Compare 在这些来源下
+  不具备启动内容。真实浏览器回归检查明确的不可用提示与零新增作答。
+- UK 标签差异分别为30/221词，均涉及现有 parser 未识别符号。parser 是现有
+  US 归一化工具；这些是待分流的报告，不应直接计为30/221条内容错误。
+
+后续建议：先为两个等级制作有来源绑定的 US 标签修正候选，保留冻结资产及
+历史统计；再为一个小范围声音对比补足经核对的配对元数据。录音/IPA一致性、
+说话人和教学效果仍未通过人工验证；不自动发布内容或启用线上听辨小课。

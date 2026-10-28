@@ -16,7 +16,7 @@
     "test:e2e:m12": "playwright test -c playwright.m11.config.ts tests/e2e/m12-auth-ux.spec.ts",
     "test:e2e:m11-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts",
     "test:e2e:m12-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts",
-    "test:e2e:m13-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m13-real-practice-mode.spec.ts",
+    "test:e2e:m13-real": "playwright test -c playwright.core100-real.config.ts tests/e2e/m13-real-practice-mode.spec.ts",
     "test:e2e:core100-real": "playwright test -c playwright.core100-real.config.ts"
   },
   "dependencies": {
