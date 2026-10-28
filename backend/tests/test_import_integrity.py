@@ -183,3 +183,15 @@ def test_commit_constraint_failure_does_not_report_transient_writes_as_committed
     assert report["rolled_back"] and not report["committed"]
     assert report["inserted"] == report["phonemes_inserted"] == 0
     assert snapshot(database) == before
+
+
+@pytest.mark.parametrize("skip", [False, True])
+def test_unknown_us_tag_is_never_committed(tmp_path, skip):
+    entries = words()
+    entries[0]["phoneme_tags_us"] = ["/not-in-inventory/"]
+    source = tmp_path / "unknown.json"
+    source.write_text(json.dumps(entries))
+    database = tmp_path / "must-not-open.sqlite"
+    report = importer.import_words(source, PHONEMES, str(database), skip_validation=skip)
+    assert any("unknown phoneme tag" in error for error in report["errors"])
+    assert not report["committed"] and not database.exists()

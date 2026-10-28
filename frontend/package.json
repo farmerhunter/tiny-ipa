@@ -17,6 +17,7 @@
     "test:e2e:m11-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts",
     "test:e2e:m12-real": "playwright test -c playwright.m11-real.config.ts tests/e2e/m11-real-backend-state.spec.ts",
     "test:e2e:m13-real": "playwright test -c playwright.core100-real.config.ts tests/e2e/m13-real-practice-mode.spec.ts",
+    "test:e2e:level-account-real": "CORE100_REAL_LEVEL_ACCOUNTS=true playwright test -c playwright.core100-real.config.ts",
     "test:e2e:sound-compare-candidate": "CORE100_REAL_PAIR_CANDIDATE=true playwright test -c playwright.core100-real.config.ts",
     "test:e2e:core100-real": "playwright test -c playwright.core100-real.config.ts"
   },

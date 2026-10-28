@@ -115,8 +115,9 @@ def import_words(
         phonemes_path: Path to ``content/phonemes.json``.
         db_path: SQLite database path (``sqlite:///`` prefix stripped if
                  present, for CLI ergonomics).
-        skip_validation: If True, skip content validation (not recommended
+        skip_validation: If True, skip semantic content validation (not recommended
                          for production; useful for trusted fixtures).
+                         Structural/US inventory checks still apply.
 
     Returns:
         A report dict with keys: inserted, updated, skipped, errors,
@@ -153,9 +154,18 @@ def import_words(
             report["errors"] = structural_errors
             report["validation_errors"] = len(structural_errors)
             return report
+        known_phonemes = load_phoneme_set(phonemes_path)
+        for word in words:
+            for tag in word["phoneme_tags_us"]:
+                if tag not in known_phonemes:
+                    wid = word.get("word_id", word.get("id"))
+                    report["errors"].append(f"{wid}: unknown phoneme tag '{tag}'")
+        if report["errors"]:
+            report["validation_errors"] = len(report["errors"])
+            return report
         if not skip_validation:
             val_report = validate_words(
-                words, load_phoneme_set(phonemes_path), content_level=content_level
+                words, known_phonemes, content_level=content_level
             )
             for key, default in (("content_level", None), ("level_counts", {}),
                                  ("content_status_counts", {}), ("syllable_distribution_us", {}),
@@ -228,6 +238,7 @@ def print_report(report: dict) -> None:
     print(f"Tables created:  {tables}")
     for binding in report.get("tag_corrections", []):
         print(f"Tag corrections: {binding['source']} ({len(binding['corrected_word_ids'])} words)")
+    print(f"Transaction: {'COMMITTED' if report.get('committed') else 'NOT COMMITTED'}")
     print(f"Words inserted:  {report['inserted']}")
     print(f"Words skipped:   {report['skipped']}")
     print(f"Total words:     {report.get('total_words_in_db', '?')}")

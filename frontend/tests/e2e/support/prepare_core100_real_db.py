@@ -177,6 +177,52 @@ def main():
             ).fetchone()[0]
             == report["audio_count"]
         )
+    if os.environ.get("CORE100_REAL_LEVEL_ACCOUNTS") == "true":
+        imported_mid = import_words(
+            ROOT / "content/core_1000_words.json",
+            ROOT / "content/phonemes.json",
+            str(database),
+            content_level="mid",
+        )
+        if imported_mid.get("errors") or not imported_mid["committed"]:
+            raise SystemExit("Mid fixture import failed")
+        with get_connection(str(database)) as conn:
+            for suffix in ("a", "b"):
+                uid = f"levels-{suffix}"
+                create_user(
+                    conn,
+                    User(
+                        id=uid,
+                        username=f"level-{suffix}",
+                        password_hash=hash_password(f"local-only-level-{suffix}"),
+                        is_owner=False,
+                        is_active=True,
+                        created_at="2026-10-28T00:00:00Z",
+                        updated_at="2026-10-28T00:00:00Z",
+                    ),
+                )
+                upsert_settings(
+                    conn,
+                    Settings(
+                        user_id=uid,
+                        daily_word_count=2,
+                        review_strength="quick",
+                        ui_language="en-US",
+                    ),
+                )
+            assert (
+                conn.execute(
+                    "SELECT count(*) FROM words WHERE level='intermediate'"
+                ).fetchone()[0]
+                == 1000
+            )
+            assert (
+                conn.execute(
+                    "SELECT count(*) FROM words WHERE level='intermediate' AND audio_us IS NOT NULL"
+                ).fetchone()[0]
+                == 0
+            )
+            conn.commit()
     print(
         json.dumps(
             {"status": "disposable-fixture-ready", "audio_count": report["audio_count"]}
