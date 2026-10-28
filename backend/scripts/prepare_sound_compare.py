@@ -21,7 +21,7 @@ from app.services.sound_compare import validate_pair_evidence  # noqa: E402
 
 def load_pairs(root: Path = ROOT) -> dict:
     manifest = json.loads((root / "content/sound_compare_pairs_candidate.json").read_text())
-    validate_pair_evidence(manifest)
+    validate_pair_evidence(manifest, SUPPORTED_PHONEMES)
     if (
         manifest["schema"] != "tiny-ipa-sound-compare-candidate/v1"
         or manifest["status"] != "development-only"

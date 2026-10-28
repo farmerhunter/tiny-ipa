@@ -88,6 +88,7 @@ def test_both_directions_positions_first_grade_and_replay(comparison):
         "shape",
         "index",
         "order",
+        "merged_phone",
         "label",
         "ipa",
         "disabled",
@@ -116,12 +117,15 @@ def test_missing_stale_or_malformed_evidence_does_not_undo_valid_grade(
                 }
             )
         )
-    elif damage in {"index", "order"}:
+    elif damage in {"index", "order", "merged_phone"}:
         data = json.loads(evidence.read_text())
         if damage == "index":
             data["pairs"][0]["contrast_index"] = 1
-        else:
+        elif damage == "order":
             data["pairs"][0]["members"][0]["ordered_phones_us"].reverse()
+        else:
+            for member in data["pairs"][0]["members"]:
+                member["ordered_phones_us"] = [member["ordered_phones_us"][0], "/eɪm/"]
         evidence.write_text(json.dumps(data))
     else:
         with get_connection(database) as conn:

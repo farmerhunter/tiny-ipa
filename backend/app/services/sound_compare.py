@@ -8,7 +8,7 @@ from pathlib import Path
 from app.services.db_store import get_word_by_id
 
 
-def validate_pair_evidence(manifest: dict) -> dict:
+def validate_pair_evidence(manifest: dict, supported_phones: set[str]) -> dict:
     if (
         not isinstance(manifest, dict)
         or manifest.get("schema") != "tiny-ipa-sound-compare-candidate/v1"
@@ -46,7 +46,12 @@ def validate_pair_evidence(manifest: dict) -> dict:
             if (
                 not isinstance(phones, list)
                 or len(phones) < 2
-                or any(not isinstance(p, str) or not re.fullmatch(r"/[^/\s]+/", p) for p in phones)
+                or any(
+                    not isinstance(p, str)
+                    or not re.fullmatch(r"/[^/\s]+/", p)
+                    or p not in supported_phones
+                    for p in phones
+                )
             ):
                 raise ValueError("invalid ordered phones")
             if (
@@ -78,7 +83,15 @@ def attempt_sound_compare(conn, session, item, correct_answer: str):
     if session.primary_accent != "US" or not evidence_path:
         return unavailable
     try:
-        manifest = validate_pair_evidence(json.loads(Path(evidence_path).read_text()))
+        manifest = validate_pair_evidence(
+            json.loads(Path(evidence_path).read_text()),
+            {
+                row[0]
+                for row in conn.execute(
+                    "SELECT id FROM phonemes WHERE accent_scope IN ('US', 'both')"
+                )
+            },
+        )
     except (OSError, UnicodeError, ValueError):
         return unavailable
     from app.services.sessions import _minimal_pair_partners
