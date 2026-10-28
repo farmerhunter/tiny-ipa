@@ -172,3 +172,47 @@ compatibility with candidate data. It cannot undo data writes. A real DB restore
 needs a separate explicit decision because newer learner writes may be lost.
 Failures retain old/new artifacts and stop the affected phase. The local receipt
 does not claim that the unknown deployed old binary works.
+
+## Core300 audio candidate (#334, local only)
+
+`core300-content-audio.manifest.json` is an explicit opt-in overlay for the
+frozen 300-row source. It reuses all 99 Core100 recordings and their asset
+bindings unchanged, adding 12 licensed Commons recordings: book, boy, brother,
+country, double, down, father, mother, never, oil, weather and young. Coverage is
+111 of 299 enabled words. The other 188 enabled words and disabled `feb` retain
+`audio_us:null`; an original source URL alone never counts as packaged audio.
+The source/IPA and canonical tags are not rewritten. Existing reviewed Core300
+tag corrections are applied through their separate hash-bound provenance before
+the audio-only overlay is derived.
+
+With the exact audio files already in the local hash cache, run from `backend`:
+
+```bash
+UV_OFFLINE=true uv run --frozen python scripts/prepare_core100_audio.py --pack 300 --check-media
+```
+
+The default remains Core100. Core300 requires `--pack 300`; it has a separate
+manifest, generated `content/generated/core_300_audio_candidate.json`, audio
+candidate directory and content-hashed credits file. Downloading missing assets
+requires the existing explicit `--allow-download`; there is no new provider,
+credential or source-host allowance. Source/asset mismatch, unsafe path or
+collision fails without overwriting existing bytes. Caches/generated audio are
+not source files to commit or install automatically.
+
+The bounded source selection and source/licence links are recorded on #334.
+`core300-audio-attribution.md` preserves the reused credits and appends each new
+file's source, author and CC BY-SA 3.0 licence. Wikimedia-provided MP3 transcodes
+are copied unchanged. Weather's description names Dvortygirl as recorder while
+the machine Artist field marks attribution assumed; the credits retain that
+qualification. Integrity, automated decode and native playback do not certify
+speaker identity, precise audible IPA agreement or learning effectiveness.
+
+`pnpm test:e2e:core300-audio-candidate` from `frontend` uses the existing real
+SQLite/API/browser harness and a small 12-recording fixture. It seeds two
+synthetic learners and real normal-practice history, imports only the explicit
+candidate into that disposable DB, checks prior learner rows unchanged, then
+plays a newly covered word, records its answer and resumes the same group.
+The Core100 fixture and default routes remain available for regression; this
+candidate is included in CI. It does not activate live audio, pairs, evidence
+configuration, listening or Human trials. Any later online asset/field delta
+still needs its own concrete reviewed list; no production importer is added.

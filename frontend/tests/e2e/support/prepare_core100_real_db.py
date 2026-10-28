@@ -20,7 +20,7 @@ from app.services.auth import hash_password  # noqa: E402
 from app.services.db_store import create_user, upsert_settings  # noqa: E402
 from import_words import import_words  # noqa: E402
 from prepare_sound_compare import load_pairs  # noqa: E402
-from prepare_core100_audio import prepare  # noqa: E402
+from prepare_core100_audio import _write, prepare  # noqa: E402
 
 
 def seed_audio_cache(archive: Path, manifest: dict, cache: Path) -> None:
@@ -53,6 +53,133 @@ def seed_audio_cache(archive: Path, manifest: dict, cache: Path) -> None:
     for asset in assets:
         with (cache / f"{asset['sha256']}.mp3").open("xb") as stream:
             stream.write(payloads[asset["sha256"]])
+
+
+def prepare_core300(database: Path, audio_root: Path) -> None:
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    learner = TestClient(app)
+    assert (
+        learner.post(
+            "/api/auth/login",
+            json={
+                "username": "workflow-owner",
+                "password": "local-only-workflow",
+            },
+        ).status_code
+        == 200
+    )
+    group = learner.post("/api/practice/next-normal").json()
+    item = group["items"][0]
+    assert learner.post(
+        "/api/attempt",
+        json={
+            "session_item_id": item["session_item_id"],
+            "selected_answer": item["display_ipa"],
+        },
+    ).json()["is_correct"]
+    owner = TestClient(app)
+    assert (
+        owner.post(
+            "/api/auth/login",
+            json={
+                "username": "core100-owner",
+                "password": "local-only-core100",
+            },
+        ).status_code
+        == 200
+    )
+    previous_ids = set()
+    for count in (50, 49):
+        assert owner.put("/api/settings", json={"daily_word_count": count}).status_code == 200
+        old_group = owner.post("/api/practice/next-normal").json()
+        assert len(old_group["items"]) == count
+        for old_item in old_group["items"]:
+            previous_ids.add(old_item["word_id"])
+            assert owner.post(
+                "/api/attempt",
+                json={
+                    "session_item_id": old_item["session_item_id"],
+                    "selected_answer": old_item["display_ipa"],
+                },
+            ).json()["is_correct"]
+    assert len(previous_ids) == 99
+    assert owner.put("/api/settings", json={"daily_word_count": 12}).status_code == 200
+    tables = (
+        "users",
+        "auth_sessions",
+        "settings",
+        "daily_sessions",
+        "session_items",
+        "attempts",
+        "phoneme_stats",
+    )
+    with get_connection(str(database)) as conn:
+        before = {
+            t: [tuple(r) for r in conn.execute(f'SELECT * FROM "{t}" ORDER BY rowid')]
+            for t in tables
+        }
+    manifest_path = ROOT / "deploy/jingyun/core300-content-audio.manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    new_ids = set(manifest["build"]["new_word_ids"])
+    with tempfile.TemporaryDirectory(prefix="tiny-ipa-core300-ci-") as directory:
+        old_cache, cache = Path(directory).resolve() / "old-cache", Path(directory).resolve() / "cache"
+        seed_audio_cache(
+            ROOT / "frontend/tests/fixtures/core100-media.zip",
+            json.loads((ROOT / "deploy/jingyun/core100-content-audio.manifest.json").read_text()),
+            old_cache,
+        )
+        extra_manifest = {
+            "audio": {
+                "assets": [a for a in manifest["audio"]["assets"] if a["word_id"] in new_ids],
+                "credits": manifest["audio"]["credits"],
+            }
+        }
+        seed_audio_cache(
+            ROOT / "frontend/tests/fixtures/core300-extra-media.zip", extra_manifest, cache
+        )
+        for path in old_cache.iterdir():
+            _write(cache / path.name, path.read_bytes(), path.stem)
+        result = prepare(manifest_path, ROOT, audio_root, cache, pack_size=300)
+    imported = import_words(
+        ROOT / manifest["content"]["path"], ROOT / "content/phonemes.json", str(database)
+    )
+    if imported["errors"] or not imported["committed"]:
+        raise ValueError("Core300 disposable import failed")
+    with get_connection(str(database)) as conn:
+        after = {
+            t: [tuple(r) for r in conn.execute(f'SELECT * FROM "{t}" ORDER BY rowid')]
+            for t in tables
+        }
+        assert before == after
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert conn.execute("SELECT count(*) FROM words").fetchone()[0] == 300
+        assert (
+            conn.execute("SELECT count(*) FROM words WHERE audio_us IS NOT NULL").fetchone()[0]
+            == 111
+        )
+        assert (
+            conn.execute(
+                "SELECT count(*) FROM words WHERE content_status='disabled' AND audio_us IS NOT NULL"
+            ).fetchone()[0]
+            == 0
+        )
+        assert (
+            conn.execute("SELECT count(*) FROM attempts WHERE user_id='workflow'").fetchone()[0]
+            == 1
+        )
+        assert (
+            conn.execute(
+                "SELECT daily_word_count FROM settings WHERE user_id='default'"
+            ).fetchone()[0]
+            == 12
+        )
+        assert (
+            conn.execute("SELECT count(*) FROM attempts WHERE user_id='default'").fetchone()[0]
+            == 99
+        )
+    assert result["audio_count"] == 111
 
 
 def main():
@@ -177,6 +304,8 @@ def main():
             ).fetchone()[0]
             == report["audio_count"]
         )
+    if os.environ.get("CORE300_REAL_CANDIDATE") == "true":
+        prepare_core300(database, audio_root)
     if os.environ.get("CORE100_REAL_LEVEL_ACCOUNTS") == "true":
         imported_mid = import_words(
             ROOT / "content/core_1000_words.json",
