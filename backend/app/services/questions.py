@@ -65,11 +65,16 @@ def _generate_choose_ipa_question(
 ) -> dict:
     correct = _active_ipa(word, accent)
     if contrast_ipa is not None:
-        if not contrast_ipa.strip() or contrast_ipa == correct:
+        if (
+            not correct.strip()
+            or not contrast_ipa.strip()
+            or contrast_ipa.strip() == correct.strip()
+        ):
             raise ValueError("Sound Compare requires a distinct counterpart IPA")
         rng = random.Random(seed)
         fillers = sorted(
-            {value for value in (distractor_pool or []) if value.strip()} - {correct, contrast_ipa}
+            {value.strip() for value in (distractor_pool or []) if value.strip()}
+            - {correct.strip(), contrast_ipa.strip()}
         )
         rng.shuffle(fillers)
         choices = [correct, contrast_ipa, *fillers[:2]]

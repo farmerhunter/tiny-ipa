@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -108,3 +110,86 @@ def test_limited_batch_still_includes_ipa_of_partner_outside_the_batch(tmp_path)
             if partner["word_id"] not in ids:
                 outside.append(partner["word_id"])
         assert len(outside) == 1
+
+
+def test_pair_selection_creation_and_question_validation_share_a_write_lock(tmp_path, monkeypatch):
+    from app.db import get_db
+    from app.services import sessions
+
+    database = str(tmp_path / "atomic.sqlite")
+    source = tmp_path / "candidate.json"
+    source.write_text(json.dumps(candidate(300)))
+    assert not import_words(source, ROOT / "content/phonemes.json", database)["errors"]
+    original = sessions._select_minimal_pair_words
+    observed = []
+
+    def concurrent_edit():
+        with sqlite3.connect(database, timeout=0) as other:
+            try:
+                other.execute("UPDATE words SET content_status='disabled' WHERE id='game'")
+                other.commit()
+                return "changed"
+            except sqlite3.OperationalError as error:
+                assert "locked" in str(error)
+                return "locked"
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+
+        def select_and_probe(*args, **kwargs):
+            words = original(*args, **kwargs)
+            observed.append(executor.submit(concurrent_edit).result(timeout=5))
+            return words
+
+        monkeypatch.setattr(sessions, "_select_minimal_pair_words", select_and_probe)
+        with get_db(database) as conn:
+            response = sessions.build_minimal_pair_group_response(conn)
+        assert observed == ["locked"]
+    assert "error" not in response
+    assert len(response["items"]) == 4
+    with get_connection(database) as conn:
+        assert conn.execute("SELECT count(*) FROM daily_sessions").fetchone()[0] == 1
+        assert conn.execute("SELECT count(*) FROM session_items").fetchone()[0] == 4
+        assert (
+            conn.execute("SELECT content_status FROM words WHERE id='game'").fetchone()[0]
+            != "disabled"
+        )
+
+
+@pytest.mark.parametrize("accent", ["US", "UK"])
+@pytest.mark.parametrize("padded_left", [False, True])
+@pytest.mark.parametrize("active", [False, True])
+def test_trim_equal_pairs_are_rejected_for_both_accents_and_directions(
+    tmp_path, accent, padded_left, active
+):
+    database = str(tmp_path / "equivalent.sqlite")
+    source = tmp_path / "candidate.json"
+    source.write_text(json.dumps(candidate(300)))
+    assert not import_words(source, ROOT / "content/phonemes.json", database)["errors"]
+    with get_connection(database) as conn:
+        conn.execute("UPDATE words SET minimal_pair_group=NULL WHERE id IN ('back','bag')")
+        conn.commit()
+        if active:
+            group = build_minimal_pair_group_response(conn, accent=accent)
+            assert len(group["items"]) == 2
+            conn.commit()
+        left, right = (" /keɪm/ ", "/keɪm/") if padded_left else ("/keɪm/", " /keɪm/ ")
+        column = "ipa_us" if accent == "US" else "ipa_uk"
+        conn.execute(f"UPDATE words SET {column}=? WHERE id='came'", (left,))
+        conn.execute(f"UPDATE words SET {column}=? WHERE id='game'", (right,))
+        conn.commit()
+        tables = ("daily_sessions", "session_items", "attempts", "phoneme_stats")
+        before = {
+            name: [tuple(row) for row in conn.execute(f"SELECT * FROM {name} ORDER BY rowid")]
+            for name in tables
+        }
+        response = build_minimal_pair_group_response(conn, accent=accent)
+        if active:
+            assert response["error"] == "CONTENT_NOT_READY"
+        else:
+            assert response["status"] == "empty"
+            assert response["items"] == []
+        after = {
+            name: [tuple(row) for row in conn.execute(f"SELECT * FROM {name} ORDER BY rowid")]
+            for name in tables
+        }
+        assert after == before

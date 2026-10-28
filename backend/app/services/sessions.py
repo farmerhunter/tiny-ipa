@@ -617,6 +617,8 @@ def build_minimal_pair_group_response(
     accent: str = "US",
 ) -> dict:
     """Create or resume a confusing-sound comparison specialty group."""
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
     session_date = _today_date_str()
     settings = get_settings(conn, user_id)
     if settings is None:
@@ -870,7 +872,7 @@ def _minimal_pair_partners(conn, *, accent: str, learner_level: str) -> dict[str
         left, right = members
         left_ipa = left.ipa_us if accent == "US" else left.ipa_uk
         right_ipa = right.ipa_us if accent == "US" else right.ipa_uk
-        if not left_ipa.strip() or not right_ipa.strip() or left_ipa == right_ipa:
+        if not left_ipa.strip() or not right_ipa.strip() or left_ipa.strip() == right_ipa.strip():
             continue
         partners[left.id], partners[right.id] = right, left
     return partners
