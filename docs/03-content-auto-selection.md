@@ -503,8 +503,9 @@ bus 为 /b,ʌ,s/，paper 为 /p,eɪ,ɚ/。审计 JSON 分开报告冻结源的�
 - Core300 来源仍有同样13词丢失辅音/其他元音标签，恰好匹配现有 Core100
   修正的 before 值。已上线的13词修复不代表这些冻结来源文件已更新。
 - Core1000 的13项差异是 mid_run/love/fun/cut/cup/father/teacher/water/paper/
-  better/letter/sister/river；也存在非目标音位丢失。其 US 元音差异没有对应的
-  逐词 override note，不能自动沿用 Core100 豁免或跨 mid_ ID 应用补丁。
+  better/letter/sister/river；也存在非目标音位丢失。其逐词说明使用
+  `phoneme_override_note`（没有前导下划线）；此前审计遗漏了这个字段。修订审计
+  读取两种说明，但仍能识别丢失的辅音/其他元音；不跨 mid_ ID 应用 Core100 补丁。
 - Core300 的300个 audio_us 是来源 URL 引用，其中99个与现有许可包的 ID+URL
   绑定，其余201个没有本包证据；Core1000 的 audio_us 全为空。URL、planned
   状态、同名词或 source_word_id 都不能当作已安装录音的证明。
@@ -516,3 +517,27 @@ bus 为 /b,ʌ,s/，paper 为 /p,eɪ,ɚ/。审计 JSON 分开报告冻结源的�
 后续建议：先为两个等级制作有来源绑定的 US 标签修正候选，保留冻结资产及
 历史统计；再为一个小范围声音对比补足经核对的配对元数据。录音/IPA一致性、
 说话人和教学效果仍未通过人工验证；不自动发布内容或启用线上听辨小课。
+
+
+### Core300 / Core1000 标签候选与导入保护（#324）
+
+`core_300_phoneme_corrections.json` 与 `core_1000_phoneme_corrections.json`
+分别绑定冻结来源 hash、13词的 ID/IPA/before/after 及原有逐词说明。候选保留
+全部已解析音素，只应用已说明的 STRUT/r-colored 记法转换；原始词库字节、UK
+标签、音频、释义、等级和历史数据不重写。可以无数据库地检查派生候选：
+
+```bash
+uv run --project backend python backend/scripts/correct_expanded_tags.py --pack 300
+uv run --project backend python backend/scripts/correct_expanded_tags.py --pack 1000
+```
+
+通用 importer 对精确匹配冻结来源的文件（包括原样复制的文件）自动派生13项
+修正后再验证/导入，返回 `tag_corrections` 来源信息；修改过的原始路径拒绝
+导入，需另审新的来源绑定。任意来源的旧/缺失标签不能覆盖库中这些已修正行，
+此检查不能用 `--skip-validation` 绕过，检查与写入使用同一 IMMEDIATE 事务，
+拒绝时没有领域数据写入。新的自定义内容仍走现有校验，不声明它已获教学验收。
+
+重复导入保留已有 default 设置；仅缺少设置时创建默认值。测试在临时库上
+证明非空 session/items/attempts/stats 和设置完整保留，未对线上库运行 importer。
+`--all-packs` 审计同时报告冻结来源问题与 corrected_candidate；两个候选的
+未解释 US 标签差异为零，不代表录音/IPA 或教学效果已通过人工验证。

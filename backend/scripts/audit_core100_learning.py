@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from correct_core100_tags import derive, load_corrections  # noqa: E402
+from correct_expanded_tags import load_pack  # noqa: E402
 from report_choose_word_distractors import _word_from_entry  # noqa: E402
 from select_candidates import parse_ipa_to_phonemes  # noqa: E402
 from validate_content import load_phoneme_set, validate_words  # noqa: E402
@@ -34,7 +35,8 @@ def tag_differences(words: list[dict], accent: str = "us") -> list[dict]:
         declared = set(word.get(f"phoneme_tags_{accent}") or [])
         removed, added = set(parsed) - declared, declared - set(parsed)
         explained_added, explained_removed = set(), set()
-        if accent == "us" and word.get("_phoneme_override_note"):
+        note = word.get("_phoneme_override_note") or word.get("phoneme_override_note")
+        if accent == "us" and note:
             for source, target in [("/ə/", "/ʌ/"), ("/ɝ/", "/ɚ/")]:
                 if source in parsed and target in added:
                     explained_added.add(target)
@@ -46,7 +48,7 @@ def tag_differences(words: list[dict], accent: str = "us") -> list[dict]:
                     f"ipa_{accent}": ipa,
                     "parsed_tags": parsed,
                     "declared_tags": sorted(declared),
-                    "override_note": word.get("_phoneme_override_note"),
+                    "override_note": note,
                     "unknown_symbols": unknown,
                     "normalization_additions": sorted(explained_added),
                     "unexplained_missing_tags": sorted(removed - explained_removed),
@@ -122,6 +124,12 @@ def audit_pack(source: Path, manifest: dict, known: set[str]) -> dict:
             "Exact IDs and tag-before values only, not authorization to apply; Mid IDs excluded."
         ),
     }
+    for size in (300, 1000):
+        content, patch = load_pack(size)
+        if hashlib.sha256(source.read_bytes()).hexdigest() == patch["source_sha256"]:
+            report["corrected_candidate"] = audit_content(
+                derive(content, patch)["words"], audio_manifest, known
+            )
     return report
 
 
@@ -292,6 +300,11 @@ def main():
                 for source in sources
             }
         )
+        for size in (300, 1000):
+            patch_path = ROOT / f"content/core_{size}_phoneme_corrections.json"
+            report["inputs"][patch_path.relative_to(ROOT).as_posix()] = hashlib.sha256(
+                patch_path.read_bytes()
+            ).hexdigest()
     report["inputs"]["content/core_100_phoneme_corrections.json"] = hashlib.sha256(
         (ROOT / "content/core_100_phoneme_corrections.json").read_bytes()
     ).hexdigest()

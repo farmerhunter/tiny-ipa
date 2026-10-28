@@ -1,0 +1,207 @@
+{
+  "schema": "tiny-ipa-expanded-tag-corrections/v1",
+  "source": "content/core_300_words.json",
+  "source_sha256": "543695e5e23ef7e13a89d6583a356bace89b0836c9e60d77cbece00873bc3698",
+  "changes": [
+    {
+      "word_id": "bus",
+      "ipa_us": "/ˈbəs/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/b/",
+        "/ʌ/",
+        "/s/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "cup",
+      "ipa_us": "/ˈkəp/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/k/",
+        "/ʌ/",
+        "/p/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "cut",
+      "ipa_us": "/ˈkət/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/k/",
+        "/ʌ/",
+        "/t/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "fun",
+      "ipa_us": "/ˈfən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/f/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "jump",
+      "ipa_us": "/ˈdʒəmp/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/dʒ/",
+        "/ʌ/",
+        "/m/",
+        "/p/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "luck",
+      "ipa_us": "/ˈɫək/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/l/",
+        "/ʌ/",
+        "/k/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "paper",
+      "ipa_us": "/ˈpeɪpɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/p/",
+        "/eɪ/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "river",
+      "ipa_us": "/ˈɹɪvɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/r/",
+        "/ɪ/",
+        "/v/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "run",
+      "ipa_us": "/ˈɹən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/r/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "sister",
+      "ipa_us": "/ˈsɪstɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/s/",
+        "/ɪ/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "sun",
+      "ipa_us": "/ˈsən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/s/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "teacher",
+      "ipa_us": "/ˈtitʃɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/t/",
+        "/iː/",
+        "/tʃ/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    },
+    {
+      "word_id": "water",
+      "ipa_us": "/ˈwɔtɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/w/",
+        "/ɔ/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "ipa-dict uses /ə/ for /ʌ/ and /ɝ/ for /ɚ/; manual override applied for learner-facing phoneme coverage"
+    }
+  ]
+}
