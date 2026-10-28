@@ -220,7 +220,7 @@ export default function TodayPractice({
   const [finished, setFinished] = useState(() =>
     Boolean(initialSession && initialSession.items.length === 0),
   );
-  const [showHub, setShowHub] = useState(() => !initialSession);
+  const [showHub, setShowHub] = useState(() => !initialSession?.group_id);
   const [lastSummarySession, setLastSummarySession] = useState<TodayResponse | null>(null);
 
   const resetPractice = useCallback((
@@ -237,7 +237,7 @@ export default function TodayPractice({
     setCurrentIndex(resumeIndex);
     setResults(previousResultsForSession(data));
     setFinished(data.items.length === 0 || resumeIndex >= data.items.length);
-    setShowHub(options.showHub ?? false);
+    setShowHub(options.showHub ?? !data.group_id);
     setLastSummarySession(null);
     setNotice(null);
     if (data.focus_phonemes) onFocusChange(data.focus_phonemes);

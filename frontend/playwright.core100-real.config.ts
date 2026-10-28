@@ -13,7 +13,7 @@ const audioRoot = process.env.CORE100_REAL_AUDIO_DIR ?? resolve(realpathSync(tmp
 process.env.CORE100_REAL_AUDIO_DIR = audioRoot;
 const frontendURL = `http://127.0.0.1:${frontendPort}`;
 export default defineConfig({
-  testDir: "./tests/e2e", testMatch: ["core100-real-workflow.spec.ts", "listening-real-workflow.spec.ts"],
+  testDir: "./tests/e2e", testMatch: ["core100-real-workflow.spec.ts", "listening-real-workflow.spec.ts", "m13-real-practice-mode.spec.ts"],
   outputDir: "./test-results/core100-real",
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report/core100-real" }]],
   workers: 1,

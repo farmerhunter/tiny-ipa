@@ -15,9 +15,9 @@ from activate_core100_audio import apply, plan  # noqa: E402
 from correct_core100_tags import apply as apply_tags  # noqa: E402
 from correct_core100_tags import load_corrections, plan as plan_tags  # noqa: E402
 from app.db import get_connection  # noqa: E402
-from app.models import User  # noqa: E402
+from app.models import Settings, User  # noqa: E402
 from app.services.auth import hash_password  # noqa: E402
-from app.services.db_store import create_user  # noqa: E402
+from app.services.db_store import create_user, upsert_settings  # noqa: E402
 from import_words import import_words  # noqa: E402
 from prepare_core100_audio import prepare  # noqa: E402
 
@@ -99,6 +99,29 @@ def main():
                 created_at="2026-10-27T00:00:00Z",
                 updated_at="2026-10-27T00:00:00Z",
             ),
+        )
+        create_user(
+            conn,
+            User(
+                id="workflow",
+                username="workflow-owner",
+                password_hash=hash_password("local-only-workflow"),
+                is_owner=False,
+                is_active=True,
+                created_at="2026-10-28T00:00:00Z",
+                updated_at="2026-10-28T00:00:00Z",
+            ),
+        )
+        upsert_settings(conn, Settings(user_id="workflow"))
+        conn.execute(
+            "UPDATE settings SET daily_word_count=1, learner_level='entry', "
+            "ui_language='en-US', review_strength='quick' WHERE user_id='workflow'"
+        )
+        conn.execute(
+            "INSERT INTO phoneme_stats (user_id, primary_accent, phoneme_id, "
+            "attempt_count, correct_count, last_attempt_at, last_wrong_at, mastery_status) "
+            "VALUES ('workflow', 'US', '/ʃ/', 8, 0, '2026-10-27T00:00:00Z', "
+            "'2026-10-27T00:00:00Z', 'weak')"
         )
         conn.execute(
             "UPDATE settings SET daily_word_count=12, learner_level='entry', "

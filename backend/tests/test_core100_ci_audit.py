@@ -12,7 +12,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend/scripts"))
 
-from audit_core100_learning import audit_content, probe_attempt_semantics  # noqa: E402
+from audit_core100_learning import (  # noqa: E402
+    audit_content,
+    audit_pack,
+    probe_attempt_semantics,
+    tag_differences,
+)
 from validate_content import load_phoneme_set  # noqa: E402
 
 
@@ -103,3 +108,68 @@ def test_disposable_probe_confirms_replay_guard_and_whole_answer_attribution():
     assert all(s["attempt_count"] == 1 for s in observed["phoneme_stats_after_replay"])
     wrong = observed["whole_answer_wrong_updates"]
     assert {p["phoneme"] for p in wrong} == set(observed["whole_answer_wrong_target_tags"])
+
+
+def test_override_explains_only_the_matching_vowel_pair_and_never_uk():
+    word = {
+        "word_id": "fixture",
+        "ipa_us": "/əɝb/",
+        "ipa_uk": "/əɝb/",
+        "phoneme_tags_us": ["/ʌ/"],
+        "phoneme_tags_uk": ["/ʌ/"],
+        "_phoneme_override_note": "STRUT notation",
+    }
+    us = tag_differences([word])[0]
+    assert us["normalization_additions"] == ["/ʌ/"]
+    assert us["unexplained_missing_tags"] == ["/b/", "/ɝ/"]
+    uk = tag_differences([word], "uk")[0]
+    assert uk["normalization_additions"] == []
+    assert uk["unexplained_added_tags"] == ["/ʌ/"]
+
+
+def test_audio_binding_does_not_infer_mid_aliases_or_trust_planned_urls(tmp_path, monkeypatch):
+    import audit_core100_learning as audit
+
+    words, manifest, known = inputs()
+    selected = copy.deepcopy(words[:4])
+    asset = manifest["audio"]["assets"][0]
+    selected[0]["word_id"] = asset["word_id"]
+    selected[0]["audio_us"] = f"/audio/{asset['path']}"
+    selected[1]["word_id"] = "mid_" + asset["word_id"]
+    selected[1]["audio_us"] = f"/audio/{asset['path']}"
+    selected[2]["word_id"] = "planned"
+    selected[2]["audio_us"] = "/audio/us/planned.mp3"
+    selected[3]["word_id"] = "missing"
+    selected[3]["audio_us"] = None
+    source = tmp_path / "pack.json"
+    source.write_text(json.dumps({"words": selected}))
+    monkeypatch.setattr(audit, "ROOT", tmp_path)
+    monkeypatch.setattr(audit, "load_corrections", lambda: ({}, {"changes": []}))
+    binding = audit_pack(source, manifest, known)["audio_binding"]
+    assert binding["manifest_bound_reference_word_ids"] == [asset["word_id"]]
+    assert binding["unbound_reference_word_ids"] == ["mid_" + asset["word_id"], "planned"]
+    assert binding["source_url_count"] == 3
+
+
+@pytest.mark.parametrize("size", [300, 1000])
+def test_expanded_audit_is_readonly_and_preserves_actual_source_findings(size):
+    _, manifest, known = inputs()
+    source = ROOT / f"content/core_{size}_words.json"
+    before = source.read_bytes()
+    report = audit_pack(source, manifest, known)
+    assert source.read_bytes() == before
+    assert report["word_count"] == size
+    assert report["schema_errors"] == []
+    assert report["sound_compare_metadata"]["tagged_words"] == 0
+    assert report["choose_word_distractors"]["totals"]["targets"] == size - len(
+        report["choose_word_excluded_word_ids"]
+    )
+    if size == 300:
+        assert report["choose_word_excluded_word_ids"] == ["feb"]
+        assert len(report["audio_binding"]["manifest_bound_reference_word_ids"]) == 99
+        assert "bus" in report["unexplained_tag_word_ids"]
+        assert "bus" in report["core100_patch_applicability"]["exact_before_word_ids"]
+    else:
+        assert report["audio_binding"]["source_url_count"] == 0
+        assert report["audio_word_count"] == 0
+        assert report["core100_patch_applicability"]["exact_before_word_ids"] == []

@@ -23,8 +23,8 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest tests/ -v
-      - name: Record content and scoring audit
-        run: python scripts/audit_core100_learning.py --probe-attempts > "$RUNNER_TEMP/core100-learning-audit.json"
+      - name: Record Core100/Core300/Core1000 content and scoring audit
+        run: python scripts/audit_core100_learning.py --all-packs --probe-attempts > "$RUNNER_TEMP/core100-learning-audit.json"
       - uses: actions/upload-artifact@v4
         with:
           name: core100-learning-audit
@@ -87,7 +87,7 @@ jobs:
             printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
           fi
           pnpm exec playwright install --with-deps chromium
-      - name: Real Core100 workflow with frozen media
+      - name: Real practice, review, specialty and listening workflows with frozen media
         run: pnpm test:e2e:core100-real
       - name: Retain failure evidence
         if: failure()

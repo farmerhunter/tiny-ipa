@@ -34,6 +34,28 @@ pnpm test:e2e:m11-real
 
 The harness starts FastAPI against an isolated `/tmp/tiny-ipa-m11-real-*.sqlite` database, imports the small backend content fixture, seeds deterministic weak-phoneme state, and runs the frontend against that backend through `VITE_API_BASE`. It covers Settings review-strength persistence, future regular-group scheduling, Progress unfinished/resume callout behavior, Today resume, completion clearing the callout, and zh-CN visible-copy regression checks. It does not mutate `backend/tiny_ipa.sqlite`.
 
+## Real workflow CI gate
+
+```bash
+pnpm test:e2e:core100-real
+pnpm test:e2e:m13-real
+```
+
+The first command runs all three mobile Chromium workflows in CI: regular practice
+with native MP3 decoding and relogin persistence; the development-only listening
+preview; and Settings mode changes, next regular group, current-group review,
+weak focus, clear-focus return, unavailable Sound Compare, chosen-sound practice,
+and return/resume of regular practice. The second runs the mode/review/specialty
+workflow alone using the same isolated harness.
+
+Each run creates a fresh temporary SQLite database and audio root from the frozen
+99-file archive. A separate synthetic workflow account keeps its one-item groups
+and weak-sound fixture independent of the twelve-item media test. No production
+account, API response or media playback mock is used. Sound Compare intentionally
+checks the empty-state/no-score path: current source packs have no pair metadata;
+this is not evidence of a working content-backed comparison group. Results and
+failure traces are under `test-results/core100-real` and `playwright-report/core100-real`.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
