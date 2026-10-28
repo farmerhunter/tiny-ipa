@@ -396,10 +396,11 @@ def worker(root: Path) -> dict:
         )
     assert client.get("/api/progress").json()["total_attempts"] == 1
     assert client.get("/api/today").json()["group_id"] == group["group_id"]
+    post_readback = snapshot_database(source)
     patched = run_backup_restore_dry_run(
         source, root / "patched-backup.sqlite", root / "patched-restored.sqlite"
     )
-    assert patched["verification"] == post
+    assert patched["verification"] == post_readback
     pair_db = state / "opt-in-pairs.sqlite"
     with sqlite3.connect(source) as src, sqlite3.connect(pair_db) as dst:
         src.backup(dst)
