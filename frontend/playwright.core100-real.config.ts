@@ -27,7 +27,7 @@ export default defineConfig({
   projects: [{ name: "core100-real-mobile-chromium", use: { ...devices["Pixel 5"] } }],
   webServer: [
     {
-      command: `cd ../backend && uv run --frozen python ../frontend/tests/e2e/support/prepare_core100_real_db.py && uv run --frozen uvicorn app.main:app --host 127.0.0.1 --port ${backendPort}`,
+      command: `cd ../backend && uv run --frozen --extra dev python ../frontend/tests/e2e/support/prepare_core100_real_db.py && uv run --frozen uvicorn app.main:app --host 127.0.0.1 --port ${backendPort}`,
       url: `http://127.0.0.1:${backendPort}/api/health`, reuseExistingServer: false, timeout: 120_000,
       env: {
         TINY_IPA_DB_PATH: dbPath, CORE100_REAL_DB_PATH: dbPath,
