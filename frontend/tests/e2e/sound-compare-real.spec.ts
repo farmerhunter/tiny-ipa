@@ -19,7 +19,7 @@ with sqlite3.connect(f"{path.as_uri()}?mode=rw", uri=True) as conn:
   return JSON.parse(result.trim());
 }
 
-test("opt-in four-word comparison uses real recordings and returns to the selected normal mode", async ({ page }) => {
+test("opt-in eight-word comparison uses real recordings and returns to the selected normal mode", async ({ page }) => {
   test.setTimeout(120_000);
   await page.addInitScript(() => {
     const ended: string[] = [];
@@ -39,7 +39,7 @@ test("opt-in four-word comparison uses real recordings and returns to the select
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: /IPA to word/ }).click();
   await expect(page.getByText("Saved")).toBeVisible();
-  await page.getByRole("spinbutton").fill("4");
+  await page.getByRole("spinbutton").fill("8");
   const saved = page.waitForResponse(r => r.url().endsWith("/api/settings") && r.request().method() === "PUT");
   await page.getByRole("spinbutton").press("Tab");
   expect((await saved).ok()).toBeTruthy();
@@ -50,7 +50,7 @@ test("opt-in four-word comparison uses real recordings and returns to the select
   expect(response.ok()).toBeTruthy();
   const group = await response.json();
   expect(group.group_type).toBe("minimal_pair");
-  expect(group.items.map((item: { word_id: string }) => item.word_id).sort()).toEqual(["back", "bag", "came", "game"]);
+  expect(group.items.map((item: { word_id: string }) => item.word_id).sort()).toEqual(["back", "bag", "came", "cat", "game", "hat", "map", "match"]);
   expect(group.items.every((item: { question: { type: string } }) => item.question.type === "choose_ipa")).toBe(true);
   await expect(page.getByText("Current type: Word to IPA")).toBeVisible();
   await page.reload();
@@ -73,9 +73,18 @@ test("opt-in four-word comparison uses real recordings and returns to the select
   expect(resumed.group_id).toBe(group.group_id);
   expect(resumed.items.map((item: { question: unknown }) => item.question)).toEqual(
     group.items.map((item: { question: unknown }) => item.question));
-  const partnerIds: Record<string, string> = { came: "game", game: "came", back: "bag", bag: "back" };
+  const partnerIds: Record<string, string> = {
+    came: "game", game: "came", back: "bag", bag: "back",
+    cat: "hat", hat: "cat", map: "match", match: "map",
+  };
+  const phones: Record<string, string> = {
+    came: "/k/", game: "/g/", back: "/k/", bag: "/g/",
+    cat: "/k/", hat: "/h/", map: "/p/", match: "/tʃ/",
+  };
+  const initialIds = new Set(["came", "game", "cat", "hat"]);
+  const missedIds = new Set(["back", "cat", "map"]);
   for (const [index, item] of group.items.entries()) {
-    await expect(page.getByText(`Sound Compare group: ${index + 1} / 4`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`Sound Compare group: ${index + 1} / 8`, { exact: true })).toBeVisible();
     const partner = group.items.find((other: { word_id: string }) => other.word_id === partnerIds[item.word_id]);
     expect(partner).toBeTruthy();
     expect(item.question.choices).toContain(partner.display_ipa);
@@ -87,18 +96,23 @@ test("opt-in four-word comparison uses real recordings and returns to the select
       (window as unknown as { __comparisonEnded: string[] }).__comparisonEnded.some(src => src.endsWith(url)),
       item.audio_url)).toBeTruthy();
     await expect(page.getByLabel("Sound comparison", { exact: true })).toHaveCount(0);
-    const answer = index === 0 ? partner.display_ipa : item.display_ipa;
+    const wrong = missedIds.has(item.word_id);
+    const answer = wrong ? partner.display_ipa : item.display_ipa;
     const submitted = page.waitForResponse(r => r.url().endsWith("/api/attempt") && r.request().method() === "POST");
     await page.getByRole("button", { name: `Select ${answer}`, exact: true }).click();
     const grading = await (await submitted).json();
-    expect(grading.is_correct).toBe(index !== 0);
+    expect(grading.is_correct).toBe(!wrong);
     expect(grading.sound_compare.status).toBe("available");
+    expect(grading.sound_compare.contrast).toEqual({
+      position: initialIds.has(item.word_id) ? "initial" : "final",
+      current_phoneme: phones[item.word_id], counterpart_phoneme: phones[partner.word_id],
+    });
     const feedback = page.getByLabel("Sound comparison", { exact: true });
     await expect(feedback).toContainText(item.word);
     await expect(feedback).toContainText(partner.word);
     await expect(feedback).toContainText(item.display_ipa);
     await expect(feedback).toContainText(partner.display_ipa);
-    await expect(feedback).toContainText(item.word_id === "came" || item.word_id === "game" ? "Initial sound" : "Final sound");
+    await expect(feedback).toContainText(initialIds.has(item.word_id) ? "Initial sound" : "Final sound");
     await page.waitForTimeout(1700);
     await expect(feedback).toBeVisible();
     const replay = await page.request.post("/api/attempt", { data: {
@@ -109,7 +123,7 @@ test("opt-in four-word comparison uses real recordings and returns to the select
     expect(replayed.replayed).toBe(true);
     expect(replayed.sound_compare).toEqual(grading.sound_compare);
     expect((await (await page.request.get("/api/progress")).json()).total_attempts).toBe(index + 1);
-    if (index === 0) {
+    if (wrong) {
       await expect(page.getByText("Not quite.")).toBeVisible();
     }
     await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -121,9 +135,9 @@ test("opt-in four-word comparison uses real recordings and returns to the select
     }
   }
   await expect(page.getByRole("heading", { name: "Sound Compare group complete" })).toBeVisible();
-  await expect(page.getByText("3 / 4 correct", { exact: true })).toBeVisible();
+  await expect(page.getByText("5 / 8 correct", { exact: true })).toBeVisible();
   const progress = await (await page.request.get("/api/progress")).json();
-  expect(progress.total_attempts).toBe(4);
+  expect(progress.total_attempts).toBe(8);
   expect(progress.level_stats.entry.completed_normal_groups).toBe(0);
   await page.screenshot({ path: test.info().outputPath("comparison-summary.png"), fullPage: true });
   await page.getByRole("button", { name: "Start next Entry group", exact: true }).click();
@@ -131,9 +145,9 @@ test("opt-in four-word comparison uses real recordings and returns to the select
   const normal = await (await page.request.get("/api/today")).json();
   expect(normal.group_type).toBe("normal");
   expect(normal.practice_mode).toBe("choose_word");
-  expect(normal.items).toHaveLength(4);
+  expect(normal.items).toHaveLength(8);
   await page.reload();
   await page.getByRole("button", { name: "Resume Entry group", exact: true }).click();
   expect((await (await page.request.get("/api/today")).json()).group_id).toBe(normal.group_id);
-  expect((await (await page.request.get("/api/progress")).json()).total_attempts).toBe(4);
+  expect((await (await page.request.get("/api/progress")).json()).total_attempts).toBe(8);
 });

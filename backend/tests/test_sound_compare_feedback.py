@@ -26,14 +26,14 @@ def comparison(tmp_path, monkeypatch):
     monkeypatch.setattr("app.db.DEFAULT_DB_PATH", database)
     bootstrap_owner_user(database)
     with get_connection(database) as conn:
-        conn.execute("UPDATE settings SET daily_word_count=4 WHERE user_id='default'")
+        conn.execute("UPDATE settings SET daily_word_count=8 WHERE user_id='default'")
         conn.commit()
     evidence = tmp_path / "evidence.json"
     evidence.write_bytes((ROOT / "content/sound_compare_pairs_candidate.json").read_bytes())
     monkeypatch.setenv("TINY_IPA_SOUND_COMPARE_EVIDENCE_PATH", str(evidence))
     client = authenticated_client(TestClient(app))
     group = client.post("/api/practice/minimal-pairs").json()
-    assert len(group["items"]) == 4
+    assert len(group["items"]) == 8
     assert all("sound_compare" not in item for item in group["items"])
     return client, group, database, evidence
 
@@ -51,9 +51,10 @@ def submit(client, item, answer=None):
 def test_both_directions_positions_first_grade_and_replay(comparison):
     client, group, database, _ = comparison
     for index, item in enumerate(group["items"]):
-        answer = "/wrong/" if index == 0 else item["display_ipa"]
+        wrong = item["word_id"] in {"back", "cat", "map"}
+        answer = "/wrong/" if wrong else item["display_ipa"]
         first = submit(client, item, answer).json()
-        assert first["is_correct"] is (index != 0)
+        assert first["is_correct"] is (not wrong)
         feedback = first["sound_compare"]
         assert feedback["status"] == "available"
         assert feedback["current"] == {
@@ -61,22 +62,29 @@ def test_both_directions_positions_first_grade_and_replay(comparison):
             "word": item["word"],
             "ipa": item["display_ipa"],
         }
-        expected_partner = {"came": "game", "game": "came", "back": "bag", "bag": "back"}[
-            item["word_id"]
-        ]
+        expected_partner, position, current_phone, partner_phone = {
+            "back": ("bag", "final", "/k/", "/g/"),
+            "bag": ("back", "final", "/g/", "/k/"),
+            "came": ("game", "initial", "/k/", "/g/"),
+            "game": ("came", "initial", "/g/", "/k/"),
+            "cat": ("hat", "initial", "/k/", "/h/"),
+            "hat": ("cat", "initial", "/h/", "/k/"),
+            "map": ("match", "final", "/p/", "/tʃ/"),
+            "match": ("map", "final", "/tʃ/", "/p/"),
+        }[item["word_id"]]
         assert feedback["counterpart"]["word_id"] == expected_partner
-        assert feedback["contrast"]["position"] == (
-            "initial" if item["word_id"] in {"came", "game"} else "final"
-        )
-        assert {
-            feedback["contrast"]["current_phoneme"],
-            feedback["contrast"]["counterpart_phoneme"],
-        } == {"/k/", "/g/"}
+        assert feedback["contrast"] == {
+            "position": position,
+            "current_phoneme": current_phone,
+            "counterpart_phoneme": partner_phone,
+        }
+        assert feedback["counterpart"]["ipa"] in item["question"]["choices"]
+        assert feedback["current"]["ipa"] in item["question"]["choices"]
         replay = submit(client, item, answer).json()
         assert replay["sound_compare"] == feedback and replay["replayed"]
         assert submit(client, item, "/other/").status_code == 409
     with get_connection(database) as conn:
-        assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 4
+        assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 8
 
 
 @pytest.mark.parametrize(

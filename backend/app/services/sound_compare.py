@@ -69,9 +69,8 @@ def validate_pair_evidence(manifest: dict, supported_phones: set[str]) -> dict:
             or len(left) != len(right)
             or differences != [index]
             or index not in (0, len(left) - 1)
-            or {left[index], right[index]} != {"/k/", "/g/"}
         ):
-            raise ValueError("comparison must differ only in one initial/final k/g phone")
+            raise ValueError("comparison must differ only in one initial/final supported phone")
     return manifest
 
 

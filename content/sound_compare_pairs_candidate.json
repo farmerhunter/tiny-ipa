@@ -67,6 +67,66 @@
           "audio_sha256": "35b4b6098e22b5e0f68fb6dcfe1a7a99c3acbf54cd6006fb37a50dcd4749f9d6"
         }
       ]
+    },
+    {
+      "group": "kh_initial",
+      "contrast_index": 0,
+      "members": [
+        {
+          "word_id": "cat",
+          "ipa_us": "/ˈkæt/",
+          "before": null,
+          "ordered_phones_us": [
+            "/k/",
+            "/æ/",
+            "/t/"
+          ],
+          "audio_url": "/audio/us/cat.mp3",
+          "audio_sha256": "cca1bf9b4221981554a4c23ce3068f13b5cf42e7981851f6ab462add90122fd7"
+        },
+        {
+          "word_id": "hat",
+          "ipa_us": "/ˈhæt/",
+          "before": null,
+          "ordered_phones_us": [
+            "/h/",
+            "/æ/",
+            "/t/"
+          ],
+          "audio_url": "/audio/us/hat.mp3",
+          "audio_sha256": "6385345914519f8ea1d94c7d296ba31c2092ae9fd34495fc3e01a8a66aff31f7"
+        }
+      ]
+    },
+    {
+      "group": "pch_final",
+      "contrast_index": 2,
+      "members": [
+        {
+          "word_id": "map",
+          "ipa_us": "/ˈmæp/",
+          "before": null,
+          "ordered_phones_us": [
+            "/m/",
+            "/æ/",
+            "/p/"
+          ],
+          "audio_url": "/audio/us/map.mp3",
+          "audio_sha256": "d4b4d800d2e20955f70560a1f0f47e67e1022f6fbbd6480dc95b60f938ee7fcf"
+        },
+        {
+          "word_id": "match",
+          "ipa_us": "/ˈmætʃ/",
+          "before": null,
+          "ordered_phones_us": [
+            "/m/",
+            "/æ/",
+            "/tʃ/"
+          ],
+          "audio_url": "/audio/us/match.mp3",
+          "audio_sha256": "eedeb6c20dc0341171e274823c71d5d84c0c2959ef4ef097d4f5aefc08d7f2ff"
+        }
+      ]
     }
   ],
   "evidence_limit": "Ordered source IPA contrast and licensed asset binding only; speaker identity, audible agreement and educational effectiveness not certified."

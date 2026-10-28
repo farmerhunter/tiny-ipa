@@ -147,7 +147,7 @@ protected snapshots use the approved fixed IDs, plus one rolling backup with
 `fixed2-rolling2-v1` and no deletion. Checksum/integrity/FK and learner state are
 verified in a separately restored before-state. The existing 13-row tag plan
 is applied, its stale reuse rejected, and a separate patched restore verified.
-A different temp DB opts into four pair fields and explicitly binds
+A different temp DB opts into the reviewed pair fields and explicitly binds
 `TINY_IPA_SOUND_COMPARE_EVIDENCE_PATH` to check feedback and pair-data restore.
 Ordinary code/tag fixtures do not activate pairs; default evidence stays unset.
 Listening current reports `enabled:false`; starting a lesson stays 404. The
@@ -172,3 +172,28 @@ compatibility with candidate data. It cannot undo data writes. A real DB restore
 needs a separate explicit decision because newer learner writes may be lost.
 Failures retain old/new artifacts and stop the affected phase. The local receipt
 does not claim that the unknown deployed old binary works.
+
+
+## Additional Sound Compare pairs (#334, development only)
+
+The opt-in `sound_compare_pairs_candidate.json` now contains four groups/eight
+existing words. In addition to back/bag and came/game, cat/hat contrasts initial
+/k/ and /h/; map/match contrasts final /p/ and /tʃ/. The latter is an existing
+single phoneme token, not /t/ plus /ʃ/. These are distinct sound contrasts, not
+both voicing-only distinctions. No canonical IPA/tags or recording bytes change.
+
+The shared generator/runtime validator accepts two different existing inventory
+phones at one first/final index, with complete ordered IPA reconstruction.
+Source hashes, beginner level, current member/group facts, monosyllabic generation
+and original Core100 media/hash/licence bindings still constrain the candidate;
+no automatic pair discovery or general phonology rules are introduced. Existing
+negative checks reject unsupported, split/merged, internal/multiple/unequal
+contrasts and stale evidence. The ordinary default still has no active pair
+metadata or evidence-file binding. Listening and live activation remain held.
+
+The existing `pnpm test:e2e:sound-compare-candidate` route now covers all eight
+words with actual recordings, both directions of the new pairs, post-answer
+feedback, manual Continue, first-answer replay, resume and return to the chosen
+normal mode. Licensed media is reused from the original99 fixture; no new
+recording download, provider or binary fixture is needed. Evidence remains
+source/integrity/native-playback only, not Human phonetic or teaching acceptance.
