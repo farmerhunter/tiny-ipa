@@ -2096,6 +2096,34 @@
       "classification": "translatable",
       "source": "frontend/src/pages/ListeningLesson.tsx",
       "current": "back / bag: compare word-final /k/ and /g/."
+    },
+    {
+      "key": "practice.sound_compare.feedback.label",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Sound comparison"
+    },
+    {
+      "key": "practice.sound_compare.feedback.initial",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Initial sound: {current} compared with {counterpart}."
+    },
+    {
+      "key": "practice.sound_compare.feedback.final",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "Final sound: {current} compared with {counterpart}."
+    },
+    {
+      "key": "practice.sound_compare.feedback.unavailable",
+      "surface": "practice",
+      "classification": "translatable",
+      "source": "frontend/src/components/ChoiceQuestion.tsx",
+      "current": "A reliable sound comparison is not available for this pair."
     }
   ]
 }
