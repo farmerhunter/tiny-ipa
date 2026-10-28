@@ -50,6 +50,9 @@ def load_pack(size: int, root: Path = ROOT) -> tuple[dict, dict]:
 
 
 def prepare_import(source: Path, words: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
+    for word in words:
+        if "word_id" in word and "id" in word and word["word_id"] != word["id"]:
+            raise ValueError("conflicting word_id/id import identity")
     source_sha = hashlib.sha256(source.read_bytes()).hexdigest()
     bindings, changes = [], []
     prepared = words
@@ -79,7 +82,13 @@ def check_regression(connection, words: list[dict], changes: list[dict]) -> None
             continue
         row = connection.execute("SELECT phoneme_tags_us FROM words WHERE id=?", (wid,)).fetchone()
         if row and set(json.loads(row[0])) == set(change["after"]):
-            if set(word.get("phoneme_tags_us") or []) != set(change["after"]):
+            tags = word.get("phoneme_tags_us")
+            if (
+                not isinstance(tags, list)
+                or not all(isinstance(t, str) for t in tags)
+                or len(tags) != len(set(tags))
+                or set(tags) != set(change["after"])
+            ):
                 raise ValueError(
                     f"refusing tag regression for {wid}; derive the corrected candidate"
                 )

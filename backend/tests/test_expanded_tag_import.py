@@ -153,3 +153,50 @@ def test_canonical_source_drift_refuses_before_opening_database(tmp_path, monkey
     report = import_words(source, PHONEMES, str(database), skip_validation=True)
     assert any("frozen import source changed" in error for error in report["errors"])
     assert not database.exists()
+
+
+@pytest.mark.parametrize("skip_validation", [False, True])
+@pytest.mark.parametrize("id_first", [False, True])
+def test_conflicting_identity_rejects_both_key_orders_before_writes(
+    tmp_path, skip_validation, id_first
+):
+    content, patch = load_pack(300)
+    database = tmp_path / "identity.sqlite"
+    assert not import_words(ROOT / patch["source"], PHONEMES, str(database))["errors"]
+    target = copy.deepcopy(next(w for w in content["words"] if w["word_id"] == "bus"))
+    target["word_id"] = "unprotected_alias"
+    bad = {"id": "bus", **target} if id_first else {**target, "id": "bus"}
+    source = tmp_path / "identity.json"
+    source.write_text(json.dumps({"words": [bad]}))
+    before = snapshot(database)
+    report = import_words(source, PHONEMES, str(database), skip_validation=skip_validation)
+    assert any("conflicting word_id/id" in error for error in report["errors"])
+    assert snapshot(database) == before
+
+
+@pytest.mark.parametrize("skip_validation", [False, True])
+@pytest.mark.parametrize("shape", ["duplicate", "dict", "string"])
+def test_duplicate_or_invalid_tags_cannot_reintroduce_double_counting(
+    tmp_path, skip_validation, shape
+):
+    content, patch = load_pack(300)
+    database = tmp_path / "shape.sqlite"
+    assert not import_words(ROOT / patch["source"], PHONEMES, str(database))["errors"]
+    target = copy.deepcopy(
+        next(w for w in derive(content, patch)["words"] if w["word_id"] == "bus")
+    )
+    tags = target["phoneme_tags_us"]
+    target["phoneme_tags_us"] = (
+        tags + tags[:1]
+        if shape == "duplicate"
+        else dict.fromkeys(tags, True)
+        if shape == "dict"
+        else "/b/ /ʌ/ /s/"
+    )
+    source = tmp_path / "shape.json"
+    source.write_text(json.dumps({"words": [target]}))
+    before = snapshot(database)
+    report = import_words(source, PHONEMES, str(database), skip_validation=skip_validation)
+    assert report["errors"]
+    assert report["inserted"] == 0
+    assert snapshot(database) == before
