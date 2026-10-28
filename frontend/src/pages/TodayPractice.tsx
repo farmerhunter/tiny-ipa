@@ -834,7 +834,7 @@ export default function TodayPractice({
         t={t}
         onResult={(result) => {
           handleResult(currentItem, result);
-          if (result.isCorrect) {
+          if (result.isCorrect && !result.soundCompare) {
             // Correct answers keep the quick flow; misses stay visible until acknowledged.
             setTimeout(() => handleNext(), 1500);
           }

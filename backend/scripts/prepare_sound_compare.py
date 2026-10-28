@@ -6,6 +6,7 @@ import argparse
 import copy
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 from correct_core100_tags import derive, load_corrections
@@ -13,10 +14,14 @@ from correct_expanded_tags import load_pack
 from select_candidates import SUPPORTED_PHONEMES, estimate_syllable_count
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "backend"))
+
+from app.services.sound_compare import validate_pair_evidence  # noqa: E402
 
 
 def load_pairs(root: Path = ROOT) -> dict:
     manifest = json.loads((root / "content/sound_compare_pairs_candidate.json").read_text())
+    validate_pair_evidence(manifest, SUPPORTED_PHONEMES)
     if (
         manifest["schema"] != "tiny-ipa-sound-compare-candidate/v1"
         or manifest["status"] != "development-only"
@@ -36,17 +41,11 @@ def load_pairs(root: Path = ROOT) -> dict:
         if hashlib.sha256(raw).hexdigest() != sha:
             raise ValueError("comparison source changed")
         sources.append({w["word_id"]: w for w in json.loads(raw)["words"]})
-    seen_words, seen_groups = set(), set()
     for pair in manifest["pairs"]:
-        if not pair["group"] or pair["group"] in seen_groups or len(pair["members"]) != 2:
-            raise ValueError("invalid comparison group")
-        seen_groups.add(pair["group"])
-        sequences = []
         for member in pair["members"]:
             wid, phones = member["word_id"], member["ordered_phones_us"]
-            if wid in seen_words or not phones or any(p not in SUPPORTED_PHONEMES for p in phones):
+            if any(p not in SUPPORTED_PHONEMES for p in phones):
                 raise ValueError("invalid comparison word/phones")
-            seen_words.add(wid)
             normalized = member["ipa_us"].replace("ɡ", "g")
             if (
                 normalized != "/ˈ" + "".join(p[1:-1] for p in phones) + "/"
@@ -58,6 +57,7 @@ def load_pairs(root: Path = ROOT) -> dict:
                 if (
                     not word
                     or word["ipa_us"] != member["ipa_us"]
+                    or word["word"] != member["word_id"]
                     or member["before"] is not None
                     or word.get("minimal_pair_group") is not None
                     or word.get("content_status") == "disabled"
@@ -70,17 +70,6 @@ def load_pairs(root: Path = ROOT) -> dict:
                 or member["audio_sha256"] != asset["sha256"]
             ):
                 raise ValueError("comparison recording binding differs")
-            sequences.append(phones)
-        left, right = sequences
-        differences = [i for i, (a, b) in enumerate(zip(left, right)) if a != b]
-        index = pair["contrast_index"]
-        if (
-            len(left) != len(right)
-            or differences != [index]
-            or index not in (0, len(left) - 1)
-            or {left[index], right[index]} != {"/k/", "/g/"}
-        ):
-            raise ValueError("comparison must differ only in one initial/final k/g phone")
     return manifest
 
 

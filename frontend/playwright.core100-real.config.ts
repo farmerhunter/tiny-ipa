@@ -31,6 +31,7 @@ export default defineConfig({
       env: {
         TINY_IPA_DB_PATH: dbPath, CORE100_REAL_DB_PATH: dbPath,
         CORE100_REAL_PAIR_CANDIDATE: String(pairCandidate),
+        TINY_IPA_SOUND_COMPARE_EVIDENCE_PATH: pairCandidate ? resolve("../content/sound_compare_pairs_candidate.json") : "",
         CORE100_REAL_LEVEL_ACCOUNTS: String(levelAccounts),
         TINY_IPA_AUDIO_DIR: audioRoot, CORE100_REAL_AUDIO_DIR: audioRoot,
         TINY_IPA_REQUIRE_PACKAGED_AUDIO: levelAccounts ? "false" : "true", TINY_IPA_ENABLE_LISTENING_PREVIEW: "true",

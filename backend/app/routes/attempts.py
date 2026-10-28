@@ -21,6 +21,7 @@ from app.services.db_store import (
 )
 from app.services.grading import determine_correct_answer, grade_attempt
 from app.services.progress import update_phoneme_stats
+from app.services.sound_compare import attempt_sound_compare
 
 router = APIRouter()
 
@@ -111,6 +112,7 @@ async def attempt(
                 "updated_phonemes": [],
                 "next_action": "group_complete" if session.status == "completed" else "next_item",
                 "replayed": True,
+                "sound_compare": attempt_sound_compare(conn, session, item, previous["correct_answer"]),
             }
         if item.status in {"complete", "completed"}:
             raise HTTPException(
@@ -181,4 +183,5 @@ async def attempt(
             "updated_phonemes": updated_phonemes,
             "next_action": next_action,
             "replayed": False,
+            "sound_compare": attempt_sound_compare(conn, session, item, correct_answer),
         }

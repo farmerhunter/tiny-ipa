@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import type { TodayItem } from "../api";
+import type { SoundCompareFeedback, TodayItem } from "../api";
 import { submitAttempt } from "../api";
 import type { Translator } from "../locales";
 import { AudioButton } from "./AudioButton";
@@ -17,6 +17,7 @@ export interface ChoiceResult {
   selectedAnswer: string;
   isCorrect: boolean;
   correctAnswer: string;
+  soundCompare?: SoundCompareFeedback | null;
 }
 
 function buildFocusHint(targetPhonemes: string[], t: Translator): string {
@@ -64,6 +65,7 @@ export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
     isCorrect: boolean;
     selectedAnswer: string;
     correctAnswer: string;
+    soundCompare?: SoundCompareFeedback | null;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,12 +81,14 @@ export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
         isCorrect: result.is_correct,
         selectedAnswer: choice,
         correctAnswer: result.correct_answer,
+        soundCompare: result.sound_compare,
       });
       onResult({
         sessionItemId: item.session_item_id,
         selectedAnswer: choice,
         isCorrect: result.is_correct,
         correctAnswer: result.correct_answer,
+        soundCompare: result.sound_compare,
       });
     } catch (err: unknown) {
       // submitAttempt normalises errors into Error with .message
@@ -189,7 +193,7 @@ export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
                 </strong>
               </div>
               <p className="focus-hint">{buildFocusHint(item.target_phonemes, t)}</p>
-              {onContinue && (
+              {onContinue && !feedback.soundCompare && (
                 <button
                   className="feedback-continue-btn"
                   onClick={onContinue}
@@ -199,6 +203,25 @@ export function ChoiceQuestion({ item, t, onResult, onContinue }: Props) {
                 </button>
               )}
             </div>
+          )}
+          {feedback.soundCompare && (
+            <aside className="sound-compare-feedback" aria-label={t("practice.sound_compare.feedback.label")}>
+              {feedback.soundCompare.status === "available" ? (
+                <>
+                  <div className="comparison-words">
+                    <span><strong>{feedback.soundCompare.current.word}</strong> <code>{feedback.soundCompare.current.ipa}</code></span>
+                    <span><strong>{feedback.soundCompare.counterpart.word}</strong> <code>{feedback.soundCompare.counterpart.ipa}</code></span>
+                  </div>
+                  <p>{t(`practice.sound_compare.feedback.${feedback.soundCompare.contrast.position}`, {
+                    current: feedback.soundCompare.contrast.current_phoneme,
+                    counterpart: feedback.soundCompare.contrast.counterpart_phoneme,
+                  })}</p>
+                </>
+              ) : <p>{t("practice.sound_compare.feedback.unavailable")}</p>}
+              {onContinue && <button className="feedback-continue-btn" type="button" onClick={onContinue}>
+                {t("practice.action.continue")}
+              </button>}
+            </aside>
           )}
         </div>
       )}

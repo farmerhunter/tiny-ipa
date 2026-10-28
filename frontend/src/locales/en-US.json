@@ -265,5 +265,9 @@
   "listening.review": "Replay missed recordings (not scored)",
   "listening.again": "Start another listening group",
   "listening.initial_contrast": "came / game: compare word-initial /k/ and /g/.",
-  "listening.final_contrast": "back / bag: compare word-final /k/ and /g/."
+  "listening.final_contrast": "back / bag: compare word-final /k/ and /g/.",
+  "practice.sound_compare.feedback.label": "Sound comparison",
+  "practice.sound_compare.feedback.initial": "Initial sound: {current} compared with {counterpart}.",
+  "practice.sound_compare.feedback.final": "Final sound: {current} compared with {counterpart}.",
+  "practice.sound_compare.feedback.unavailable": "A reliable sound comparison is not available for this pair."
 }

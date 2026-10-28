@@ -86,19 +86,38 @@ test("opt-in four-word comparison uses real recordings and returns to the select
     await expect.poll(() => page.evaluate((url: string) =>
       (window as unknown as { __comparisonEnded: string[] }).__comparisonEnded.some(src => src.endsWith(url)),
       item.audio_url)).toBeTruthy();
+    await expect(page.getByLabel("Sound comparison", { exact: true })).toHaveCount(0);
     const answer = index === 0 ? partner.display_ipa : item.display_ipa;
     const submitted = page.waitForResponse(r => r.url().endsWith("/api/attempt") && r.request().method() === "POST");
     await page.getByRole("button", { name: `Select ${answer}`, exact: true }).click();
     const grading = await (await submitted).json();
     expect(grading.is_correct).toBe(index !== 0);
+    expect(grading.sound_compare.status).toBe("available");
+    const feedback = page.getByLabel("Sound comparison", { exact: true });
+    await expect(feedback).toContainText(item.word);
+    await expect(feedback).toContainText(partner.word);
+    await expect(feedback).toContainText(item.display_ipa);
+    await expect(feedback).toContainText(partner.display_ipa);
+    await expect(feedback).toContainText(item.word_id === "came" || item.word_id === "game" ? "Initial sound" : "Final sound");
+    await page.waitForTimeout(1700);
+    await expect(feedback).toBeVisible();
     const replay = await page.request.post("/api/attempt", { data: {
       session_item_id: item.session_item_id, selected_answer: answer,
     } });
     expect(replay.ok()).toBeTruthy();
-    expect((await replay.json()).replayed).toBe(true);
+    const replayed = await replay.json();
+    expect(replayed.replayed).toBe(true);
+    expect(replayed.sound_compare).toEqual(grading.sound_compare);
+    expect((await (await page.request.get("/api/progress")).json()).total_attempts).toBe(index + 1);
     if (index === 0) {
       await expect(page.getByText("Not quite.")).toBeVisible();
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
+    }
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    if (index === 0) {
+      await page.reload();
+      await expect(page.getByText("Today practice hub")).toBeVisible();
+      await page.getByRole("button", { name: "Start Sound Compare", exact: true }).click();
+      expect((await (await page.request.get("/api/progress")).json()).total_attempts).toBe(1);
     }
   }
   await expect(page.getByRole("heading", { name: "Sound Compare group complete" })).toBeVisible();
