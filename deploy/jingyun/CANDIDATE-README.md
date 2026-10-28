@@ -114,3 +114,61 @@ bootstrap (seven legacy copies to an eighth without deletion), independent
 restore, exact cleanup review and only then regular activation. Neither
 candidate authorizes a host change. Normal replacement holds at most five
 complete snapshots; shared backup/restore storage is bounded at 1 GiB.
+
+## Post-M14 offline release rehearsal (#332)
+
+This is local preparation, not online execution authority. With backend dev and
+frontend dependencies already cached, run from `backend`:
+
+```bash
+UV_OFFLINE=true uv run --frozen --extra dev python scripts/offline_release_rehearsal.py \
+  --source-revision <EXACT_40_CHARACTER_CANDIDATE_COMMIT>
+```
+
+The command allocates a new marked directory under the system temporary root;
+`--output-root` may select a new path there. Existing paths, symlinks, traversal
+and external roots are refused. It accepts no input database. Success and
+failure roots remain for review. It performs no SSH, public probe, download,
+service/timer operation, real retention prune or cleanup.
+
+The source archive binds backend/frontend source, lockfiles and the optional
+`content/sound_compare_pairs_candidate.json` evidence. Cached `pnpm install
+--offline --frozen-lockfile` and frontend build run in the unpacked source.
+The runtime archive contains built frontend assets, backend source, lockfiles,
+content inputs and hash-checked recordings/credits. A second unpack loads the
+app from that package in a separate Python process, using the installed local
+Python environment. This is **not** a self-contained Linux dependency bundle
+or systemd/VPS readiness proof. The receipt separates source/runtime archives,
+build workspace/cache, fixture sizes and unknown host space. Native build
+dependencies can differ across platforms.
+
+The synthetic DB has one learner, one answer and pending items. Two synthetic
+protected snapshots use the approved fixed IDs, plus one rolling backup with
+`fixed2-rolling2-v1` and no deletion. Checksum/integrity/FK and learner state are
+verified in a separately restored before-state. The existing 13-row tag plan
+is applied, its stale reuse rejected, and a separate patched restore verified.
+A different temp DB opts into four pair fields and explicitly binds
+`TINY_IPA_SOUND_COMPARE_EVIDENCE_PATH` to check feedback and pair-data restore.
+Ordinary code/tag fixtures do not activate pairs; default evidence stays unset.
+Listening current reports `enabled:false`; starting a lesson stays 404. The
+synthetic snapshots do not prove the identity or state of real recovery points.
+
+A later online packet still needs review with final PR/release identity and
+fresh current-release/data/free-space/backup-tool/policy/fixed-point readback:
+
+1. Stage reviewed code/assets and prove cached Linux dependencies/load; retain
+   the old release. Review exact pointer/service effects before switching.
+   No schema migration or blanket content import is proposed.
+2. Review a fresh tag-only plan if still needed; skip already-corrected state.
+   Code switching does not grant data-patch authority.
+3. Hold pair activation and evidence-env activation for a separate decision;
+   keep listening and Human trials held.
+4. Verify version/health, settings/history, normal practice and disabled lessons;
+   create and independently restore a new backup only under the reviewed list.
+   This rehearsal proposes no deletion.
+
+Code-pointer rollback requires the old binary's verified identity and local
+compatibility with candidate data. It cannot undo data writes. A real DB restore
+needs a separate explicit decision because newer learner writes may be lost.
+Failures retain old/new artifacts and stop the affected phase. The local receipt
+does not claim that the unknown deployed old binary works.
