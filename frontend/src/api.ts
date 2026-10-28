@@ -303,7 +303,16 @@ export interface UpdatedPhoneme {
   mastery_status: string;
 }
 
+export type SoundCompareFeedback = { status: "unavailable" } | {
+  status: "available";
+  accent: "US";
+  current: { word_id: string; word: string; ipa: string };
+  counterpart: { word_id: string; word: string; ipa: string };
+  contrast: { position: "initial" | "final"; current_phoneme: string; counterpart_phoneme: string };
+};
+
 export interface AttemptResponse {
+  sound_compare?: SoundCompareFeedback | null;
   is_correct: boolean;
   correct_answer: string;
   updated_phonemes: UpdatedPhoneme[];

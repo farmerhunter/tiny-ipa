@@ -1329,3 +1329,15 @@ summary:focus-visible {
 .listening-preview .btn-primary { background: var(--accent); color: white; }
 .listening-preview .choices-list { margin-top: 0; }
 .listening-entry { display: block; margin: 12px auto; }
+
+.sound-compare-feedback {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid currentColor;
+}
+
+.comparison-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
