@@ -11,6 +11,7 @@ for (const port of [frontendPort, backendPort]) {
 }
 const runId = `${Date.now()}-${process.pid}`;
 const dbPath = process.env.CORE100_REAL_DB_PATH ?? `/tmp/tiny-ipa-core100-${runId}.sqlite`;
+process.env.CORE100_REAL_DB_PATH = dbPath;
 const audioRoot = process.env.CORE100_REAL_AUDIO_DIR ?? resolve(realpathSync(tmpdir()), `tiny-ipa-core100-${runId}-audio`);
 process.env.CORE100_REAL_AUDIO_DIR = audioRoot;
 const frontendURL = `http://127.0.0.1:${frontendPort}`;

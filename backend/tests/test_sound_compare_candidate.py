@@ -81,3 +81,30 @@ def test_candidate_import_is_explicit_and_uses_existing_specialty_route(tmp_path
         assert sorted(w["word_id"] for w in response["items"]) == ["back", "bag", "came", "game"]
         assert all(w["question"]["type"] == "choose_ipa" for w in response["items"])
         assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 0
+
+
+def test_limited_batch_still_includes_ipa_of_partner_outside_the_batch(tmp_path):
+    database = str(tmp_path / "limited.sqlite")
+    source = tmp_path / "candidate.json"
+    source.write_text(json.dumps(candidate(300)))
+    assert not import_words(source, ROOT / "content/phonemes.json", database)["errors"]
+    with get_connection(database) as conn:
+        conn.execute("UPDATE settings SET daily_word_count=3")
+        conn.commit()
+        response = build_minimal_pair_group_response(conn)
+        assert len(response["items"]) == 3
+        members = {w["word_id"]: w for w in candidate(300)["words"]}
+        ids = {item["word_id"] for item in response["items"]}
+        outside = []
+        for item in response["items"]:
+            current = members[item["word_id"]]
+            partner = next(
+                w
+                for w in members.values()
+                if w["word_id"] != current["word_id"]
+                and w["minimal_pair_group"] == current["minimal_pair_group"]
+            )
+            assert partner["ipa_us"] in item["question"]["choices"]
+            if partner["word_id"] not in ids:
+                outside.append(partner["word_id"])
+        assert len(outside) == 1
