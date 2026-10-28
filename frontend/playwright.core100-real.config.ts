@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
+const pairCandidate = process.env.CORE100_REAL_PAIR_CANDIDATE === "true";
+const suiteName = pairCandidate ? "sound-compare-candidate" : "core100-real";
 const frontendPort = Number(process.env.CORE100_REAL_FRONTEND_PORT ?? "5185");
 const backendPort = Number(process.env.CORE100_REAL_BACKEND_PORT ?? "8035");
 for (const port of [frontendPort, backendPort]) {
@@ -13,9 +15,9 @@ const audioRoot = process.env.CORE100_REAL_AUDIO_DIR ?? resolve(realpathSync(tmp
 process.env.CORE100_REAL_AUDIO_DIR = audioRoot;
 const frontendURL = `http://127.0.0.1:${frontendPort}`;
 export default defineConfig({
-  testDir: "./tests/e2e", testMatch: ["core100-real-workflow.spec.ts", "listening-real-workflow.spec.ts", "m13-real-practice-mode.spec.ts"],
-  outputDir: "./test-results/core100-real",
-  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report/core100-real" }]],
+  testDir: "./tests/e2e", testMatch: pairCandidate ? ["sound-compare-real.spec.ts"] : ["core100-real-workflow.spec.ts", "listening-real-workflow.spec.ts", "m13-real-practice-mode.spec.ts"],
+  outputDir: `./test-results/${suiteName}`,
+  reporter: [["list"], ["html", { open: "never", outputFolder: `playwright-report/${suiteName}` }]],
   workers: 1,
   use: { baseURL: frontendURL, trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: [{ name: "core100-real-mobile-chromium", use: { ...devices["Pixel 5"] } }],
@@ -25,6 +27,7 @@ export default defineConfig({
       url: `http://127.0.0.1:${backendPort}/api/health`, reuseExistingServer: false, timeout: 120_000,
       env: {
         TINY_IPA_DB_PATH: dbPath, CORE100_REAL_DB_PATH: dbPath,
+        CORE100_REAL_PAIR_CANDIDATE: String(pairCandidate),
         TINY_IPA_AUDIO_DIR: audioRoot, CORE100_REAL_AUDIO_DIR: audioRoot,
         TINY_IPA_REQUIRE_PACKAGED_AUDIO: "true", TINY_IPA_ENABLE_LISTENING_PREVIEW: "true",
         TINY_IPA_ENV: "development", TINY_IPA_ALLOWED_ORIGINS: frontendURL,

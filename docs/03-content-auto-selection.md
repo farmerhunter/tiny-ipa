@@ -541,3 +541,26 @@ uv run --project backend python backend/scripts/correct_expanded_tags.py --pack 
 证明非空 session/items/attempts/stats 和设置完整保留，未对线上库运行 importer。
 `--all-packs` 审计同时报告冻结来源问题与 corrected_candidate；两个候选的
 未解释 US 标签差异为零，不代表录音/IPA 或教学效果已通过人工验证。
+
+
+### 两组声音对比开发候选（#326）
+
+`content/sound_compare_pairs_candidate.json` 仅定义 came/game（词首）与 back/bag
+（词尾）两组 /k/-/g/ 配对。每个成员绑定冻结 Core100/Core300 的 ID/IPA/原始
+null 配对字段和已有许可音频 manifest/hash，显式保存有序音素；验证同为单音节、
+重音位置一致，且只有一个词首/词尾音素不同，不使用去重后的标签推断顺序。
+
+```bash
+uv run --project backend python backend/scripts/prepare_sound_compare.py --pack 300
+```
+
+此命令只输出“已修正标签＋4项 minimal_pair_group”的候选 JSON，不打开数据库、
+不改冻结来源，也不成为默认 importer 输入。`--pack 100` 用于独立的真实浏览器
+fixture；默认 fixture 仍验证 Sound Compare 暂不可用。需要显式 opt-in 的另一份
+临时库才安装4项元数据，验证现有 Sound Compare 的正向流程。
+
+这仍是既有 Word→IPA 题型及可播放录音的专项组，不是仅听录音答题的新题型。
+干扰项仍由既有 scorer 生成，不保证另一成员的 IPA 必定出现在选项中；本候选
+证明配对内容能接入现有流程，不声称已经具备专门的 /k/-/g/ 对照出题策略。
+音频来源作者不等于说话人身份；未承诺同一说话人、声学一致性或教学效果。
+未上线候选内容，听辨小课的 development-only 开关与独立计分保持不变。

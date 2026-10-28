@@ -1,0 +1,73 @@
+{
+  "schema": "tiny-ipa-sound-compare-candidate/v1",
+  "status": "development-only",
+  "sources": {
+    "content/core_100_words.json": "bb276f0c8b76ebe350bc70fc981d337434967abf606716e8f99d001b307541b8",
+    "content/core_300_words.json": "543695e5e23ef7e13a89d6583a356bace89b0836c9e60d77cbece00873bc3698"
+  },
+  "audio_manifest": "deploy/jingyun/core100-content-audio.manifest.json",
+  "audio_manifest_sha256": "339dc7e6eb58eaf157ec63165b6d7deb84568968075b19a6b0f049b31ab23c3d",
+  "pairs": [
+    {
+      "group": "kg_initial",
+      "contrast_index": 0,
+      "members": [
+        {
+          "word_id": "came",
+          "ipa_us": "/ˈkeɪm/",
+          "before": null,
+          "ordered_phones_us": [
+            "/k/",
+            "/eɪ/",
+            "/m/"
+          ],
+          "audio_url": "/audio/us/came.mp3",
+          "audio_sha256": "e381a553e2816c35e7b8ed58cc2e337c1880efbfefcf3f4d5e52f51ec851712f"
+        },
+        {
+          "word_id": "game",
+          "ipa_us": "/ˈɡeɪm/",
+          "before": null,
+          "ordered_phones_us": [
+            "/g/",
+            "/eɪ/",
+            "/m/"
+          ],
+          "audio_url": "/audio/us/game.mp3",
+          "audio_sha256": "f5850fe969028e9c56ca14b11a1615b673dea5a896524d1a1ea8f55c2fb8e768"
+        }
+      ]
+    },
+    {
+      "group": "kg_final",
+      "contrast_index": 2,
+      "members": [
+        {
+          "word_id": "back",
+          "ipa_us": "/ˈbæk/",
+          "before": null,
+          "ordered_phones_us": [
+            "/b/",
+            "/æ/",
+            "/k/"
+          ],
+          "audio_url": "/audio/us/back.mp3",
+          "audio_sha256": "0a20724c4dcdc0497d0d5c7b23de2da809b1bc1b8cd847fe94c8cee07268cd2a"
+        },
+        {
+          "word_id": "bag",
+          "ipa_us": "/ˈbæɡ/",
+          "before": null,
+          "ordered_phones_us": [
+            "/b/",
+            "/æ/",
+            "/g/"
+          ],
+          "audio_url": "/audio/us/bag.mp3",
+          "audio_sha256": "35b4b6098e22b5e0f68fb6dcfe1a7a99c3acbf54cd6006fb37a50dcd4749f9d6"
+        }
+      ]
+    }
+  ],
+  "evidence_limit": "Ordered source IPA contrast and licensed asset binding only; speaker identity, audible agreement and educational effectiveness not certified."
+}

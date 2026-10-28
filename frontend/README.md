@@ -125,3 +125,21 @@ export default defineConfig([
   },
 ])
 ```
+
+
+## Opt-in Sound Compare content candidate
+
+```bash
+pnpm test:e2e:sound-compare-candidate
+```
+
+Runs a separate temporary database/audio root with only four validated pair fields
+added to the frozen Core100 fixture: came/game and back/bag. The mobile walkthrough
+uses real API/SQLite and native playback of all four packaged recordings; it checks
+one wrong answer, first-answer replay without extra counting, completion, and return
+to the selected normal choose-word mode with reload/resume. The default three-flow
+suite still tests the actual unavailable comparison state without candidate metadata.
+Both commands run in CI. Candidate failure evidence has its own
+`test-results/sound-compare-candidate` / `playwright-report/sound-compare-candidate`.
+This proves the existing Word-to-IPA specialty route, not listening diagnosis or
+human phonetic/teaching acceptance. No production content or lesson activation.
