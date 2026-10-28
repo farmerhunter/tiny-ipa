@@ -10,7 +10,7 @@ import hashlib
 from datetime import date, datetime, timezone
 from typing import List, Optional
 
-from app.models import DailySession, SessionItem
+from app.models import DailySession, SessionItem, Word
 from app.services.db_store import (
     create_session,
     create_session_item,
@@ -119,8 +119,7 @@ def build_today_response(
             focus_phonemes=existing.focus_phonemes or settings.focus_phonemes,
             selected_learner_level=selected_level,
             action_label=(
-                f"Resume {learner_level_label(existing.learner_level)} "
-                f"Group {existing.group_index}"
+                f"Resume {learner_level_label(existing.learner_level)} Group {existing.group_index}"
             ),
         )
 
@@ -176,8 +175,7 @@ def build_next_normal_group_response(
             focus_phonemes=existing.focus_phonemes or settings.focus_phonemes,
             selected_learner_level=settings.learner_level,
             action_label=(
-                f"Resume {learner_level_label(existing.learner_level)} "
-                f"Group {existing.group_index}"
+                f"Resume {learner_level_label(existing.learner_level)} Group {existing.group_index}"
             ),
         )
 
@@ -248,8 +246,7 @@ def _create_normal_group_response(
         focus_phonemes=settings.focus_phonemes,
         selected_learner_level=settings.learner_level,
         action_label=(
-            f"Start {learner_level_label(session.learner_level)} "
-            f"Group {session.group_index}"
+            f"Start {learner_level_label(session.learner_level)} Group {session.group_index}"
         ),
     )
 
@@ -608,8 +605,7 @@ def build_focused_group_response(
         focus_phonemes=focus_phonemes,
         selected_learner_level=settings.learner_level,
         action_label=(
-            f"Start {learner_level_label(session.learner_level)} "
-            f"Focus Group {session.group_index}"
+            f"Start {learner_level_label(session.learner_level)} Focus Group {session.group_index}"
         ),
     )
 
@@ -621,6 +617,8 @@ def build_minimal_pair_group_response(
     accent: str = "US",
 ) -> dict:
     """Create or resume a confusing-sound comparison specialty group."""
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
     session_date = _today_date_str()
     settings = get_settings(conn, user_id)
     if settings is None:
@@ -840,57 +838,50 @@ def build_clear_focus_response(
     response = build_today_response(conn, user_id=user_id, accent=accent)
     if "error" not in response:
         response["origin"] = "focus_clear"
-        response["source_scope"] = (
-            "normal_current" if response.get("group_id") else "normal_none"
-        )
+        response["source_scope"] = "normal_current" if response.get("group_id") else "normal_none"
         response["focus_phonemes"] = []
         response["detail"] = "Focus selection cleared."
     return response
 
 
-def _select_minimal_pair_words(
-    conn,
-    *,
-    accent: str,
-    learner_level: str,
-    limit: int,
-) -> list:
+def _minimal_pair_partners(conn, *, accent: str, learner_level: str) -> dict[str, Word]:
     ipa_field = "ipa_us" if accent == "US" else "ipa_uk"
     tags_field = "phoneme_tags_us" if accent == "US" else "phoneme_tags_uk"
-    level_values = _level_values(learner_level)
-    level_placeholders = ", ".join("?" for _ in level_values)
+    levels = _level_values(learner_level)
+    placeholders = ", ".join("?" for _ in levels)
     rows = conn.execute(
         f"""
-        SELECT *
-        FROM words
-        WHERE content_status != 'disabled'
-          AND level IN ({level_placeholders})
-          AND minimal_pair_group IS NOT NULL
-          AND minimal_pair_group != ''
-          AND {ipa_field} IS NOT NULL
-          AND {ipa_field} != ''
-          AND {tags_field} IS NOT NULL
-          AND {tags_field} != ''
-          AND minimal_pair_group IN (
-              SELECT minimal_pair_group
-              FROM words
-              WHERE content_status != 'disabled'
-                AND level IN ({level_placeholders})
-                AND minimal_pair_group IS NOT NULL
-                AND minimal_pair_group != ''
-                AND {ipa_field} IS NOT NULL
-                AND {ipa_field} != ''
-                AND {tags_field} IS NOT NULL
-                AND {tags_field} != ''
-              GROUP BY minimal_pair_group
-              HAVING COUNT(*) >= 2
-          )
-        ORDER BY minimal_pair_group, word
-        LIMIT ?
+        SELECT id FROM words
+        WHERE content_status != 'disabled' AND level IN ({placeholders})
+          AND minimal_pair_group IS NOT NULL AND minimal_pair_group != ''
+          AND {ipa_field} IS NOT NULL AND {ipa_field} != ''
+          AND {tags_field} IS NOT NULL AND {tags_field} != ''
+        ORDER BY minimal_pair_group, word, id
         """,
-        (*level_values, *level_values, max(limit, 2)),
+        levels,
     ).fetchall()
-    return [get_word_by_id(conn, row["id"]) for row in rows if row["id"]]
+    groups: dict[str, list[Word]] = {}
+    for row in rows:
+        word = get_word_by_id(conn, row["id"])
+        if word is not None:
+            groups.setdefault(word.minimal_pair_group, []).append(word)
+    partners = {}
+    for members in groups.values():
+        if len(members) != 2:
+            continue
+        left, right = members
+        left_ipa = left.ipa_us if accent == "US" else left.ipa_uk
+        right_ipa = right.ipa_us if accent == "US" else right.ipa_uk
+        if not left_ipa.strip() or not right_ipa.strip() or left_ipa.strip() == right_ipa.strip():
+            continue
+        partners[left.id], partners[right.id] = right, left
+    return partners
+
+
+def _select_minimal_pair_words(conn, *, accent: str, learner_level: str, limit: int) -> list:
+    partners = _minimal_pair_partners(conn, accent=accent, learner_level=learner_level)
+    words = [get_word_by_id(conn, wid) for wid in partners]
+    return sorted(words, key=lambda w: (w.minimal_pair_group, w.word, w.id))[: max(limit, 2)]
 
 
 def _level_values(learner_level: str) -> list[str]:
@@ -1235,8 +1226,7 @@ def _build_accent_compare(word, *, enabled: bool) -> Optional[dict]:
             "ipa": word.ipa_uk,
             "phoneme_tags": word.phoneme_tags_uk,
             "review_note": (
-                "Display-only comparison. Your answer is still graded against "
-                "the American IPA."
+                "Display-only comparison. Your answer is still graded against the American IPA."
             ),
         },
     }
@@ -1266,6 +1256,18 @@ def _build_response(
         session.learner_level,
         accent=accent,
     )
+    pair_partners = (
+        _minimal_pair_partners(conn, accent=accent, learner_level=session.learner_level)
+        if session.group_type == "minimal_pair"
+        else {}
+    )
+    if session.group_type == "minimal_pair" and any(
+        item.word_id not in pair_partners or item.question_type != "choose_ipa" for item in items
+    ):
+        return {
+            "error": "CONTENT_NOT_READY",
+            "detail": "Sound Compare counterpart metadata is missing or ambiguous.",
+        }
     latest_attempts = get_latest_attempts_for_session_items(
         conn,
         [item.id for item in items],
@@ -1301,6 +1303,11 @@ def _build_response(
             ),
             question_type=item.question_type,
             seed=_stable_hash(item.id),
+            contrast_ipa=(
+                (pair_partners[word.id].ipa_us if accent == "US" else pair_partners[word.id].ipa_uk)
+                if session.group_type == "minimal_pair"
+                else None
+            ),
         )
 
         item_dicts.append(

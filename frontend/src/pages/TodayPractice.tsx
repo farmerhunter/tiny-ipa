@@ -383,6 +383,10 @@ export default function TodayPractice({
     setError(null);
     try {
       const data = await startMinimalPairPractice();
+      if (data.error) {
+        setError(t("error.generic.failed", { error: data.error }));
+        return;
+      }
       if (data.status === "empty" || data.items.length === 0) {
         setNotice(t("specialty.sound_compare.empty"));
       } else {

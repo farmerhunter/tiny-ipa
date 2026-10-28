@@ -463,6 +463,9 @@ class TestTodayPersistence:
         assert data["action_label"].startswith("Start Sound Compare Group")
         assert [item["word_id"] for item in data["items"]] == ["sheep", "ship"]
         assert [item["display_ipa"] for item in data["items"]] == ["/ʃiːp/", "/ʃɪp/"]
+        for item in data["items"]:
+            assert {"/ʃiːp/", "/ʃɪp/"} <= set(item["question"]["choices"])
+            assert len(item["question"]["choices"]) == len(set(item["question"]["choices"]))
 
         conn = get_connection(seeded_db)
         row = conn.execute(
@@ -512,6 +515,64 @@ class TestTodayPersistence:
         ).fetchone()["cnt"]
         conn.close()
         assert count == 0
+
+    @pytest.mark.parametrize(
+        "damage", ["disabled", "missing_ipa", "same_ipa", "cross_level", "ambiguous"]
+    )
+    def test_invalid_pair_never_starts_a_generic_random_group(self, client, seeded_db, damage):
+        with get_connection(seeded_db) as conn:
+            if damage == "disabled":
+                conn.execute("UPDATE words SET content_status='disabled' WHERE id='ship'")
+            elif damage == "missing_ipa":
+                conn.execute("UPDATE words SET ipa_us='' WHERE id='ship'")
+            elif damage == "same_ipa":
+                conn.execute("UPDATE words SET ipa_us='/ʃiːp/' WHERE id='ship'")
+            elif damage == "cross_level":
+                conn.execute("UPDATE words SET level='intermediate' WHERE id='ship'")
+            else:
+                conn.execute("UPDATE words SET minimal_pair_group='ship_sheep' WHERE id='cat'")
+            conn.commit()
+        response = client.post("/api/practice/minimal-pairs").json()
+        assert response["status"] == "empty"
+        assert response["items"] == []
+        with get_connection(seeded_db) as conn:
+            assert conn.execute("SELECT count(*) FROM daily_sessions").fetchone()[0] == 0
+            assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 0
+
+    def test_active_pair_loses_counterpart_without_rewriting_group_or_history(
+        self, client, seeded_db
+    ):
+        group = client.post("/api/practice/minimal-pairs").json()
+        item = group["items"][0]
+        assert client.post(
+            "/api/attempt",
+            json={
+                "session_item_id": item["session_item_id"],
+                "selected_answer": item["display_ipa"],
+            },
+        ).json()["is_correct"]
+        with get_connection(seeded_db) as conn:
+            conn.execute("UPDATE words SET minimal_pair_group=NULL WHERE id='ship'")
+            conn.commit()
+            before = {
+                name: [tuple(row) for row in conn.execute(f"SELECT * FROM {name} ORDER BY rowid")]
+                for name in ("daily_sessions", "session_items", "attempts", "phoneme_stats")
+            }
+        result = client.post("/api/practice/minimal-pairs").json()
+        assert result["error"] == "CONTENT_NOT_READY"
+        assert "items" not in result
+        with get_connection(seeded_db) as conn:
+            after = {
+                name: [tuple(row) for row in conn.execute(f"SELECT * FROM {name} ORDER BY rowid")]
+                for name in before
+            }
+            assert after == before
+            conn.execute("UPDATE words SET minimal_pair_group='ship_sheep' WHERE id='ship'")
+            conn.commit()
+        resumed = client.post("/api/practice/minimal-pairs").json()
+        assert resumed["group_id"] == group["group_id"]
+        assert resumed["items"][0]["last_attempt"]["is_correct"]
+        assert [i["question"] for i in resumed["items"]] == [i["question"] for i in group["items"]]
 
     def test_minimal_pair_attempt_reuses_us_attempt_and_stats_path(
         self, client, seeded_db

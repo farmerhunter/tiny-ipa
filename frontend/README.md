@@ -136,9 +136,12 @@ pnpm test:e2e:sound-compare-candidate
 Runs a separate temporary database/audio root with only four validated pair fields
 added to the frozen Core100 fixture: came/game and back/bag. The mobile walkthrough
 uses real API/SQLite and native playback of all four packaged recordings; it checks
-one wrong answer, first-answer replay without extra counting, completion, and return
+the paired counterpart IPA is a visible choice on every item, unchanged choices after
+reload/reentry, a deliberate counterpart mistake, first-answer replay without extra counting, completion, and return
 to the selected normal choose-word mode with reload/resume. The default three-flow
 suite still tests the actual unavailable comparison state without candidate metadata.
+A failure probe disables/restores one counterpart only in its validated temporary fixture,
+checks the visible content-not-ready error with zero attempts, and recovers the same group.
 Both commands run in CI. Candidate failure evidence has its own
 `test-results/sound-compare-candidate` / `playwright-report/sound-compare-candidate`.
 This proves the existing Word-to-IPA specialty route, not listening diagnosis or
