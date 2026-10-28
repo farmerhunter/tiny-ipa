@@ -89,6 +89,8 @@ jobs:
           pnpm exec playwright install --with-deps chromium
       - name: Real practice, review, specialty and listening workflows with frozen media
         run: pnpm test:e2e:core100-real
+      - name: Opt-in Sound Compare candidate with real API and native audio
+        run: pnpm test:e2e:sound-compare-candidate
       - name: Retain failure evidence
         if: failure()
         uses: actions/upload-artifact@v4
@@ -97,4 +99,6 @@ jobs:
           path: |
             frontend/test-results/core100-real
             frontend/playwright-report/core100-real
+            frontend/test-results/sound-compare-candidate
+            frontend/playwright-report/sound-compare-candidate
           retention-days: 7

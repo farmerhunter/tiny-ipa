@@ -19,6 +19,7 @@ from app.models import Settings, User  # noqa: E402
 from app.services.auth import hash_password  # noqa: E402
 from app.services.db_store import create_user, upsert_settings  # noqa: E402
 from import_words import import_words  # noqa: E402
+from prepare_sound_compare import load_pairs  # noqa: E402
 from prepare_core100_audio import prepare  # noqa: E402
 
 
@@ -143,6 +144,26 @@ def main():
         _, corrections = load_corrections()
         tag_plan = plan_tags(conn, corrections)
         assert apply_tags(conn, corrections, tag_plan["plan_sha256"])["updated"] == 13
+        if os.environ.get("CORE100_REAL_PAIR_CANDIDATE") == "true":
+            pairs = load_pairs()
+            members = [
+                (pair["group"], member)
+                for pair in pairs["pairs"]
+                for member in pair["members"]
+            ]
+            for _, member in members:
+                row = conn.execute(
+                    "SELECT ipa_us, minimal_pair_group FROM words WHERE id=?",
+                    (member["word_id"],),
+                ).fetchone()
+                if row is None or row[0] != member["ipa_us"] or row[1] is not None:
+                    raise ValueError("comparison fixture preimage differs")
+            for group, member in members:
+                conn.execute(
+                    "UPDATE words SET minimal_pair_group=? WHERE id=?",
+                    (group, member["word_id"]),
+                )
+            conn.commit()
         assert (
             conn.execute(
                 "SELECT daily_word_count FROM settings WHERE user_id='default'"
