@@ -33,6 +33,7 @@ _SCRIPTS = _HERE
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
+from correct_expanded_tags import check_regression, prepare_import  # noqa: E402
 from validate_content import (  # noqa: E402
     infer_content_level,
     load_phoneme_set,
@@ -45,6 +46,7 @@ from app.models import Settings  # noqa: E402
 from app.services.db_schema import init_db, table_names  # noqa: E402
 from app.services.db_store import (  # noqa: E402
     count_words,
+    get_settings,
     upsert_phoneme,
     upsert_settings,
     upsert_word,
@@ -135,10 +137,17 @@ def import_words(
         "content_level": content_level,
     }
 
+    try:
+        words, bindings, tag_changes = prepare_import(source_path, load_words(source_path))
+        report["tag_corrections"] = bindings
+    except ValueError as exc:
+        report["errors"].append(str(exc))
+        report["validation_errors"] = 1
+        return report
+
     # ---- validation --------------------------------------------------------
     if not skip_validation:
         known_phonemes = load_phoneme_set(phonemes_path)
-        words = load_words(source_path)
         val_report = validate_words(
             words,
             known_phonemes,
@@ -163,13 +172,17 @@ def import_words(
         if report["errors"]:
             return report
         report["validation_passed"] = True
-    else:
-        # Still need the word list for import
-        words = load_words(source_path)
 
     # ---- database initialisation -------------------------------------------
     with get_db(db_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
         existing_tables = set(table_names(conn))
+        if "words" in existing_tables:
+            try:
+                check_regression(conn, words, tag_changes)
+            except ValueError as exc:
+                report["errors"].append(str(exc))
+                return report
         init_db(conn)
         new_tables = sorted(set(table_names(conn)) - existing_tables)
         report["tables_created"] = new_tables
@@ -214,7 +227,8 @@ def import_words(
             review_strength="normal",
             updated_at=datetime.now(timezone.utc).isoformat(),
         )
-        upsert_settings(conn, default_settings)
+        if get_settings(conn, "default") is None:
+            upsert_settings(conn, default_settings)
 
     return report
 
@@ -232,6 +246,8 @@ def print_report(report: dict) -> None:
         else "(none — already existed)"
     )
     print(f"Tables created:  {tables}")
+    for binding in report.get("tag_corrections", []):
+        print(f"Tag corrections: {binding['source']} ({len(binding['corrected_word_ids'])} words)")
     print(f"Words inserted:  {report['inserted']}")
     print(f"Words skipped:   {report['skipped']}")
     print(f"Total words:     {report.get('total_words_in_db', '?')}")

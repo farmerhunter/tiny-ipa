@@ -1,0 +1,209 @@
+{
+  "schema": "tiny-ipa-expanded-tag-corrections/v1",
+  "source": "content/core_1000_words.json",
+  "source_sha256": "01cb2033e51a714452029016e7dfe0e68345b557f126f162ca27c99d18922a46",
+  "changes": [
+    {
+      "word_id": "mid_run",
+      "ipa_us": "/ˈɹən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/r/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_love",
+      "ipa_us": "/ˈɫəv/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/l/",
+        "/ʌ/",
+        "/v/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_fun",
+      "ipa_us": "/ˈfən/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/f/",
+        "/ʌ/",
+        "/n/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_cut",
+      "ipa_us": "/ˈkət/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/k/",
+        "/ʌ/",
+        "/t/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_cup",
+      "ipa_us": "/ˈkəp/",
+      "before": [
+        "/ə/",
+        "/ʌ/"
+      ],
+      "after": [
+        "/k/",
+        "/ʌ/",
+        "/p/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_father",
+      "ipa_us": "/ˈfɑðɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/f/",
+        "/ɑ/",
+        "/ð/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_teacher",
+      "ipa_us": "/ˈtitʃɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/t/",
+        "/iː/",
+        "/tʃ/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_water",
+      "ipa_us": "/ˈwɔtɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/w/",
+        "/ɔ/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_paper",
+      "ipa_us": "/ˈpeɪpɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/p/",
+        "/eɪ/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_better",
+      "ipa_us": "/ˈbɛtɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/b/",
+        "/e/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_letter",
+      "ipa_us": "/ˈɫɛtɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/l/",
+        "/e/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_sister",
+      "ipa_us": "/ˈsɪstɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/s/",
+        "/ɪ/",
+        "/t/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    },
+    {
+      "word_id": "mid_river",
+      "ipa_us": "/ˈɹɪvɝ/",
+      "before": [
+        "/ɝ/",
+        "/ɚ/"
+      ],
+      "after": [
+        "/r/",
+        "/ɪ/",
+        "/v/",
+        "/ɚ/"
+      ],
+      "reason": "Retain every parsed phoneme and apply only the existing per-word STRUT/r-colored normalization note.",
+      "normalization_note": "Reuses accepted Core100 STRUT/r-colored override for ipa-dict US phoneme coverage."
+    }
+  ]
+}
