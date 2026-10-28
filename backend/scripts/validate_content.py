@@ -185,6 +185,47 @@ def infer_content_level(words_path: Path) -> Optional[str]:
     return None
 
 
+def phoneme_structure_errors(word: dict) -> list[str]:
+    errors = []
+    wid = word.get("word_id") or word.get("id") or "<unknown>"
+    for accent in ("us", "uk"):
+        field = f"phoneme_tags_{accent}"
+        tags = word.get(field)
+        if accent == "uk" and (tags is None or tags == "" or tags == []):
+            continue
+        if not isinstance(tags, list) or (accent == "us" and not tags):
+            kind = "a nonempty" if accent == "us" else "an"
+            errors.append(f"{wid}: {field} must be {kind} array")
+            continue
+        if any(not isinstance(tag, str) or not tag or tag != tag.strip() for tag in tags):
+            errors.append(f"{wid}: {field} must contain nonempty canonical strings")
+            continue
+        if len(tags) != len(set(tags)):
+            errors.append(f"{wid}: {field} contains duplicate phoneme tags")
+    return errors
+
+
+def import_structure_errors(words) -> list[str]:
+    if not isinstance(words, list):
+        return ["content words must be an array"]
+    errors, seen = [], set()
+    for index, word in enumerate(words):
+        if not isinstance(word, dict):
+            errors.append(f"entry {index}: word must be an object")
+            continue
+        wid = word.get("word_id", word.get("id"))
+        if not isinstance(wid, str) or not wid.strip() or wid != wid.strip():
+            errors.append(f"entry {index}: word identity must be a nonempty canonical string")
+        elif wid in seen:
+            errors.append(f"{wid}: duplicate word identity")
+        else:
+            seen.add(wid)
+        if "word_id" in word and "id" in word and word["word_id"] != word["id"]:
+            errors.append(f"entry {index}: conflicting word_id/id import identity")
+        errors.extend(phoneme_structure_errors(word))
+    return errors
+
+
 def validate_words(
     words: List[dict],
     known_phonemes: Set[str],
@@ -250,11 +291,18 @@ def validate_words(
     profile = CONTENT_LEVEL_PROFILES.get(content_level or "")
 
     for i, w in enumerate(words):
+        if not isinstance(w, dict):
+            report["errors"].append(f"entry {i}: word must be an object")
+            continue
+        report["errors"].extend(phoneme_structure_errors(w))
         word_id = w.get("word_id", f"<index {i}>")
         word = str(w.get("word", "")).strip().lower()
         content_status = w.get("content_status")
         level = w.get("level")
 
+        if not isinstance(word_id, str):
+            report["errors"].append(f"entry {i}: word_id must be a string")
+            continue
         if word_id in seen_word_ids:
             entry = f"{word_id}: duplicate word_id"
             report["duplicate_word_ids"].append(entry)
@@ -327,29 +375,25 @@ def validate_words(
 
         # Validate phoneme_tags_us against known phonemes
         phoneme_tags_us = w.get("phoneme_tags_us", [])
-        if isinstance(phoneme_tags_us, list):
-            for tag in phoneme_tags_us:
+        if isinstance(phoneme_tags_us, list) and all(isinstance(t, str) for t in phoneme_tags_us):
+            for tag in dict.fromkeys(phoneme_tags_us):
                 report["words_per_phoneme_us"][tag] += 1
                 if tag not in known_phonemes:
                     entry = f"{word_id}: unknown phoneme tag '{tag}'"
                     if entry not in report["unknown_phoneme_tags_us"]:
                         report["unknown_phoneme_tags_us"].append(entry)
                     report["errors"].append(entry)
-        elif phoneme_tags_us:
-            report["errors"].append(f"{word_id}: phoneme_tags_us must be an array")
 
         # Validate phoneme_tags_uk (warn if missing, validate if present)
         phoneme_tags_uk = w.get("phoneme_tags_uk", [])
-        if isinstance(phoneme_tags_uk, list):
-            for tag in phoneme_tags_uk:
+        if isinstance(phoneme_tags_uk, list) and all(isinstance(t, str) for t in phoneme_tags_uk):
+            for tag in dict.fromkeys(phoneme_tags_uk):
                 report["words_per_phoneme_uk"][tag] += 1
                 if tag not in known_phonemes:
                     entry = f"{word_id}: unknown phoneme tag '{tag}' (UK)"
                     if entry not in report["unknown_phoneme_tags_uk"]:
                         report["unknown_phoneme_tags_uk"].append(entry)
                     report["warnings"].append(entry)
-        elif phoneme_tags_uk:
-            report["warnings"].append(f"{word_id}: phoneme_tags_uk must be an array")
 
         difficulty_tags = w.get("difficulty_tags", [])
         if isinstance(difficulty_tags, list):

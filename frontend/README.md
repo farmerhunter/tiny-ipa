@@ -146,3 +146,26 @@ Both commands run in CI. Candidate failure evidence has its own
 `test-results/sound-compare-candidate` / `playwright-report/sound-compare-candidate`.
 This proves the existing Word-to-IPA specialty route, not listening diagnosis or
 human phonetic/teaching acceptance. No production content or lesson activation.
+
+
+## Real cross-level and cross-account regression
+
+```bash
+pnpm test:e2e:level-account-real
+```
+
+A separate disposable fixture imports Core100 plus the source-bound corrected
+Core1000 and creates two non-owner synthetic learners in independent browser
+contexts. It checks pending Entry-to-Mid settings, completing the unchanged Entry
+group, starting Mid, per-level Progress, reload/relogin recovery, separate modes
+and group sizes, and real 404 denial for another user's answered/pending items and
+review groups in both directions. It also verifies one user's logout preserves
+the other session and learning state. No API/authorization mocks or real accounts.
+
+This scenario alone sets development `TINY_IPA_REQUIRE_PACKAGED_AUDIO=false`:
+Mid has no packaged recordings; the test asserts null audio URLs and makes no
+Mid playback/audibility claim. Original native-MP3/listening/comparison suites
+retain their packaged-audio requirement. Both candidate flags cannot be combined.
+CI runs all scenarios and retains this suite's failures under
+`test-results/level-account-real` / `playwright-report/level-account-real`.
+No production import, auth-policy change or M15 account-management UI is included.

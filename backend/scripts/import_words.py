@@ -35,6 +35,7 @@ if str(_SCRIPTS) not in sys.path:
 
 from correct_expanded_tags import check_regression, prepare_import  # noqa: E402
 from validate_content import (  # noqa: E402
+    import_structure_errors,
     infer_content_level,
     load_phoneme_set,
     load_words,
@@ -114,8 +115,9 @@ def import_words(
         phonemes_path: Path to ``content/phonemes.json``.
         db_path: SQLite database path (``sqlite:///`` prefix stripped if
                  present, for CLI ergonomics).
-        skip_validation: If True, skip content validation (not recommended
+        skip_validation: If True, skip semantic content validation (not recommended
                          for production; useful for trusted fixtures).
+                         Structural/US inventory checks still apply.
 
     Returns:
         A report dict with keys: inserted, updated, skipped, errors,
@@ -137,99 +139,87 @@ def import_words(
         "content_level": content_level,
     }
 
+    report.update(committed=False, rolled_back=False)
     try:
-        words, bindings, tag_changes = prepare_import(source_path, load_words(source_path))
+        words = load_words(source_path)
+        structural_errors = import_structure_errors(words)
+        if structural_errors:
+            report["errors"] = structural_errors
+            report["validation_errors"] = len(structural_errors)
+            return report
+        words, bindings, tag_changes = prepare_import(source_path, words)
         report["tag_corrections"] = bindings
-    except ValueError as exc:
-        report["errors"].append(str(exc))
-        report["validation_errors"] = 1
+        structural_errors = import_structure_errors(words)
+        if structural_errors:
+            report["errors"] = structural_errors
+            report["validation_errors"] = len(structural_errors)
+            return report
+        known_phonemes = load_phoneme_set(phonemes_path)
+        for word in words:
+            for tag in word["phoneme_tags_us"]:
+                if tag not in known_phonemes:
+                    wid = word.get("word_id", word.get("id"))
+                    report["errors"].append(f"{wid}: unknown phoneme tag '{tag}'")
+        if report["errors"]:
+            report["validation_errors"] = len(report["errors"])
+            return report
+        if not skip_validation:
+            val_report = validate_words(
+                words, known_phonemes, content_level=content_level
+            )
+            for key, default in (("content_level", None), ("level_counts", {}),
+                                 ("content_status_counts", {}), ("syllable_distribution_us", {}),
+                                 ("multisyllable_count", 0), ("multisyllable_percent", 0.0)):
+                report[key] = val_report.get(key, default)
+            report["errors"] = val_report["errors"]
+            report["validation_errors"] = len(report["errors"])
+            if report["errors"]:
+                return report
+            report["validation_passed"] = True
+        phoneme_rows = build_phoneme_rows(phonemes_path)
+    except (ValueError, TypeError, KeyError, OSError) as exc:
+        report["errors"].append(f"invalid content: {exc}")
+        report["validation_errors"] = len(report["errors"])
         return report
 
-    # ---- validation --------------------------------------------------------
-    if not skip_validation:
-        known_phonemes = load_phoneme_set(phonemes_path)
-        val_report = validate_words(
-            words,
-            known_phonemes,
-            content_level=content_level,
-        )
-        report["content_level"] = val_report.get("content_level")
-        report["level_counts"] = val_report.get("level_counts", {})
-        report["content_status_counts"] = val_report.get("content_status_counts", {})
-        report["syllable_distribution_us"] = val_report.get(
-            "syllable_distribution_us", {}
-        )
-        report["multisyllable_count"] = val_report.get("multisyllable_count", 0)
-        report["multisyllable_percent"] = val_report.get("multisyllable_percent", 0.0)
-        # Unknown US phoneme tags are hard errors — reject the import.
-        if val_report["unknown_phoneme_tags_us"]:
-            for tag_entry in val_report["unknown_phoneme_tags_us"]:
-                report["errors"].append(tag_entry)
-        # Append other validation errors.
-        if val_report["errors"]:
-            report["errors"].extend(val_report["errors"])
-        report["validation_errors"] = len(report["errors"])
-        if report["errors"]:
-            return report
-        report["validation_passed"] = True
-
-    # ---- database initialisation -------------------------------------------
-    with get_db(db_path) as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        existing_tables = set(table_names(conn))
-        if "words" in existing_tables:
-            try:
+    stage = "open database"
+    started = False
+    original_count = None
+    try:
+        with get_db(db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            started = True
+            existing_tables = set(table_names(conn))
+            original_count = count_words(conn) if "words" in existing_tables else 0
+            if "words" in existing_tables:
+                stage = "tag regression check"
                 check_regression(conn, words, tag_changes)
-            except ValueError as exc:
-                report["errors"].append(str(exc))
-                return report
-        init_db(conn)
-        new_tables = sorted(set(table_names(conn)) - existing_tables)
-        report["tables_created"] = new_tables
-
-        # ---- word import ---------------------------------------------------
-        for w in words:
-            word_id = w.get("word_id") or w.get("id", "")
-            if not word_id:
-                report["skipped"] += 1
-                report["errors"].append("entry without word_id — skipped")
-                continue
-            try:
-                upsert_word(conn, w)
-                # For the report we count every write as "inserted" since
-                # we can't cheaply distinguish insert from update with
-                # INSERT OR REPLACE without a prior SELECT.
+            stage = "initialize schema"
+            init_db(conn)
+            report["tables_created"] = sorted(set(table_names(conn)) - existing_tables)
+            for word in words:
+                stage = f"word {word.get('word_id', word.get('id'))}"
+                upsert_word(conn, word)
                 report["inserted"] += 1
-            except Exception as exc:
-                report["skipped"] += 1
-                report["errors"].append(f"{word_id}: db error — {exc}")
-
-        total_words = count_words(conn)
-        report["total_words_in_db"] = total_words
-
-        # ---- phoneme import ------------------------------------------------
-        phoneme_rows = build_phoneme_rows(phonemes_path)
-        for pr in phoneme_rows:
-            try:
-                upsert_phoneme(conn, pr)
+            for phoneme in phoneme_rows:
+                stage = f"phoneme {phoneme['id']}"
+                upsert_phoneme(conn, phoneme)
                 report["phonemes_inserted"] += 1
-            except Exception as exc:
-                report["errors"].append(f"{pr['id']}: phoneme db error — {exc}")
-
-        # ---- default settings ----------------------------------------------
-        default_settings = Settings(
-            user_id="default",
-            primary_accent="US",
-            daily_word_count=10,
-            show_translation=True,
-            show_accent_compare=False,
-            practice_mode="ipa_first",
-            review_strength="normal",
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            stage = "default settings"
+            if get_settings(conn, "default") is None:
+                upsert_settings(conn, Settings(
+                    user_id="default", updated_at=datetime.now(timezone.utc).isoformat()
+                ))
+            report["total_words_in_db"] = count_words(conn)
+            stage = "commit"
+        report["committed"] = True
+    except Exception as exc:
+        report["errors"].append(f"{stage}: {exc}")
+        report.update(
+            inserted=0, updated=0, phonemes_inserted=0, tables_created=[], rolled_back=started
         )
-        if get_settings(conn, "default") is None:
-            upsert_settings(conn, default_settings)
-
+        if original_count is not None:
+            report["total_words_in_db"] = original_count
     return report
 
 
@@ -248,6 +238,7 @@ def print_report(report: dict) -> None:
     print(f"Tables created:  {tables}")
     for binding in report.get("tag_corrections", []):
         print(f"Tag corrections: {binding['source']} ({len(binding['corrected_word_ids'])} words)")
+    print(f"Transaction: {'COMMITTED' if report.get('committed') else 'NOT COMMITTED'}")
     print(f"Words inserted:  {report['inserted']}")
     print(f"Words skipped:   {report['skipped']}")
     print(f"Total words:     {report.get('total_words_in_db', '?')}")
