@@ -91,6 +91,8 @@ jobs:
         run: pnpm test:e2e:core100-real
       - name: Opt-in Sound Compare candidate with real API and native audio
         run: pnpm test:e2e:sound-compare-candidate
+      - name: Opt-in Core300 audio candidate with new native recordings
+        run: pnpm test:e2e:core300-audio-candidate
       - name: Real Entry/Mid transitions and account isolation
         run: pnpm test:e2e:level-account-real
       - name: Retain failure evidence
@@ -103,6 +105,8 @@ jobs:
             frontend/playwright-report/core100-real
             frontend/test-results/sound-compare-candidate
             frontend/playwright-report/sound-compare-candidate
+            frontend/test-results/core300-audio-candidate
+            frontend/playwright-report/core300-audio-candidate
             frontend/test-results/level-account-real
             frontend/playwright-report/level-account-real
           retention-days: 7
