@@ -133,6 +133,8 @@ def verify(manifest_path: Path, repo_root: Path, audio_root: Path) -> dict[str, 
         word_id = asset["word_id"]
         if word_id in seen or word_id not in required or word_id not in words_by_id:
             raise VerificationError("audio word binding mismatch")
+        if words_by_id[word_id].get("content_status") == "disabled":
+            raise VerificationError("disabled word cannot have packaged audio")
         if not isinstance(asset["source"], str) or not asset["source"].strip():
             raise VerificationError("audio source missing")
         if not isinstance(asset["license"], str) or not asset["license"].strip():

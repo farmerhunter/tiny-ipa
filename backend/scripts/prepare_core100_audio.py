@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare the reviewed Core100 audio candidate locally; never install it on a host."""
+"""Prepare an explicit Core100/Core300 audio candidate locally; never install it on a host."""
 
 from __future__ import annotations
 
@@ -145,24 +145,57 @@ def prepare(
     audio_root: Path,
     cache_root: Path,
     *,
+    pack_size: int = 100,
     allow_download: bool = False,
     validate_media: bool = False,
     fetcher=download,
 ) -> dict:
+    if pack_size not in (100, 300):
+        raise ValueError("audio preparation supports only explicit Core100/Core300 candidates")
     manifest = json.loads(manifest_path.read_text())
     build = manifest["build"]
-    if build["source_content"] != "content/core_100_words.json":
+    source_name = f"content/core_{pack_size}_words.json"
+    candidate_name = f"content/generated/core_{pack_size}_audio_candidate.json"
+    if build["source_content"] != source_name:
         raise ValueError("unexpected source content binding")
-    if manifest["content"]["path"] != "content/generated/core_100_audio_candidate.json":
+    if manifest["content"]["path"] != candidate_name:
         raise ValueError("unexpected generated content binding")
     source_path = VERIFIER._regular_under(repo_root, build["source_content"])
     source_bytes = source_path.read_bytes()
     if digest(source_bytes) != build["source_content_sha256"]:
         raise ValueError("source content checksum mismatch")
     content = json.loads(source_bytes)
+    if pack_size == 300:
+        from correct_core100_tags import derive
+        from correct_expanded_tags import load_pack
+
+        correction_path = "content/core_300_phoneme_corrections.json"
+        if build.get("tag_corrections") != {
+            "path": correction_path,
+            "sha256": digest(VERIFIER._regular_under(repo_root, correction_path).read_bytes()),
+        }:
+            raise ValueError("Core300 corrected-tag provenance differs")
+        original, patch = load_pack(300, repo_root)
+        content = derive(original, patch)
+        old_path = "deploy/jingyun/core100-content-audio.manifest.json"
+        old_bytes = VERIFIER._regular_under(repo_root, old_path).read_bytes()
+        if build.get("reuse_manifest") != {"path": old_path, "sha256": digest(old_bytes)}:
+            raise ValueError("Core100 reuse manifest binding differs")
+        reused = json.loads(old_bytes)["audio"]["assets"]
+        current = {a["word_id"]: a for a in manifest["audio"]["assets"]}
+        if len(reused) != 99 or any(current.get(a["word_id"]) != a for a in reused):
+            raise ValueError("Core300 must preserve all 99 Core100 asset bindings")
+        additions = set(current) - {a["word_id"] for a in reused}
+        if len(additions) > 12 or set(build.get("new_word_ids", [])) != additions:
+            raise ValueError("Core300 addition list exceeds or differs from the bounded selection")
     required = manifest["audio"]["required_word_ids"]
     assets = manifest["audio"]["assets"]
     word_ids = {word["word_id"] for word in content["words"]}
+    disabled = {w["word_id"] for w in content["words"] if w.get("content_status") == "disabled"}
+    if pack_size == 300 and set(build.get("disabled_word_ids", [])) != disabled:
+        raise ValueError("disabled-word report disagrees with source")
+    if set(required) & disabled:
+        raise ValueError("disabled words must not have active packaged audio")
     if len(required) != len(set(required)) or not set(required) <= word_ids:
         raise ValueError("invalid audio word coverage")
     if set(build["missing_word_ids"]) != word_ids - set(required):
@@ -187,7 +220,7 @@ def prepare(
         )
     derived = (json.dumps(content, ensure_ascii=False, indent=2) + "\n").encode()
     generated = _directory(repo_root / "content/generated", repo_root / "content")
-    _write(generated / "core_100_audio_candidate.json", derived, manifest["content"]["sha256"])
+    _write(generated / Path(candidate_name).name, derived, manifest["content"]["sha256"])
     temp_root = Path(tempfile.gettempdir()).resolve()
     allowed = (
         repo_root / "audio" if repo_root.resolve() in audio_root.resolve().parents else temp_root
@@ -200,7 +233,9 @@ def prepare(
     )
     cache_root = _directory(cache_root, allowed_cache)
     us = _directory(audio_root / "us", audio_root)
-    credits = VERIFIER._regular_under(repo_root, "deploy/jingyun/core100-audio-attribution.md")
+    credits = VERIFIER._regular_under(
+        repo_root, f"deploy/jingyun/core{pack_size}-audio-attribution.md"
+    )
     _write(
         audio_root / VERIFIER._credits_relative(manifest["audio"]["credits"]),
         credits.read_bytes(),
@@ -234,6 +269,7 @@ def prepare(
     return {
         **result,
         "missing_word_ids": build["missing_word_ids"],
+        "pack_size": pack_size,
         "media_checked": len(media),
         "media": media,
         "evidence_scope": "integrity/decoding/playback only; human phonetic acceptance deferred",
@@ -242,11 +278,10 @@ def prepare(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--manifest", type=Path, default=REPO / "deploy/jingyun/core100-content-audio.manifest.json"
-    )
-    parser.add_argument("--audio-root", type=Path, default=REPO / "audio/core100-candidate")
-    parser.add_argument("--cache-root", type=Path, default=REPO / "content/sources/core100-audio")
+    parser.add_argument("--pack", type=int, choices=(100, 300), default=100)
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--audio-root", type=Path)
+    parser.add_argument("--cache-root", type=Path)
     parser.add_argument("--allow-download", action="store_true")
     parser.add_argument("--check-media", action="store_true")
     parser.add_argument("--report", type=Path)
@@ -254,10 +289,11 @@ def main() -> None:
     if args.check_media and not all(shutil.which(tool) for tool in ("ffmpeg", "ffprobe")):
         parser.error("--check-media requires ffmpeg and ffprobe")
     result = prepare(
-        args.manifest,
+        args.manifest or REPO / f"deploy/jingyun/core{args.pack}-content-audio.manifest.json",
         REPO,
-        args.audio_root,
-        args.cache_root,
+        args.audio_root or REPO / f"audio/core{args.pack}-candidate",
+        args.cache_root or REPO / f"content/sources/core{args.pack}-audio",
+        pack_size=args.pack,
         allow_download=args.allow_download,
         validate_media=args.check_media,
     )
