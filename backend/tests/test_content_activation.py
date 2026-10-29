@@ -341,6 +341,13 @@ def test_ab_ba_composition_fresh_plans_and_stale_catalog_preconditions(
     from insert_core300_increment import apply, plan
 
     conn, _ = baseline
+    client = authenticated_client(TestClient(app))
+    prior = client.post("/api/practice/next-normal").json()["items"][0]
+    assert client.post(
+        "/api/attempt",
+        json={"session_item_id": prior["session_item_id"], "selected_answer": prior["display_ipa"]},
+    ).json()["is_correct"]
+    assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 1
     reverse = sqlite3.connect(tmp_path / "reverse.sqlite")
     conn.backup(reverse)
     before = snapshot(conn)
@@ -450,3 +457,19 @@ def test_all_twelve_recordings_decode_with_existing_media_tools(increment_media)
     assert len(assets) == 12
     for asset in assets:
         assert check_media(increment_media / asset["path"])["decoded"]
+
+
+def test_reviewed_insert_rechecks_media_before_any_database_write(
+    baseline, increment_media, tmp_path
+):
+    from insert_core300_increment import apply, plan, prepare_media
+
+    conn, _ = baseline
+    target = tmp_path.resolve() / "media-recheck"
+    prepare_media(ROOT, target, increment_media.parent / "extra-cache")
+    p = plan(conn, ROOT, target)
+    before = snapshot(conn)
+    (target / "us/book.mp3").write_bytes(b"changed after reviewed plan")
+    with pytest.raises(ValueError, match="wrong audio bytes"):
+        apply(conn, ROOT, target, p["plan_sha256"])
+    assert snapshot(conn) == before
