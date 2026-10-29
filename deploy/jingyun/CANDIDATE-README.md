@@ -241,3 +241,34 @@ The Core100 fixture and default routes remain available for regression; this
 candidate is included in CI. It does not activate live audio, pairs, evidence
 configuration, listening or Human trials. Any later online asset/field delta
 still needs its own concrete reviewed list; no production importer is added.
+
+## Reviewed pair-field plans (#334, preparation only)
+
+`backend/scripts/activate_sound_compare.py enable|disable --db <explicit-db>
+--repo-root <source-root> --evidence <reviewed-evidence-json>` emits a read-only
+source-bound plan. Enable also requires `--audio-root <verified-root>` for the
+exact eight licensed assets; disable does not need working recordings. Apply
+requires the reviewed `--apply-plan-sha256`; it recomputes the plan under one
+`BEGIN IMMEDIATE`, changes only eight `minimal_pair_group` values, and rolls
+back the whole transaction on stale/conflicting/failing writes. A fresh desired
+state plan is a no-op; replaying an earlier changing plan is stale. Catalog
+changes from the separate twelve-word increment require a fresh plan.
+
+These tools prepare experimental opt-in behavior. The evidence JSON remains
+`development-only`; source provenance is not Human teaching acceptance. No
+online activation is authorized by these commands or this PR. In a later
+reviewed window: stage/verify exact evidence and eight assets, separately bind
+`TINY_IPA_SOUND_COMPARE_EVIDENCE_PATH` and restart only the app, verify that
+binding while groups are still null, then apply the reviewed enable plan last.
+An evidence-bound/pair-off intermediate state admits no new pair groups. Report
+partial states honestly; failed preparation must not be called activation.
+
+For disable, first review/apply the DB plan. Any affected `in_progress`
+comparison group blocks clearing, including groups from earlier dates; the
+check uses the application's session-status authority under the same SQLite
+write serialization as group creation. Report only an aggregate blocked count;
+do not cancel groups, discard answers or end sessions. After a successful clear,
+separately unset evidence/restart in the approved window. Evidence unsetting
+alone makes feedback unavailable and does not disable pair generation. Existing
+missing/corrupt-evidence fallback and first-answer grading remain unchanged.
+No real env/service operation, live data mutation or Human trial runs here.
