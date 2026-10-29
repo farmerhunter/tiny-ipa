@@ -405,6 +405,7 @@ def worker(root: Path) -> dict:
     with sqlite3.connect(source) as src, sqlite3.connect(pair_db) as dst:
         src.backup(dst)
     evidence = load_pairs(release)
+    member_count = sum(len(pair["members"]) for pair in evidence["pairs"])
     with get_connection(str(pair_db)) as conn:
         for pair in evidence["pairs"]:
             for member in pair["members"]:
@@ -425,7 +426,7 @@ def worker(root: Path) -> dict:
             conn.execute(
                 "SELECT count(*) FROM words WHERE minimal_pair_group IS NOT NULL"
             ).fetchone()[0]
-            == 4
+            == member_count
         )
     db_mod.DEFAULT_DB_PATH = str(pair_db)
     os.environ["TINY_IPA_DB_PATH"] = str(pair_db)
@@ -451,7 +452,7 @@ def worker(root: Path) -> dict:
             conn.execute(
                 "SELECT count(*) FROM words WHERE minimal_pair_group IS NOT NULL"
             ).fetchone()[0]
-            == 4
+            == member_count
         )
         assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 2
     assert all(
@@ -474,7 +475,7 @@ def worker(root: Path) -> dict:
         "independent_before_restore": restored["restore"],
         "patched_roundtrip": patched["restore"],
         "pair_roundtrip": paired["restore"],
-        "pair_changes": 4,
+        "pair_changes": member_count,
         "pair_feedback": feedback["sound_compare"],
         "default_pairs_unchanged": True,
         "listening_start_http_status": 404,

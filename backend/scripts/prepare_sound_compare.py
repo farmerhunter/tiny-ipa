@@ -59,6 +59,7 @@ def load_pairs(root: Path = ROOT) -> dict:
                     or word["ipa_us"] != member["ipa_us"]
                     or word["word"] != member["word_id"]
                     or member["before"] is not None
+                    or word.get("level") != "beginner"
                     or word.get("minimal_pair_group") is not None
                     or word.get("content_status") == "disabled"
                 ):

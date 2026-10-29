@@ -85,7 +85,7 @@ def test_packaged_backend_runs_real_tag_backup_pair_restore_route(tmp_path):
     assert receipt["non_tag_fields_and_learner_history_preserved"]
     assert receipt["deleted_snapshots"] == []
     assert receipt["policy"] == "fixed2-rolling2-v1"
-    assert receipt["pair_changes"] == 4
+    assert receipt["pair_changes"] == 8
     assert receipt["pair_feedback"]["status"] == "available"
     assert receipt["pending_items"] == 3
     assert receipt["listening_start_http_status"] == 404

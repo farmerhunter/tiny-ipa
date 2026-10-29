@@ -543,21 +543,24 @@ uv run --project backend python backend/scripts/correct_expanded_tags.py --pack 
 未解释 US 标签差异为零，不代表录音/IPA 或教学效果已通过人工验证。
 
 
-### 两组声音对比开发候选（#326）
+### 四组声音对比开发候选（#326 / #334）
 
-`content/sound_compare_pairs_candidate.json` 仅定义 came/game（词首）与 back/bag
-（词尾）两组 /k/-/g/ 配对。每个成员绑定冻结 Core100/Core300 的 ID/IPA/原始
-null 配对字段和已有许可音频 manifest/hash，显式保存有序音素；验证同为单音节、
-重音位置一致，且只有一个词首/词尾音素不同，不使用去重后的标签推断顺序。
+`content/sound_compare_pairs_candidate.json` 保留 came/game（词首）与 back/bag
+（词尾）两组 /k/-/g/ 配对，并在 #334 增加 cat/hat 的词首 /k/-/h/、map/match
+的词尾 /p/-/tʃ/。/tʃ/ 是既有 inventory 的单个音素，不能拆成 /t/ 与 /ʃ/；新增
+两组不作“仅清浊不同”的说明。每个成员绑定冻结 Core100/Core300 的 beginner
+等级、ID/IPA/原始 null 配对字段和已有许可音频 manifest/hash，显式保存有序音素；
+验证同为单音节、重音位置一致，且只有一个词首/词尾的已知音素不同，不使用
+去重后的标签推断顺序，也不自动发现或生成任意配对。
 
 ```bash
 uv run --project backend python backend/scripts/prepare_sound_compare.py --pack 300
 ```
 
-此命令只输出“已修正标签＋4项 minimal_pair_group”的候选 JSON，不打开数据库、
+此命令只输出“已修正标签＋8项 minimal_pair_group”的候选 JSON，不打开数据库、
 不改冻结来源，也不成为默认 importer 输入。`--pack 100` 用于独立的真实浏览器
 fixture；默认 fixture 仍验证 Sound Compare 暂不可用。需要显式 opt-in 的另一份
-临时库才安装4项元数据，验证现有 Sound Compare 的正向流程。
+临时库才安装8项元数据，验证现有 Sound Compare 的正向流程。
 
 这仍是既有 Word→IPA 题型及可播放录音的专项组，不是仅听录音答题的新题型。
 配对候选最初只证明内容可接入既有流程。后续 #328 增加 Sound Compare 专用
