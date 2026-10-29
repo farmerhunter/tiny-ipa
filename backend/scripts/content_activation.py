@@ -56,7 +56,18 @@ def catalog(conn, root):
         raise ValueError("invalid original catalog")
     ids = {r[0] for r in conn.execute("SELECT id FROM words")}
     if ids not in (original, original | EXTRA_IDS):
-        raise ValueError("catalog must be exactly original100 or original100 plus reviewed12")
+        raise ValueError(
+            "catalog drift: "
+            + json.dumps(
+                {
+                    "missing_original_ids": sorted(original - ids)[:16],
+                    "unexpected_ids": sorted(ids - original - EXTRA_IDS)[:16],
+                    "present_increment_ids": sorted(ids & EXTRA_IDS),
+                    "actual_count": len(ids),
+                },
+                sort_keys=True,
+            )
+        )
     return sorted(ids)
 
 

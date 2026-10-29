@@ -209,3 +209,244 @@ def test_enable_after_new_activity_preserves_all_learner_rows(baseline):
     before = snapshot(conn, True)
     assert pair_apply(conn, "enable", ROOT, EVIDENCE, audio, p["plan_sha256"])["updated"] == 8
     assert snapshot(conn, True) == before
+
+
+@pytest.fixture(scope="session")
+def increment_media(activation_media):
+    from insert_core300_increment import prepare_media
+
+    root = activation_media.parent
+    manifest = json.loads((ROOT / "deploy/jingyun/core300-content-audio.manifest.json").read_text())
+    selected = [
+        a for a in manifest["audio"]["assets"] if a["word_id"] in manifest["build"]["new_word_ids"]
+    ]
+    spec = importlib.util.spec_from_file_location(
+        "increment_fixture", ROOT / "frontend/tests/e2e/support/prepare_core100_real_db.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.seed_audio_cache(
+        ROOT / "frontend/tests/fixtures/core300-extra-media.zip",
+        {"audio": {"assets": selected, "credits": manifest["audio"]["credits"]}},
+        root / "extra-cache",
+    )
+    old = {p.name: p.read_bytes() for p in (activation_media / "us").iterdir()}
+    result = prepare_media(ROOT, activation_media, root / "extra-cache", validate_media=False)
+    assert result["audio_count"] == 12 and result["audio_bytes"] == 175220
+    assert all((activation_media / "us" / name).read_bytes() == data for name, data in old.items())
+    assert prepare_media(ROOT, activation_media, root / "extra-cache")["audio_count"] == 12
+    return activation_media
+
+
+def increment(conn, audio):
+    from insert_core300_increment import apply, plan
+
+    p = plan(conn, ROOT, audio)
+    return apply(conn, ROOT, audio, p["plan_sha256"])
+
+
+def test_increment_only_twelve_explicit_rows_idempotence_stale_and_history(
+    baseline, increment_media
+):
+    from insert_core300_increment import COLUMNS, apply, plan, source, stored
+
+    conn, _ = baseline
+    p = plan(conn, ROOT, increment_media)
+    assert p["change_count"] == 12 and p["insert_fields"] == list(COLUMNS)
+    assert not conn.in_transaction
+    client = authenticated_client(TestClient(app))
+    item = client.post("/api/practice/next-normal").json()["items"][0]
+    assert client.post(
+        "/api/attempt",
+        json={"session_item_id": item["session_item_id"], "selected_answer": item["display_ipa"]},
+    ).json()["is_correct"]
+    before = snapshot(conn)
+    assert apply(conn, ROOT, increment_media, p["plan_sha256"])["updated"] == 12
+    after = snapshot(conn)
+    for table in before:
+        if table != "words":
+            assert after[table] == before[table]
+    rows = {r[0]: tuple(r) for r in conn.execute("SELECT * FROM words")}
+    assert all(rows[r[0]] == r for r in before["words"])
+    assert conn.execute("SELECT count(*), count(audio_us) FROM words").fetchone()[:] == (112, 111)
+    for word in source(ROOT)[0]:
+        assert dict(
+            zip(
+                COLUMNS,
+                conn.execute(
+                    "SELECT " + ",".join(COLUMNS) + " FROM words WHERE id=?", (word["word_id"],)
+                ).fetchone(),
+            )
+        ) == stored(word)
+    with pytest.raises(ValueError, match="stale"):
+        apply(conn, ROOT, increment_media, p["plan_sha256"])
+    assert increment(conn, increment_media)["status"] == "no_change"
+    assert "feb" not in rows and rows["wood"][8] is None
+
+
+@pytest.mark.parametrize("damage", ["partial", "row", "old", "extra", "inventory", "schema"])
+def test_increment_conflicts_never_upsert_or_bootstrap(baseline, increment_media, damage):
+    from insert_core300_increment import COLUMNS, source
+
+    conn, _ = baseline
+    if damage == "partial":
+        values = __import__("insert_core300_increment").stored(source(ROOT)[0][0])
+        conn.execute(
+            "INSERT INTO words ("
+            + ",".join(COLUMNS)
+            + ") VALUES ("
+            + ",".join("?" for _ in COLUMNS)
+            + ")",
+            list(values.values()),
+        )
+    elif damage == "row":
+        increment(conn, increment_media)
+        conn.execute("UPDATE words SET meaning_zh='conflict' WHERE id='book'")
+    elif damage == "old":
+        conn.execute("UPDATE words SET meaning_zh='drift' WHERE id='cat'")
+    elif damage == "extra":
+        conn.execute("UPDATE words SET id='unexpected' WHERE id='cat'")
+    elif damage == "inventory":
+        conn.execute("UPDATE phonemes SET accent_scope='UK' WHERE id='/b/'")
+    else:
+        # A malformed isolated catalog must not be repaired by a content tool.
+        conn.execute("ALTER TABLE words RENAME COLUMN ipa_uk TO absent_ipa_uk")
+    conn.commit()
+    before = snapshot(conn)
+    with pytest.raises(ValueError):
+        increment(conn, increment_media)
+    assert snapshot(conn) == before
+
+
+def test_increment_midtransaction_failure_rolls_back_without_removing_prepared_audio(
+    baseline, increment_media
+):
+    conn, _ = baseline
+    conn.execute(
+        "CREATE TRIGGER fail_insert BEFORE INSERT ON words WHEN NEW.id='father' "
+        "BEGIN SELECT RAISE(ABORT,'injected'); END"
+    )
+    conn.commit()
+    before = snapshot(conn)
+    files = {p.name: p.read_bytes() for p in (increment_media / "us").iterdir()}
+    with pytest.raises(sqlite3.IntegrityError):
+        increment(conn, increment_media)
+    assert snapshot(conn) == before
+    assert files == {p.name: p.read_bytes() for p in (increment_media / "us").iterdir()}
+
+
+def test_ab_ba_composition_fresh_plans_and_stale_catalog_preconditions(
+    baseline, increment_media, tmp_path
+):
+    from insert_core300_increment import apply, plan
+
+    conn, _ = baseline
+    reverse = sqlite3.connect(tmp_path / "reverse.sqlite")
+    conn.backup(reverse)
+    before = snapshot(conn)
+    stale_b = plan(conn, ROOT, increment_media)
+    pair(conn, increment_media)
+    with pytest.raises(ValueError, match="stale"):
+        apply(conn, ROOT, increment_media, stale_b["plan_sha256"])
+    increment(conn, increment_media)
+    stale_a = pair_plan(reverse, "enable", ROOT, EVIDENCE, increment_media)
+    increment(reverse, increment_media)
+    with pytest.raises(ValueError, match="stale"):
+        pair_apply(reverse, "enable", ROOT, EVIDENCE, increment_media, stale_a["plan_sha256"])
+    pair(reverse, increment_media)
+    assert snapshot(conn) == snapshot(reverse)
+    final = snapshot(conn)
+    assert len(final["words"]) == 112
+    for table in before:
+        if table != "words":
+            assert final[table] == before[table]
+    assert pair(conn, None, "disable")["updated"] == 8
+    assert conn.execute("SELECT count(*),count(audio_us) FROM words").fetchone()[:] == (112, 111)
+    assert increment(conn, increment_media)["status"] == "no_change"
+    reverse.close()
+
+
+def test_increment_missing_wrong_media_and_collisions_leave_database_unchanged(
+    baseline, increment_media, tmp_path
+):
+    from insert_core300_increment import prepare_media
+
+    conn, _ = baseline
+    before = snapshot(conn)
+    with pytest.raises((OSError, ValueError)):
+        increment(conn, tmp_path.resolve())
+    target = tmp_path.resolve() / "collision"
+    (target / "us").mkdir(parents=True)
+    (target / "us/book.mp3").write_bytes(b"wrong")
+    with pytest.raises(ValueError, match="different"):
+        prepare_media(ROOT, target, increment_media.parent / "extra-cache")
+    assert (target / "us/book.mp3").read_bytes() == b"wrong" and snapshot(conn) == before
+    target2 = tmp_path.resolve() / "symlink"
+    target2.symlink_to(increment_media, target_is_directory=True)
+    with pytest.raises(ValueError):
+        increment(conn, target2)
+
+
+@pytest.mark.parametrize(
+    "damage", ["source", "correction", "manifest_duplicate", "manifest_path", "credit"]
+)
+def test_increment_source_bindings_fail_closed(baseline, increment_media, tmp_path, damage):
+    from insert_core300_increment import plan, source
+
+    conn, _ = baseline
+    root = tmp_path.resolve() / "source-copy"
+    for name in source(ROOT)[4]:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((ROOT / name).read_bytes())
+    if damage == "source":
+        (root / "content/core_300_words.json").write_text("{}")
+    elif damage == "correction":
+        (root / "content/core_300_phoneme_corrections.json").write_text("{}")
+    elif damage == "credit":
+        (root / "deploy/jingyun/core300-audio-attribution.md").write_text("wrong")
+    else:
+        path = root / "deploy/jingyun/core300-content-audio.manifest.json"
+        m = json.loads(path.read_text())
+        if damage == "manifest_duplicate":
+            m["audio"]["assets"].append(m["audio"]["assets"][-1])
+        else:
+            next(a for a in m["audio"]["assets"] if a["word_id"] == "book")["path"] = "../book.mp3"
+        path.write_text(json.dumps(m))
+    before = snapshot(conn)
+    with pytest.raises((ValueError, KeyError)):
+        plan(conn, root, increment_media)
+    assert snapshot(conn) == before
+
+
+def test_cli_default_plan_is_readonly_and_explicit_database_required(baseline, increment_media):
+    import subprocess
+
+    conn, _ = baseline
+    path = next(r[2] for r in conn.execute("PRAGMA database_list") if r[1] == "main")
+    before = snapshot(conn)
+    command = [
+        sys.executable,
+        str(ROOT / "backend/scripts/insert_core300_increment.py"),
+        "--repo-root",
+        str(ROOT),
+        "--audio-root",
+        str(increment_media),
+        "--db",
+        path,
+    ]
+    response = subprocess.run(command, capture_output=True, text=True)
+    assert response.returncode == 0, response.stderr
+    assert json.loads(response.stdout)["change_count"] == 12 and snapshot(conn) == before
+    response = subprocess.run(command[:-2], capture_output=True, text=True)
+    assert response.returncode != 0 and "explicit --db" in response.stderr
+
+
+def test_all_twelve_recordings_decode_with_existing_media_tools(increment_media):
+    from insert_core300_increment import source
+    from prepare_core100_audio import check_media
+
+    assets = source(ROOT)[1]
+    assert len(assets) == 12
+    for asset in assets:
+        assert check_media(increment_media / asset["path"])["decoded"]

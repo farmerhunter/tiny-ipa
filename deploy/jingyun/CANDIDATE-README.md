@@ -272,3 +272,52 @@ separately unset evidence/restart in the approved window. Evidence unsetting
 alone makes feedback unavailable and does not disable pair generation. Existing
 missing/corrupt-evidence fallback and first-answer grading remain unchanged.
 No real env/service operation, live data mutation or Human trial runs here.
+
+## Twelve-word incremental preparation (#334, local only)
+
+`backend/scripts/insert_core300_increment.py` provides an INSERT-only route for
+book, boy, brother, country, double, down, father, mother, never, oil, weather
+and young. With `--repo-root`, `--audio-root` and `--prepare-media --cache-root`
+it prepares only those twelve verified cached recordings (175220 bytes), plus
+the existing manifest-bound, content-hashed Core300 attribution metadata. It
+never downloads. Existing identical files are reusable; differing bytes,
+unsafe paths or collisions fail. Original99 bytes are untouched. This local
+preparation does not open a DB. Failed preparation leaves DB unchanged; retain
+any partial files and report them.
+
+Without `--prepare-media`, require an explicit `--db` and emit a read-only plan.
+Only the original100 or original100+these12 IDs are eligible; all original100
+stored fields must match their corrected/audio-bound source, with the eight
+pair fields independently all off or exactly on. The twelve rows must be all
+absent or all exactly present; partial/conflicting rows fail rather than UPSERT.
+Review the enumerated `insert_fields` and source/preimage bindings, then pass
+`--apply-plan-sha256` to atomically recheck and INSERT all12. No schema/bootstrap,
+default settings, account, history or phoneme inventory writes occur. The DB
+fields use the existing shared serialization; source review/provenance fields
+without existing DB columns remain source metadata. New words retain beginner
+(Entry), corrected tags and source UK fields, without claiming UK recordings.
+
+The stated result is112 words/111 audio-bound rows, not a full Core300 install;
+`feb` and other unselected Core300 words are excluded. `wood`, already in the
+original100, remains without a verified recording. Existing learner activity
+does not itself stale a content plan; changed relevant catalog/pair/source
+preconditions do. Fresh A→B and B→A plans compose to the same112/111/eight-pair
+state. Disable of A after B clears only its eight fields and preserves all12.
+
+Future online review must separately freeze exact source/tools, twelve asset
+and attribution paths/digests, a fresh B plan and readback, and A's evidence/env
+binding/eight-field plan. Stage/verify media before inserting visible references;
+a DB failure may retain harmless unreferenced files and must not delete them.
+There is no post-use B rollback by deleting words/media, whole-DB restore or
+history reset. Withdrawal is a later design/action; code-pointer rollback also
+leaves content intact and needs its relevant compatibility proof. No online
+installation, configuration/service change, cleanup or Human trial runs here.
+
+`pnpm test:e2e:content-activation` uses the existing SQLite/API/native-media
+harness: bootstrap100 with prior history, then actual new A/B plans/applies,
+twelve-only asset preparation, new-word answer/resume, eight-word comparison,
+unfinished disable refusal, completed disable and ordinary-mode return. It is
+included in CI. Reverse ordering, stale/conflict/no-op and transaction-fault
+checks use separate disposable DBs; they do not certify live installation or
+Human phonetic/teaching acceptance. Pair defaults stay off and listening stays
+development-only.

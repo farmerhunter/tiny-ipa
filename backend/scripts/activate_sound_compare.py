@@ -83,7 +83,17 @@ def plan(conn, action: str, root: Path, evidence: Path, audio_root: Path | None 
     states = [r[-1] for r in rows]
     desired = [members[r[0]][0] for r in rows]
     if states != [None] * 8 and states != desired:
-        raise ValueError("mixed/conflicting pair fields: " + ",".join(r[0] for r in rows))
+        raise ValueError(
+            "mixed/conflicting pair fields: "
+            + json.dumps(
+                [
+                    {"word_id": r[0], "observed": r[-1], "expected_enabled": members[r[0]][0]}
+                    for r in rows
+                    if r[-1] is not None
+                ],
+                sort_keys=True,
+            )
+        )
     groups = sorted({p["group"] for p in pairs["pairs"]})
     occupants = [
         tuple(r)
