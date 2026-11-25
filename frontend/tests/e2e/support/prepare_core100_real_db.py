@@ -291,6 +291,12 @@ def prepare_content_activation(database: Path, audio_root: Path) -> None:
 
 def main():
     database = Path(os.environ["CORE100_REAL_DB_PATH"])
+    if os.environ.get("CONTENT_RECOVERY_REAL") == "true":
+        from restore_activated_fixture import prepare_recovery
+        result = prepare_recovery(database, Path(os.environ["CORE100_REAL_AUDIO_DIR"]),
+                                  Path(os.environ["TINY_IPA_SOUND_COMPARE_EVIDENCE_PATH"]))
+        print(json.dumps({"status": "activated-recovery-ready", "root": result["root"]}))
+        return
     temporary_roots = (Path(tempfile.gettempdir()).resolve(), Path("/tmp").resolve())
     if (
         not any(root in database.resolve().parents for root in temporary_roots)
@@ -413,6 +419,13 @@ def main():
         )
     if os.environ.get("CONTENT_ACTIVATION_REAL") == "true":
         prepare_content_activation(database, audio_root)
+    if os.environ.get("NEXT_AUDIO_REAL") == "true" or os.environ.get("NEXT_PAIRS_REAL") == "true":
+        from candidate_content_fixture import prepare_next_audio, prepare_next_pairs
+        prepare_content_activation(database, audio_root)
+        if os.environ.get("NEXT_AUDIO_REAL") == "true":
+            prepare_next_audio(database, audio_root)
+        else:
+            prepare_next_pairs(database, audio_root, Path(os.environ["TINY_IPA_SOUND_COMPARE_EVIDENCE_PATH"]))
     if os.environ.get("CORE300_REAL_CANDIDATE") == "true":
         prepare_core300(database, audio_root)
     if os.environ.get("CORE100_REAL_LEVEL_ACCOUNTS") == "true":

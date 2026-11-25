@@ -1,0 +1,99 @@
+{
+  "schema": "tiny-ipa-next-core300-audio-candidate/v1",
+  "status": "development-only",
+  "source_bindings": {
+    "content/core_300_words.json": "543695e5e23ef7e13a89d6583a356bace89b0836c9e60d77cbece00873bc3698",
+    "content/core_300_phoneme_corrections.json": "76841589884c3bdbaa1e0152f45313c5facf84b4be50c32bada75ae25b1cc4bc",
+    "deploy/jingyun/core300-content-audio.manifest.json": "1272edb04ea3cfdd9d0dc1f54507dd724c18262b16e4e8b8434006d8fdcdfb06",
+    "content/phonemes.json": "612ea118bbfafaf0b8addd156376e8658b67d0a553f1c1b454ba29cc20340779"
+  },
+  "selected_new_words": [
+    {
+      "word_id": "family",
+      "bytes": 14240,
+      "sha256": "44446f53bf02fc356aa7f85019708b7927f7bcb3bd02962ef431a26af440f97c",
+      "source": "https://commons.wikimedia.org/wiki/File:En-us-family.ogg",
+      "author": "Dvortygirl",
+      "license": "CC BY-SA 3.0",
+      "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+      "accent_evidence": "Pronunciation of the term in US English",
+      "archive_url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/61/En-us-family.ogg/En-us-family.ogg.mp3",
+      "path": "us/family.mp3"
+    },
+    {
+      "word_id": "how",
+      "bytes": 11984,
+      "sha256": "3b11f1e33189a721f7a6fb800f5681b40cbd2aedaadc8d600dc30cade86b626d",
+      "source": "https://commons.wikimedia.org/wiki/File:En-us-how.ogg",
+      "author": "Dvortygirl",
+      "license": "CC BY-SA 3.0",
+      "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+      "accent_evidence": "Pronunciation of the term in US English",
+      "archive_url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/23/En-us-how.ogg/En-us-how.ogg.mp3",
+      "path": "us/how.mp3"
+    },
+    {
+      "word_id": "better",
+      "bytes": 11618,
+      "sha256": "b46c092cce56250c42b9456d63b8347f7a810a4d90705353329c7a8b7afc8e47",
+      "source": "https://commons.wikimedia.org/wiki/File:En-us-better.ogg",
+      "author": "Dvortygirl",
+      "license": "CC BY-SA 3.0",
+      "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+      "accent_evidence": "Pronunciation of the term in US English",
+      "archive_url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/45/En-us-better.ogg/En-us-better.ogg.mp3",
+      "path": "us/better.mp3"
+    }
+  ],
+  "existing_word_attachments": [],
+  "credits": {
+    "path": "ATTRIBUTION-4876975de5596517.md",
+    "sha256": "4876975de5596517b69beb4c7132de94c14db9392222aca8e067c1265a640abd",
+    "source": "deploy/jingyun/core300-next-audio-attribution.md"
+  },
+  "deferrals": [
+    {
+      "word_id": "wood",
+      "status": "deferred",
+      "checks": [
+        {
+          "source": "https://commons.wikimedia.org/wiki/File:LL-Q1860_(eng)-Grendelkhan-wood.wav",
+          "license": "CC0 1.0",
+          "author": "Grendelkhan",
+          "finding": "File page explicitly identifies English and wood, and attributes the recording, but does not specify US English. Speaker or publisher evidence for this recording is missing."
+        },
+        {
+          "source": "https://en.wiktionary.org/w/index.php?title=wood&oldid=95642165",
+          "finding": "The General American IPA is listed; the actual audio is explicitly Australia."
+        },
+        {
+          "source": "https://commons.wikimedia.org/wiki/File:En-us-woods.ogg",
+          "finding": "Explicit US pronunciation, but source word is plural woods."
+        },
+        {
+          "source": "https://dictionary.cambridge.org/pronunciation/english/wood",
+          "finding": "US wood is listed, but an open redistribution grant for that recording was not established."
+        }
+      ]
+    },
+    {
+      "word_id": "angry",
+      "status": "deferred",
+      "reason": "Audio source qualifies, but frozen meaning_zh is English; no meaning rewrite in this Work.",
+      "source": "https://commons.wikimedia.org/wiki/File:En-us-angry.ogg",
+      "license": "CC BY-SA 3.0",
+      "author": "Dvortygirl",
+      "accent_evidence": "Pronunciation of the term in US English"
+    },
+    {
+      "word_id": "candy",
+      "status": "deferred",
+      "reason": "Audio source qualifies, but frozen meaning_zh is English; no meaning rewrite in this Work.",
+      "source": "https://commons.wikimedia.org/wiki/File:En-us-candy.ogg",
+      "license": "CC BY-SA 3.0",
+      "author": "Dvortygirl",
+      "accent_evidence": "Audio pronunciation of the term 'candy' in United States English."
+    }
+  ],
+  "effects": "offline fixture INSERT3 only; wood and all existing rows unchanged; no production installer"
+}
