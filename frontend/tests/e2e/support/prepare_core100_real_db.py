@@ -55,7 +55,7 @@ def seed_audio_cache(archive: Path, manifest: dict, cache: Path) -> None:
             stream.write(payloads[asset["sha256"]])
 
 
-def prepare_core300(database: Path, audio_root: Path) -> None:
+def prepare_previous_history(database: Path) -> None:
     from fastapi.testclient import TestClient
     from app.main import app
 
@@ -92,7 +92,10 @@ def prepare_core300(database: Path, audio_root: Path) -> None:
     )
     previous_ids = set()
     for count in (50, 49):
-        assert owner.put("/api/settings", json={"daily_word_count": count}).status_code == 200
+        assert (
+            owner.put("/api/settings", json={"daily_word_count": count}).status_code
+            == 200
+        )
         old_group = owner.post("/api/practice/next-normal").json()
         assert len(old_group["items"]) == count
         for old_item in old_group["items"]:
@@ -106,6 +109,10 @@ def prepare_core300(database: Path, audio_root: Path) -> None:
             ).json()["is_correct"]
     assert len(previous_ids) == 99
     assert owner.put("/api/settings", json={"daily_word_count": 12}).status_code == 200
+
+
+def prepare_core300(database: Path, audio_root: Path) -> None:
+    prepare_previous_history(database)
     tables = (
         "users",
         "auth_sessions",
@@ -124,26 +131,39 @@ def prepare_core300(database: Path, audio_root: Path) -> None:
     manifest = json.loads(manifest_path.read_text())
     new_ids = set(manifest["build"]["new_word_ids"])
     with tempfile.TemporaryDirectory(prefix="tiny-ipa-core300-ci-") as directory:
-        old_cache, cache = Path(directory).resolve() / "old-cache", Path(directory).resolve() / "cache"
+        old_cache, cache = (
+            Path(directory).resolve() / "old-cache",
+            Path(directory).resolve() / "cache",
+        )
         seed_audio_cache(
             ROOT / "frontend/tests/fixtures/core100-media.zip",
-            json.loads((ROOT / "deploy/jingyun/core100-content-audio.manifest.json").read_text()),
+            json.loads(
+                (
+                    ROOT / "deploy/jingyun/core100-content-audio.manifest.json"
+                ).read_text()
+            ),
             old_cache,
         )
         extra_manifest = {
             "audio": {
-                "assets": [a for a in manifest["audio"]["assets"] if a["word_id"] in new_ids],
+                "assets": [
+                    a for a in manifest["audio"]["assets"] if a["word_id"] in new_ids
+                ],
                 "credits": manifest["audio"]["credits"],
             }
         }
         seed_audio_cache(
-            ROOT / "frontend/tests/fixtures/core300-extra-media.zip", extra_manifest, cache
+            ROOT / "frontend/tests/fixtures/core300-extra-media.zip",
+            extra_manifest,
+            cache,
         )
         for path in old_cache.iterdir():
             _write(cache / path.name, path.read_bytes(), path.stem)
         result = prepare(manifest_path, ROOT, audio_root, cache, pack_size=300)
     imported = import_words(
-        ROOT / manifest["content"]["path"], ROOT / "content/phonemes.json", str(database)
+        ROOT / manifest["content"]["path"],
+        ROOT / "content/phonemes.json",
+        str(database),
     )
     if imported["errors"] or not imported["committed"]:
         raise ValueError("Core300 disposable import failed")
@@ -156,7 +176,9 @@ def prepare_core300(database: Path, audio_root: Path) -> None:
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         assert conn.execute("SELECT count(*) FROM words").fetchone()[0] == 300
         assert (
-            conn.execute("SELECT count(*) FROM words WHERE audio_us IS NOT NULL").fetchone()[0]
+            conn.execute(
+                "SELECT count(*) FROM words WHERE audio_us IS NOT NULL"
+            ).fetchone()[0]
             == 111
         )
         assert (
@@ -166,7 +188,9 @@ def prepare_core300(database: Path, audio_root: Path) -> None:
             == 0
         )
         assert (
-            conn.execute("SELECT count(*) FROM attempts WHERE user_id='workflow'").fetchone()[0]
+            conn.execute(
+                "SELECT count(*) FROM attempts WHERE user_id='workflow'"
+            ).fetchone()[0]
             == 1
         )
         assert (
@@ -176,10 +200,93 @@ def prepare_core300(database: Path, audio_root: Path) -> None:
             == 12
         )
         assert (
-            conn.execute("SELECT count(*) FROM attempts WHERE user_id='default'").fetchone()[0]
+            conn.execute(
+                "SELECT count(*) FROM attempts WHERE user_id='default'"
+            ).fetchone()[0]
             == 99
         )
     assert result["audio_count"] == 111
+
+
+def prepare_content_activation(database: Path, audio_root: Path) -> None:
+    from activate_sound_compare import apply as pair_apply, plan as pair_plan
+    from insert_core300_increment import (
+        apply as insert_apply,
+        plan as insert_plan,
+        prepare_media,
+    )
+
+    prepare_previous_history(database)
+    manifest = json.loads(
+        (ROOT / "deploy/jingyun/core300-content-audio.manifest.json").read_text()
+    )
+    extra_ids = set(manifest["build"]["new_word_ids"])
+    with tempfile.TemporaryDirectory(prefix="tiny-ipa-increment-cache-") as directory:
+        cache = Path(directory).resolve() / "cache"
+        seed_audio_cache(
+            ROOT / "frontend/tests/fixtures/core300-extra-media.zip",
+            {
+                "audio": {
+                    "assets": [
+                        a
+                        for a in manifest["audio"]["assets"]
+                        if a["word_id"] in extra_ids
+                    ],
+                    "credits": manifest["audio"]["credits"],
+                }
+            },
+            cache,
+        )
+        report = prepare_media(ROOT, audio_root, cache)
+    assert report["audio_count"] == 12
+    with get_connection(str(database)) as conn:
+        tables = [
+            r[0]
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            if r[0] != "words"
+        ]
+        before = {
+            t: [tuple(r) for r in conn.execute(f'SELECT * FROM "{t}" ORDER BY rowid')]
+            for t in tables
+        }
+        p = pair_plan(
+            conn,
+            "enable",
+            ROOT,
+            ROOT / "content/sound_compare_pairs_candidate.json",
+            audio_root,
+        )
+        assert (
+            pair_apply(
+                conn,
+                "enable",
+                ROOT,
+                ROOT / "content/sound_compare_pairs_candidate.json",
+                audio_root,
+                p["plan_sha256"],
+            )["updated"]
+            == 8
+        )
+        original = [tuple(r) for r in conn.execute("SELECT * FROM words ORDER BY id")]
+        p = insert_plan(conn, ROOT, audio_root)
+        assert insert_apply(conn, ROOT, audio_root, p["plan_sha256"])["updated"] == 12
+        after = {
+            t: [tuple(r) for r in conn.execute(f'SELECT * FROM "{t}" ORDER BY rowid')]
+            for t in tables
+        }
+        assert before == after
+        current = {r[0]: tuple(r) for r in conn.execute("SELECT * FROM words")}
+        assert all(current[r[0]] == r for r in original)
+        assert conn.execute("SELECT count(*),count(audio_us) FROM words").fetchone()[
+            :
+        ] == (112, 111)
+        assert (
+            conn.execute(
+                "SELECT count(*) FROM words WHERE minimal_pair_group IS NOT NULL"
+            ).fetchone()[0]
+            == 8
+        )
+        assert not conn.execute("PRAGMA foreign_key_check").fetchall()
 
 
 def main():
@@ -304,6 +411,8 @@ def main():
             ).fetchone()[0]
             == report["audio_count"]
         )
+    if os.environ.get("CONTENT_ACTIVATION_REAL") == "true":
+        prepare_content_activation(database, audio_root)
     if os.environ.get("CORE300_REAL_CANDIDATE") == "true":
         prepare_core300(database, audio_root)
     if os.environ.get("CORE100_REAL_LEVEL_ACCOUNTS") == "true":

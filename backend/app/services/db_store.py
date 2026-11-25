@@ -259,12 +259,7 @@ def revoke_auth_session_by_token_hash(
 # ============================================================================
 
 
-def upsert_word(conn: sqlite3.Connection, word_data: dict) -> str:
-    """Insert or replace a single word row. Returns the word id.
-
-    ``word_data`` is the raw source dict; this function handles JSON
-    encoding of list fields internally.
-    """
+def word_values(word_data: dict) -> dict:
     # Start with empty defaults for every bind parameter so sqlite3
     # never raises "You did not supply a value for binding N".
     values: dict = {
@@ -293,6 +288,12 @@ def upsert_word(conn: sqlite3.Connection, word_data: dict) -> str:
         if values.get(field) is not None:
             values[field] = _to_json(values[field])
 
+    return values
+
+
+def upsert_word(conn: sqlite3.Connection, word_data: dict) -> str:
+    """Insert or replace a word using the shared explicit field serialization."""
+    values = word_values(word_data)
     conn.execute(
         """
         INSERT INTO words (
