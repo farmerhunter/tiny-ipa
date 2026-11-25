@@ -19,6 +19,8 @@ def fixture_only(conn):
     filename = next(
         r[2] for r in conn.execute("PRAGMA database_list") if r[1] == "main"
     )
+    if not filename:
+        raise ValueError("candidate mutation requires a file-backed temporary fixture")
     path = Path(filename).resolve(strict=True)
     if not any(
         p in path.parents

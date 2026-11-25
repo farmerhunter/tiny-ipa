@@ -4,6 +4,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ from fastapi.testclient import TestClient
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "backend/scripts"), str(ROOT / "frontend/tests/e2e/support")]
 from backup_restore_dry_run import snapshot_database  # noqa: E402
-from candidate_content_fixture import insert_next_audio, set_next_pairs  # noqa: E402
+from candidate_content_fixture import fixture_only, insert_next_audio, set_next_pairs  # noqa: E402
 from prepare_core100_audio import check_media  # noqa: E402
 from prepare_core100_real_db import seed_audio_cache  # noqa: E402
 from prepare_next_audio import candidate, prepare  # noqa: E402
@@ -313,3 +314,16 @@ def test_candidate_group_midtransaction_fault_and_temporary_boundary(fixture):
     with sqlite3.connect(":memory:") as outside:
         with pytest.raises(ValueError):
             insert_next_audio(outside, audio)
+
+
+def test_memory_fixture_is_rejected_from_temporary_cwd(monkeypatch):
+    cwd = Path(tempfile.mkdtemp(prefix="tiny-ipa-memory-guard-", dir="/tmp"))
+    monkeypatch.chdir(cwd)
+    with sqlite3.connect(":memory:") as conn:
+        conn.execute("CREATE TABLE users (username TEXT)")
+        conn.executemany(
+            "INSERT INTO users VALUES (?)", [("core100-owner",), ("workflow-owner",)]
+        )
+        assert conn.execute("PRAGMA database_list").fetchone()[2] == ""
+        with pytest.raises(ValueError, match="file-backed temporary fixture"):
+            fixture_only(conn)
