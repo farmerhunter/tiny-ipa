@@ -1,0 +1,95 @@
+{
+  "schema": "tiny-ipa-sound-compare-candidate/v1",
+  "status": "development-only",
+  "sources": {
+    "content/core_100_words.json": "bb276f0c8b76ebe350bc70fc981d337434967abf606716e8f99d001b307541b8",
+    "content/core_300_words.json": "543695e5e23ef7e13a89d6583a356bace89b0836c9e60d77cbece00873bc3698"
+  },
+  "audio_manifest": "deploy/jingyun/core100-content-audio.manifest.json",
+  "audio_manifest_sha256": "339dc7e6eb58eaf157ec63165b6d7deb84568968075b19a6b0f049b31ab23c3d",
+  "base_evidence_sha256": "9b6cf120e15ec84e16f999b3025a5632886b11f9b22347e10d247a24b620d710",
+  "tag_correction_sha256": "d84ed7c82b2563688558c8fdb633d5d6ac7330750d400e0322c8815bdc9dd1c6",
+  "selection": "Two disjoint pairs from existing111; no original group/member reuse; ordered phones follow literal source IPA, not normalized tags. Shared stressed-vowel notation remains source-bound and is not rewritten.",
+  "pairs": [
+    {
+      "group": "fs_initial_candidate",
+      "contrast_index": 0,
+      "members": [
+        {
+          "word_id": "fun",
+          "before": null,
+          "ipa_us": "/ˈfən/",
+          "ordered_phones_us": [
+            "/f/",
+            "/ə/",
+            "/n/"
+          ],
+          "audio_url": "/audio/us/fun.mp3",
+          "audio_sha256": "dbba20ff5eba443401003fcb198cfc855b4a8770d2fd96dfc7a83f94decef0d6",
+          "source_tags_us": [
+            "/f/",
+            "/ʌ/",
+            "/n/"
+          ]
+        },
+        {
+          "word_id": "sun",
+          "before": null,
+          "ipa_us": "/ˈsən/",
+          "ordered_phones_us": [
+            "/s/",
+            "/ə/",
+            "/n/"
+          ],
+          "audio_url": "/audio/us/sun.mp3",
+          "audio_sha256": "cfbae134d5d1f8b25d97b6c275f28023459ca2bc70b6bffc2c4492c23f4caa3a",
+          "source_tags_us": [
+            "/s/",
+            "/ʌ/",
+            "/n/"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "pt_final_candidate",
+      "contrast_index": 2,
+      "members": [
+        {
+          "word_id": "cup",
+          "before": null,
+          "ipa_us": "/ˈkəp/",
+          "ordered_phones_us": [
+            "/k/",
+            "/ə/",
+            "/p/"
+          ],
+          "audio_url": "/audio/us/cup.mp3",
+          "audio_sha256": "fe30255613dd565f01a69bb732cee35f4020df6a837b11afdb2e1908971411d7",
+          "source_tags_us": [
+            "/k/",
+            "/ʌ/",
+            "/p/"
+          ]
+        },
+        {
+          "word_id": "cut",
+          "before": null,
+          "ipa_us": "/ˈkət/",
+          "ordered_phones_us": [
+            "/k/",
+            "/ə/",
+            "/t/"
+          ],
+          "audio_url": "/audio/us/cut.mp3",
+          "audio_sha256": "9cb4fe3fba46faf9bda4f8203c7af46a9b88375c76964989bbb3dee3ec785fa9",
+          "source_tags_us": [
+            "/k/",
+            "/ʌ/",
+            "/t/"
+          ]
+        }
+      ]
+    }
+  ]
+}

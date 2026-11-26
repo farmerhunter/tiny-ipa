@@ -101,6 +101,12 @@ jobs:
         run: pnpm test:e2e:core300-audio-candidate
       - name: Reviewed eight-pair and twelve-word incremental activation on disposable data
         run: pnpm test:e2e:content-activation
+      - name: Rebuild activated learning from backup and frozen materials
+        run: pnpm test:e2e:activated-recovery
+      - name: Next three-word audio candidate with native media
+        run: pnpm test:e2e:next-audio
+      - name: Two disjoint contrast candidates with six-group evidence
+        run: pnpm test:e2e:next-pairs
       - name: Real Entry/Mid transitions and account isolation
         run: pnpm test:e2e:level-account-real
       - name: Retain failure evidence
@@ -117,6 +123,12 @@ jobs:
             frontend/playwright-report/core300-audio-candidate
             frontend/test-results/content-activation
             frontend/playwright-report/content-activation
+            frontend/test-results/activated-recovery
+            frontend/playwright-report/activated-recovery
+            frontend/test-results/next-audio
+            frontend/playwright-report/next-audio
+            frontend/test-results/next-pairs
+            frontend/playwright-report/next-pairs
             frontend/test-results/level-account-real
             frontend/playwright-report/level-account-real
           retention-days: 7

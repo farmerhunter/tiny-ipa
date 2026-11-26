@@ -321,3 +321,57 @@ included in CI. Reverse ordering, stale/conflict/no-op and transaction-fault
 checks use separate disposable DBs; they do not certify live installation or
 Human phonetic/teaching acceptance. Pair defaults stay off and listening stays
 development-only.
+
+## Offline activated recovery and next candidates (#334)
+
+`pnpm test:e2e:activated-recovery` rehearses the activated112-word/111-recording/
+eight-pair-field state using synthetic learners. The source learner answers a
+new word and gives one wrong first answer in a comparison group. The existing
+temporary-only backup tool creates a backup and separate restore; all nine table
+fingerprints match. Media, both attribution files and evidence are reconstructed
+from the two existing frozen fixtures into new paths. Fresh A/B plans must be
+no-ops and preserve those fingerprints. A new app process uses only the restored
+DB/media/evidence. Native playback, persisted questions, resume, replay/409 and
+the eventual7/8 score are exercised without resetting history. This is same-code
+local/CI recovery evidence, not a production restore or a new host installation.
+
+The next audio selection is separate from all existing manifests:
+`content/core300_next_audio_candidate.json` selects **family, how, better**,
+three unchanged Wikimedia US-labelled MP3s totaling37842B, with Dvortygirl/
+CC BY-SA3.0 provenance and a separate hashed attribution file. The small frozen
+fixture makes CI independent of later source-site availability. The preparation
+script accepts only explicit local output/cache paths and has no DB or network
+option. Its isolated fixture inserts three new source-corrected beginner rows,
+leaving all112 existing rows/history unchanged (115words/114audio references).
+`pnpm test:e2e:next-audio` plays all three recordings, answers and resumes.
+
+Wood is an existing row, so its eventual change would be a scoped missing-audio
+attachment, not an INSERT. It remains deferred and null here: Commons' exact-word
+CC0 recording lacks explicit US evidence, the linked Wiktionary recording is
+Australian, and the explicitly US-labelled `woods` is a different word. Cambridge
+has US audio but no established open redistribution grant for that recording.
+Angry/candy audio qualifies, but their frozen `meaning_zh` is English; they are
+explicitly deferred instead of silently rewriting meanings. No generic attachment
+installer or positive wood fixture is invented for an unqualified recording.
+
+`screen_next_pairs.py --audio-root <temporary111-recording-root>` screens the
+existing111 bindings deterministically, excludes original eight members, and
+derives already-used contrasts from the original manifest (unordered phones,
+independent of initial/final position). Existing k/g, k/h and p/tʃ are not relabelled
+new directions. The disjoint selections are **fun/sun** initialf/s and **cup/cut**
+finalp/t, recorded separately in `sound_compare_next_pairs_candidate.json`.
+Ordered phones reconstruct the literal source IPA; the source's shared stressed
+vowel spellingə remains untouched while the existing documented corrected tags
+useʌ. No order is inferred from tags and no phonetic certification is claimed.
+
+`pnpm test:e2e:next-pairs` uses temporary combined evidence for the original four
+plus two new groups; the existing runtime already accepts six groups. New-word
+options/feedback/native media/manual continuation/resume are tested alongside
+old feedback. A historical unfinished affected group blocks clearing. After
+completion only the four new fields are cleared, then the temporary evidence
+returns to the original four groups: old replay feedback stays available, new
+replay safely becomes unavailable, and scores/history remain. The original
+manifests, eight production-bound fields/tool semantics and defaults are not
+expanded by these fixtures. No production candidate activation, live DB/env/
+service operation, deletion, Human trial or listening lesson is included; future
+installation requires a separate concrete reviewed list.
